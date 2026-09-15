@@ -165,7 +165,10 @@ def install(workbench_home, python_bin, port, icon_path=None, desktop_link=True)
 
     result = {"app": app_dir, "icon": has_icon, "chrome": chrome}
 
-    # 桌面上放一个（软链即可，改一处两边都生效）
+    # 桌面上放一个 —— **必须是真实副本，不能用软链**。
+    # 踩过的坑：一开始用 os.symlink 指到 ~/Applications 里的那份，
+    # 命令行看一切正常（macOS 甚至认它是 application-bundle），
+    # 但 Finder 桌面上就是不显示这个图标。用真实副本才稳。
     if desktop_link:
         desk_dir = os.path.expanduser("~/Desktop")
         # 桌面目录可能不存在（新用户、或者被改过位置）—— 建一个，别静默失败
@@ -177,9 +180,12 @@ def install(workbench_home, python_bin, port, icon_path=None, desktop_link=True)
                 return result
         desk = os.path.join(desk_dir, APP_NAME + ".app")
         try:
-            if os.path.islink(desk) or os.path.exists(desk):
-                os.remove(desk)
-            os.symlink(app_dir, desk)
+            if os.path.islink(desk):
+                os.remove(desk)              # 之前留下的软链，清掉
+            elif os.path.exists(desk):
+                shutil.rmtree(desk, ignore_errors=True)
+            # 复制而不是链接（copytree 不跟软链）
+            shutil.copytree(app_dir, desk, symlinks=False)
             result["desktop"] = desk
         except Exception as exc:
             result["desktop_error"] = str(exc)
@@ -195,6 +201,8 @@ if __name__ == "__main__":
     ap.add_argument("--port", type=int, default=8880)
     ap.add_argument("--icon", default=None)
     ap.add_argument("--no-desktop", action="store_true")
+    ap.add_argument("--dock", action="store_true",
+                    help="顺便固定到 Dock（会重启 Dock）")
     a = ap.parse_args()
 
     r = install(a.home, a.python, a.port, a.icon, not a.no_desktop)
@@ -206,3 +214,12 @@ if __name__ == "__main__":
         print("  ✅ 桌面:   %s" % r["desktop"])
     if r.get("desktop_error"):
         print("  ⚠️ 桌面入口建不了：%s" % r["desktop_error"])
+
+    if a.dock:
+        try:
+            sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+            import dockutil
+            good, msg = dockutil.add_to_dock(r["app"])
+            print("  %s Dock: %s" % ("✅" if good else "⚠️", msg))
+        except Exception as exc:
+            print("  ⚠️ Dock 固定失败：%s" % exc)
