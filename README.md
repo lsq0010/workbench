@@ -72,22 +72,6 @@ WORKBENCH_PORT=8899 curl -fsSL .../install.sh | bash
 
 再跑一遍同一条命令就行 —— **代码会更新，你的抓包记录、日志、便签都不动**。
 
-## 也可以 npm 装
-
-```bash
-npm install -g @lsq0010/workbench
-workbench install
-```
-
-装完有个 `workbench` 命令：
-
-```bash
-workbench              # 启动并打开
-workbench status       # 看状态
-workbench stop         # 停掉
-workbench update       # 更新（数据不动）
-workbench doctor       # 体检：哪坏了、怎么修
-```
 
 ## 用
 
