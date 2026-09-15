@@ -122,7 +122,7 @@ mkdir -p "$APP"
 # 代码覆盖，数据保留：
 # platform.py / lib / web / store 是代码 —— 覆盖
 # registry.json / desktop.json / identity.json / flows.jsonl 是数据 —— 绝不动
-for item in platform.py healthcheck.py README.md lib web store tools; do
+for item in platform.py healthcheck.py README.md default_features.json lib web store tools; do
   [ -e "$SRC/files/$item" ] || continue
   rm -rf "$APP/$item.new"
   cp -R "$SRC/files/$item" "$APP/$item.new"
@@ -160,28 +160,46 @@ cd "$APP"
 [ -f registry.json ] || echo '{"version":1,"features":[],"ignored":[]}' > registry.json
 [ -d features ] || mkdir -p features
 
-# 把商店里的功能装起来（新装才有；升级时保留你现在的状态）
+# 预装哪些功能 —— 名单在 default_features.json 里，名单外的留在商店按需装。
+# 新装的桌面因此是干净的（几个基础工具），不会被 33 个图标铺满。
+DEFAULTS="$(mktemp)"
+"$PY" - "$APP/default_features.json" > "$DEFAULTS" 2>/dev/null <<'PYLIST'
+import json, sys, os, glob
+try:
+    d = json.load(open(sys.argv[1], encoding="utf-8"))
+    ids = d.get("预装") or []
+except Exception:
+    ids = []
+if not ids:
+    # 没有清单就退回"全装"，至少不会装出个空桌面
+    ids = sorted(os.path.basename(os.path.dirname(p))
+                 for p in glob.glob("store/*/manifest.json"))
+for i in ids:
+    print(i)
+PYLIST
+
 if [ "$FRESH" = "1" ]; then
   n=0
-  for d in store/*/; do
-    [ -d "$d" ] || continue
-    id="$(basename "$d")"
-    [ -f "$d/manifest.json" ] || continue
-    cp -R "$d" "features/$id" 2>/dev/null && n=$((n+1))
-  done
-  ok "从商店装了 $n 个功能"
+  while IFS= read -r id; do
+    [ -n "$id" ] || continue
+    [ -f "store/$id/manifest.json" ] || continue
+    cp -R "store/$id" "features/$id" 2>/dev/null && n=$((n+1))
+  done < "$DEFAULTS"
+  total="$(ls store 2>/dev/null | wc -l | tr -d ' ')"
+  ok "预装了 $n 个基础工具"
+  say "${DIM}功能商店里还有 $((total - n)) 个，用到时点一下就装。${N}"
 else
-  # 升级：补上新功能，已有的不动
+  # 升级：不动你已经装了哪些，只补清单里新出现的
   n=0
-  for d in store/*/; do
-    [ -d "$d" ] || continue
-    id="$(basename "$d")"
-    [ -f "$d/manifest.json" ] || continue
+  while IFS= read -r id; do
+    [ -n "$id" ] || continue
+    [ -f "store/$id/manifest.json" ] || continue
     [ -d "features/$id" ] && continue
-    cp -R "$d" "features/$id" 2>/dev/null && n=$((n+1))
-  done
-  [ "$n" -gt 0 ] && ok "商店里有 $n 个新功能，已补上" || ok "功能都是最新的"
+    cp -R "store/$id" "features/$id" 2>/dev/null && n=$((n+1))
+  done < "$DEFAULTS"
+  [ "$n" -gt 0 ] && ok "补上了 $n 个默认功能" || ok "你装的功能都是最新的"
 fi
+rm -f "$DEFAULTS"
 
 # ── 6. 桌面 App（带图标）────────────────────────────────────
 head_ "⑥ 建桌面 App"
@@ -271,6 +289,7 @@ if curl -s -m 3 "http://127.0.0.1:$PORT/api/status" >/dev/null 2>&1; then
   say "  ${DIM}正在拉起所有功能，大概十几秒。稍等再打开也行。${N}"
   say ""
   say "  ${DIM}以后启动：双击桌面上或启动台里的「工作平台」图标${N}"
+  say "  ${DIM}想要更多工具：打开工作台 →「功能商店」，点「安装」${N}"
   say "  ${DIM}停止：$PY $APP/platform.py stop-all${N}"
   open "http://127.0.0.1:$PORT/" 2>/dev/null || true
 else
