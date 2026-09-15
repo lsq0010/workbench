@@ -1820,6 +1820,26 @@ def cmd_open(args):
     return 0
 
 
+def cmd_app(args):
+    """重建桌面/Dock 上的「工作平台」图标。"""
+    import subprocess as _sp
+    mk = os.path.join(HOME, "tools", "make_app.py")
+    icon = os.path.join(HOME, "tools", "工作平台.icns")
+    if not os.path.isfile(mk):
+        print("  ❌ 找不到 tools/make_app.py")
+        print("     这个功能是后加的，老版本装的可能没有。")
+        print("     更新一下：再跑一遍安装命令，或者从仓库把 tools/ 复制过来。")
+        return 1
+    cmd = [sys.executable, mk, "--home", HOME,
+           "--python", sys.executable, "--port", str(args.port or 8880)]
+    if os.path.isfile(icon):
+        cmd += ["--icon", icon]
+    if not getattr(args, "no_dock", False):
+        cmd.append("--dock")
+    r = _sp.run(cmd)
+    return r.returncode
+
+
 def main():
     import argparse
     p = argparse.ArgumentParser(prog="platform", description=f"工作平台 v{VERSION}")
@@ -1837,6 +1857,10 @@ def main():
     sp = sub.add_parser("install"); sp.add_argument("id"); sp.set_defaults(f=cmd_install)
     sp = sub.add_parser("register"); sp.add_argument("path"); sp.set_defaults(f=cmd_register)
     sp = sub.add_parser("open"); sp.add_argument("--port", type=int); sp.set_defaults(f=cmd_open)
+    sp = sub.add_parser("app", help="重建桌面/Dock 上的图标")
+    sp.add_argument("--port", type=int)
+    sp.add_argument("--no-dock", action="store_true", help="不碰 Dock")
+    sp.set_defaults(f=cmd_app)
 
     args = p.parse_args()
     sys.exit(args.f(args))

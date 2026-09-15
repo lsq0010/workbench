@@ -211,7 +211,7 @@ if [ -f "$APP/tools/make_app.py" ]; then
   if "$PY" "$APP/tools/make_app.py" --home "$APP" --python "$PY" --port "$PORT" \
         --icon "$APP/tools/工作平台.icns" --dock >/tmp/_wb_app.log 2>&1; then
     ok "已建：~/Applications/工作平台.app"
-    grep -E "桌面:|默认浏览器" /tmp/_wb_app.log | sed 's/^/  /'
+    grep -E "桌面:|Dock:|默认浏览器" /tmp/_wb_app.log | sed 's/^/  /'
   else
     warn "App 没建成，看 /tmp/_wb_app.log。不影响用浏览器打开。"
   fi
