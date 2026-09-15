@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>网络诊断</title>
+<style>
+  :root{
+    --bg:#f4f5f7;--panel:#fff;--panel2:#fafbfc;--line:#e6e8ec;--soft:#f0f1f4;
+    --text:#16181d;--t2:#5b6472;--t3:#98a1ad;
+    --brand:#0369a1;--brand-soft:#e8f4fb;--brand-line:#c2e2f5;
+    --ok:#12894f;--ok-soft:#e7f6ee;--warn:#a9670a;--warn-soft:#fdf3e3;--danger:#d23b3b;
+    --sh1:0 1px 2px rgba(16,24,40,.05);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB",sans-serif;
+  }
+  *{box-sizing:border-box}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:#cfd3da;border:3px solid transparent;
+    background-clip:content-box;border-radius:8px}
+  html,body{height:100%}
+  body{margin:0;font:14px/1.55 var(--sans);background:var(--bg);color:var(--text);
+       display:flex;flex-direction:column;overflow:hidden;-webkit-font-smoothing:antialiased}
+  header{flex:none;background:var(--panel);border-bottom:1px solid var(--line);box-shadow:var(--sh1)}
+  .bar{display:flex;align-items:center;gap:8px;padding:0 18px;height:54px;flex-wrap:wrap}
+  .brand{font-weight:650;font-size:15.5px;display:flex;align-items:center;gap:8px;flex:none}
+  .brand i{width:9px;height:9px;border-radius:3px;background:linear-gradient(135deg,#0369a1,#7dd3fc)}
+  .spacer{flex:1}
+  .stat{color:var(--t2);font-size:12.5px}
+  button{border:1px solid var(--line);background:var(--panel);border-radius:8px;
+    padding:6px 12px;cursor:pointer;font:inherit;font-size:13px;color:var(--text);transition:all .13s}
+  button:hover{background:#f7f8fa}
+  button.pri{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:600}
+  button.pri:hover{background:#025a8a}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  input{font:inherit;font-size:13px;border:1px solid var(--line);border-radius:9px;
+    padding:7px 12px;background:var(--panel);color:var(--text);outline:none}
+  input:focus{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft)}
+  .seg{display:flex;gap:3px;background:#eceef2;padding:3px;border-radius:9px}
+  .seg button{border:none;background:transparent;border-radius:6px;padding:5px 13px;font-size:12.5px;
+    color:var(--t2);font-weight:500}
+  .seg button.on{background:var(--panel);color:var(--brand);font-weight:600;box-shadow:var(--sh1)}
+  main{flex:1;overflow:auto;padding:20px 24px 60px}
+  .wrap{max-width:1000px;margin:0 auto}
+  .cards{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:10px 15px;
+    box-shadow:var(--sh1)}
+  .kpi .k{color:var(--t3);font-size:11.5px}
+  .kpi .v{font-size:15px;font-weight:650;font-family:var(--mono);margin-top:3px}
+  .verdict{background:var(--ok-soft);border:1px solid #bfe6cf;color:#0d6b3e;border-radius:12px;
+    padding:14px 17px;font-size:14px;margin-bottom:16px;font-weight:500}
+  .verdict.bad{background:var(--danger-soft);border-color:#f6c9c9;color:#a02c2c}
+  .verdict.warn{background:var(--warn-soft);border-color:#fde68a;color:#92400e}
+  .step{background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    padding:11px 15px;margin-bottom:8px;display:flex;align-items:center;gap:12px;box-shadow:var(--sh1)}
+  .step .mk{font-size:15px;width:20px;flex:none}
+  .step .nm{font-weight:620;font-size:13.5px;min-width:150px}
+  .step .dt{color:var(--t2);font-size:12.5px;flex:1;font-family:var(--mono)}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;
+    margin-bottom:14px;box-shadow:var(--sh1)}
+  .panel h3{margin:0 0 11px;font-size:14px;font-weight:650;display:flex;align-items:center;gap:8px}
+  .kv{display:grid;grid-template-columns:130px 1fr}
+  .kv div{padding:6px 12px;border-bottom:1px solid var(--soft);font-size:12.5px;
+    font-family:var(--mono);word-break:break-all}
+  .kv div:nth-child(odd){color:var(--t3);background:var(--panel2);font-family:var(--sans)}
+  .kv div:last-child,.kv div:nth-last-child(2){border-bottom:none}
+  .lan{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px}
+  .host{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:7px 11px;
+    font-size:12.5px}
+  .host b{font-family:var(--mono);font-weight:650}
+  .host .mac{color:var(--t3);font-size:11px;font-family:var(--mono);margin-top:2px}
+  .empty{text-align:center;padding:60px 20px;color:var(--t2)}
+  .empty .big{font-size:44px;opacity:.4;display:block;margin-bottom:13px}
+  .empty b{color:var(--text);display:block;font-size:15px;margin-bottom:7px}
+  .spin{display:inline-block;width:13px;height:13px;border:2px solid var(--line);
+    border-top-color:var(--brand);border-radius:50%;animation:sp .7s linear infinite;
+    vertical-align:-2px;margin-right:6px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .toast{position:fixed;bottom:24px;left:50%;transform:translate(-50%,10px);
+    background:#1c1f26;color:#fff;padding:10px 20px;border-radius:10px;opacity:0;
+    transition:all .2s;pointer-events:none;font-size:13px;z-index:99}
+  .toast.on{opacity:.97;transform:translate(-50%,0)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="bar">
+    <span class="brand"><i></i>网络诊断</span>
+    <div class="seg" id="seg">
+      <button data-v="diag" class="on">一键诊断</button>
+      <button data-v="lan">扫局域网</button>
+      <button data-v="tool">单项工具</button>
+    </div>
+    <span class="spacer"></span>
+    <span class="stat" id="stat"></span>
+  </div>
+</header>
+
+<main>
+  <div class="wrap" id="view"></div>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+const S = { view: "diag", net: null };
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g,
+  c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const api = async p => { const r = await fetch(p); if(!r.ok) throw new Error(r.status); return r.json(); };
+const post = async (p,b) => {
+  const r = await fetch(p,{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify(b||{})});
+  const j = await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(j.error || ("HTTP "+r.status));
+  return j;
+};
+function toast(m){ const t=$("toast"); t.textContent=m; t.classList.add("on");
+  setTimeout(()=>t.classList.remove("on"),2000); }
+
+async function boot(){
+  try{
+    const st = await api("/api/status");
+    S.net = st.network;
+    $("stat").textContent = S.net.lan_ip ? `本机 ${S.net.lan_ip}` : "没有网络";
+  }catch(e){}
+  render();
+}
+
+function render(){
+  document.querySelectorAll("#seg button").forEach(b =>
+    b.classList.toggle("on", b.dataset.v === S.view));
+  if(S.view === "diag") renderDiag();
+  else if(S.view === "lan") renderLan();
+  else renderTool();
+}
+
+/* ── 一键诊断 ── */
+function renderDiag(){
+  const n = S.net || {};
+  $("view").innerHTML = `
+    <div class="cards">
+      <div class="kpi"><div class="k">本机 IP</div><div class="v">${esc(n.lan_ip || "—")}</div></div>
+      <div class="kpi"><div class="k">网关</div><div class="v">${esc(n.gateway || "—")}</div></div>
+      <div class="kpi"><div class="k">Wi-Fi</div><div class="v">${esc((n.wifi||{}).ssid || "—")}</div></div>
+      <div class="kpi"><div class="k">DNS</div><div class="v">${esc((n.dns||[]).slice(0,2).join(" ") || "—")}</div></div>
+    </div>
+    <div class="panel">
+      <h3>查一个目标（可选）</h3>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <input id="tgt" placeholder="域名或 IP，例如 8.214.27.92" style="flex:1;min-width:220px">
+        <input id="tport" type="number" placeholder="端口（可选）" style="width:140px">
+        <button class="pri" id="btnGo">开始诊断</button>
+      </div>
+      <div style="color:var(--t3);font-size:11.5px;margin-top:9px">
+        留空就只查本机网络 / 出口 / DNS 这三层
+      </div>
+    </div>
+    <div id="out"></div>`;
+  $("btnGo").onclick = runDiag;
+  $("tport").addEventListener("keydown", e => { if(e.key === "Enter") runDiag(); });
+  $("out").innerHTML = `<div class="empty"><span class="big">🩺</span><b>点「开始诊断」</b>
+    <span style="font-size:12.5px">按「本机网络 → 出口 → DNS → 目标」顺序查，并告诉你哪一步断了</span></div>`;
+}
+
+async function runDiag(){
+  const target = $("tgt").value.trim();
+  const port = $("tport").value.trim();
+  $("btnGo").disabled = true;
+  $("out").innerHTML = `<div class="empty"><span class="spin"></span>诊断中…（大约 5-15 秒）</div>`;
+  try{
+    const d = await post("/api/diagnose", {target, port: port ? +port : null});
+    const bad = d.steps.some(s => !s.ok);
+    const critical = d.steps.filter(s => !s.ok).length;
+    $("out").innerHTML = `
+      <div class="verdict ${critical >= 2 ? "bad" : (bad ? "warn" : "")}">
+        ${critical === 0 ? "✅" : (critical >= 2 ? "❌" : "⚠️")} ${esc(d.verdict)}</div>
+      ${d.steps.map(s => `<div class="step">
+        <span class="mk">${s.ok ? "✅" : "❌"}</span>
+        <span class="nm">${esc(s.name)}</span>
+        <span class="dt">${esc(s.detail)}</span></div>`).join("")}
+      <div style="color:var(--t3);font-size:12px;margin-top:12px">
+        用时 ${d.seconds}s · 结果只在本机计算</div>`;
+  }catch(e){
+    $("out").innerHTML = `<div class="verdict bad">诊断失败：${esc(e.message)}</div>`;
+  }
+  $("btnGo").disabled = false;
+}
+
+/* ── 扫局域网 ── */
+function renderLan(){
+  const n = S.net || {};
+  const guess = (n.lan_ip || "").split(".").slice(0,3).join(".");
+  $("view").innerHTML = `
+    <div class="panel">
+      <h3>扫同网段有哪些设备</h3>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <input id="sub" value="${esc(guess)}" placeholder="192.168.0" style="width:200px">
+        <button class="pri" id="btnLan">开始扫描（最多 255 个地址）</button>
+      </div>
+      <div style="color:var(--t3);font-size:11.5px;margin-top:9px">
+        抓包时用这个确认手机在不在同一网络。扫不到目标设备，多半是路由器开了
+        <b>AP 隔离</b>（同 Wi-Fi 下设备互相不能通信）。
+      </div>
+    </div>
+    <div id="lanout"></div>`;
+  $("btnLan").onclick = async () => {
+    $("btnLan").disabled = true;
+    $("lanout").innerHTML = `<div class="empty"><span class="spin"></span>扫描中…（约 10-20 秒）</div>`;
+    try{
+      const d = await api(`/api/lan?subnet=${encodeURIComponent($("sub").value.trim())}`);
+      if(d.error){ $("lanout").innerHTML = `<div class="verdict bad">${esc(d.error)}</div>`; }
+      else{
+        $("lanout").innerHTML = `<div class="panel">
+          <h3>${esc(d.subnet)} 上活着 ${d.count} 台</h3>
+          <div class="lan">${d.alive.map(ip => `<div class="host">
+            <b>${esc(ip)}</b>
+            <div class="mac">${esc((d.macs||{})[ip] || "—")}</div></div>`).join("")}</div>
+          <div style="color:var(--t3);font-size:12px;margin-top:11px">
+            用时 ${d.seconds}s ${d.count <= 1 ? "· 只扫到自己？检查手机是否连的同一个 Wi-Fi" : ""}</div>
+        </div>`;
+      }
+    }catch(e){
+      $("lanout").innerHTML = `<div class="verdict bad">扫描失败：${esc(e.message)}</div>`;
+    }
+    $("btnLan").disabled = false;
+  };
+}
+
+/* ── 单项工具 ── */
+function renderTool(){
+  $("view").innerHTML = `
+    <div class="panel">
+      <h3>单项工具</h3>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <input id="host" placeholder="域名或 IP" style="flex:1;min-width:200px">
+        <input id="pp" type="number" placeholder="端口（查端口时填）" style="width:170px">
+      </div>
+      <div style="display:flex;gap:8px;margin-top:11px;flex-wrap:wrap">
+        <button data-t="ping">Ping</button>
+        <button data-t="dns">查 DNS</button>
+        <button data-t="port">查端口</button>
+        <button data-t="trace">路由追踪（慢）</button>
+      </div>
+    </div>
+    <div id="tout"></div>`;
+  document.querySelectorAll("[data-t]").forEach(b => b.onclick = async () => {
+    const host = $("host").value.trim();
+    if(!host) return toast("填个域名或 IP");
+    const t = b.dataset.t;
+    $("tout").innerHTML = `<div class="empty"><span class="spin"></span>${esc(b.textContent)} 中…</div>`;
+    try{
+      let r, url;
+      if(t === "ping"){ r = await post("/api/ping", {host}); }
+      else if(t === "dns"){ r = await post("/api/dns", {host}); }
+      else if(t === "port"){
+        const p = +$("pp").value;
+        if(!p) return toast("查端口要填端口号");
+        r = await post("/api/port", {host, port: p});
+      }else{
+        r = await api("/api/trace?host=" + encodeURIComponent(host));
+      }
+      paintTool(t, host, r);
+    }catch(e){ $("tout").innerHTML = `<div class="verdict bad">${esc(e.message)}</div>`; }
+  });
+}
+
+function paintTool(t, host, r){
+  let h = "";
+  if(t === "ping"){
+    h = `<div class="verdict ${r.ok?"":"bad"}">${r.ok
+      ? `✅ ${esc(host)} 通，平均 ${r.avg_ms} ms（${r.seconds}s）`
+      : `❌ ${esc(host)} ping 不通 —— 注意：很多服务器禁 ICMP，ping 不通不代表连不上，用「查端口」再确认`}</div>`;
+    if(!r.ok && r.raw){
+      h += `<div class="panel"><h3>原始输出</h3><pre style="margin:0;font-family:var(--mono);
+        font-size:12px;white-space:pre-wrap">${esc(r.raw.join("\n"))}</pre></div>`;
+    }
+  }else if(t === "dns"){
+    h = `<div class="verdict ${r.ok?"":"bad"}">${r.ok
+      ? `✅ ${esc(host)} → ${r.ips.map(esc).join("、")}（${r.seconds}s）`
+      : `❌ ${esc(host)} 解析不了 —— 换个 DNS（如 223.5.5.5）或检查域名拼写`}</div>`;
+    if(r.ok && r.ips.length > 1){
+      h += `<div class="panel"><h3>全部解析结果</h3><div class="lan">${r.ips.map(ip =>
+        `<div class="host"><b>${esc(ip)}</b></div>`).join("")}</div></div>`;
+    }
+  }else if(t === "port"){
+    h = `<div class="verdict ${r.ok?"":"bad"}">${r.ok
+      ? `✅ ${esc(host)}:${r.port} 能连上（${r.ms} ms）`
+      : `❌ ${esc(host)}:${r.port} ${esc(r.error||"连不上")}`}</div>`;
+  }else{
+    h = `<div class="panel"><h3>到 ${esc(host)} 的路由</h3>
+      <div class="kv">${r.hops.map(x => `<div>第 ${esc(x.hop)} 跳</div>
+        <div>${esc(x.host)}　${esc(x.ms)}</div>`).join("")}</div></div>`;
+  }
+  $("tout").innerHTML = h;
+}
+
+document.querySelectorAll("#seg button").forEach(b => b.onclick = () => {
+  S.view = b.dataset.v; render();
+});
+boot();
+</script>
+</body>
+</html>

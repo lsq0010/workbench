@@ -1,0 +1,129 @@
+{
+  "manifest_version": 1,
+  "id": "gitreport",
+  "name": "Git 周报",
+  "description": "扫多个 git 仓库，按分支（=需求）分组提交，自动分类成 新功能/修复/优化/移除，生成周报草稿；可让 AI 润色成能直接发出去的版本。",
+  "version": "0.1.0",
+  "author": "本机",
+  "type": "local",
+  "runtime": {
+    "entry": "main.py",
+    "requires": {
+      "python": ">=3.7"
+    },
+    "dependencies": []
+  },
+  "ports": {
+    "web": 8894
+  },
+  "platform": {
+    "icon": "📝",
+    "color": "#7c5cff",
+    "open": "http://127.0.0.1:{web}/",
+    "health": "http://127.0.0.1:{web}/api/status",
+    "start": [
+      "python3",
+      "main.py",
+      "start"
+    ],
+    "stop": [
+      "python3",
+      "main.py",
+      "stop"
+    ],
+    "note": "首次启动会自动扫描桌面/文稿下的 git 仓库。提交分类按中文关键词，不只认 feat:/fix: 前缀。"
+  },
+  "permissions": [
+    {
+      "id": "fs.read.repos",
+      "why": "读取用户指定的 git 仓库的提交记录（git log）",
+      "risk": "中：会读取仓库元数据；只读，不改工作区、不提交、不推送",
+      "mitigation": "仓库列表由用户显式确认（自动发现只列出候选，不自动加入）；只执行 git log/rev-parse 这类只读命令"
+    },
+    {
+      "id": "fs.write",
+      "why": "把生成的周报写成 Markdown 文件、记录保存历史",
+      "scope": "feature-data-dir",
+      "risk": "低：只写本功能自己的目录，不碰仓库里的任何文件",
+      "mitigation": "只在本功能目录写周报 Markdown 和历史记录；对仓库**只读**（git log/diff），不做任何写操作；不提交、不推送"
+    },
+    {
+      "id": "net.outbound.ai",
+      "why": "「AI 润色」会把提交标题发给平台配置的大模型",
+      "risk": "中：提交信息会发给服务商",
+      "mitigation": "只发提交标题与分类，不发 diff、不发代码内容；不点「AI 润色」就完全不联网"
+    }
+  ],
+  "data": {
+    "produces": [
+      {
+        "id": "reports",
+        "file": "reports.jsonl",
+        "kind": "append-only",
+        "desc": "周报保存历史（只追加）"
+      },
+      {
+        "id": "exports",
+        "file": "周报-*.md",
+        "kind": "files",
+        "desc": "生成的周报 Markdown"
+      }
+    ],
+    "consumes": [
+      {
+        "feature": "platform",
+        "via": "lib",
+        "desc": "用平台共享的 AI 能力（platform_lib.ai）"
+      }
+    ]
+  },
+  "exposes": {
+    "base": "http://127.0.0.1:8894",
+    "endpoints": [
+      {
+        "path": "/api/report",
+        "desc": "周报数据 + Markdown ?range=week|lastweek|month|days:N&author=",
+        "auth": "local-only"
+      },
+      {
+        "path": "/api/repos",
+        "desc": "已加入的仓库及其状态",
+        "auth": "local-only"
+      },
+      {
+        "path": "/api/discover",
+        "desc": "自动发现本机 git 仓库",
+        "auth": "local-only"
+      },
+      {
+        "path": "/api/status",
+        "desc": "服务状态 + AI 可用性",
+        "auth": "local-only"
+      }
+    ],
+    "writes": [
+      {
+        "path": "/api/polish",
+        "desc": "AI 润色（SSE 流式）",
+        "auth": "local-only"
+      },
+      {
+        "path": "/api/save",
+        "desc": "保存周报到本功能目录",
+        "auth": "local-only"
+      },
+      {
+        "path": "/api/config",
+        "desc": "保存仓库列表与提交人过滤",
+        "auth": "local-only"
+      }
+    ]
+  },
+  "ui": {
+    "entry": "index.html"
+  },
+  "store": {
+    "pricing": "free",
+    "license": "personal"
+  }
+}

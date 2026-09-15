@@ -1,0 +1,45 @@
+{
+  "manifest_version": 1,
+  "id": "devcalc",
+  "name": "程序员计算器",
+  "description": "调接口天天要的换算：任意进制互转（认 0x/0b/0o）、位运算与逐位查看、颜色在 HEX/RGB/HSV/iOS/Android/SwiftUI 之间转、算式求值、时间戳换算、单位换算。输入即算。",
+  "version": "0.1.0",
+  "author": "本机",
+  "type": "local",
+
+  "runtime": { "entry": "main.py", "requires": { "python": ">=3.7" }, "dependencies": [] },
+  "ports": { "web": 8912 },
+
+  "platform": {
+    "icon": "#",
+    "color": "#0f766e",
+    "open": "http://127.0.0.1:{web}/",
+    "health": "http://127.0.0.1:{web}/api/status",
+    "start": ["python3", "main.py", "start"],
+    "stop": ["python3", "main.py", "stop"],
+    "note": "算式的输入字符用白名单限死，不走 eval 原文，避免执行任意代码。"
+  },
+
+  "permissions": [],
+
+  "data": { "produces": [], "consumes": [] },
+
+  "exposes": {
+    "base": "http://127.0.0.1:8912",
+    "endpoints": [
+      { "path": "/api/status", "desc": "服务状态 + 单位表 + 当前时间戳", "auth": "local-only" },
+      { "path": "/api/digest", "desc": "无告警（占位）", "auth": "local-only" }
+    ],
+    "writes": [
+      { "path": "/api/number", "desc": "进制转换", "auth": "local-only" },
+      { "path": "/api/bitops", "desc": "位运算", "auth": "local-only" },
+      { "path": "/api/color", "desc": "颜色转换", "auth": "local-only" },
+      { "path": "/api/calc", "desc": "算式求值", "auth": "local-only" },
+      { "path": "/api/time", "desc": "时间戳换算", "auth": "local-only" },
+      { "path": "/api/unit", "desc": "单位换算", "auth": "local-only" }
+    ]
+  },
+
+  "ui": { "entry": "index.html" },
+  "store": { "pricing": "free", "license": "personal" }
+}

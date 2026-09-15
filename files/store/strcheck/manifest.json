@@ -1,0 +1,70 @@
+{
+  "manifest_version": 1,
+  "id": "strcheck",
+  "name": "文案体检",
+  "description": "找出 iOS 代码里「该翻译却没翻译」的硬编码文案。只统计用户能看到的位置（alert、placeholder、label），调试日志里的中文不算。可让 AI 判断哪些真要改。",
+  "version": "0.1.0",
+  "author": "本机",
+  "type": "local",
+
+  "runtime": { "entry": "main.py", "requires": { "python": ">=3.7" }, "dependencies": [] },
+  "ports": { "web": 8923 },
+
+  "platform": {
+    "icon": "🔤",
+    "color": "#7c3aed",
+    "open": "http://127.0.0.1:{web}/",
+    "health": "http://127.0.0.1:{web}/api/status",
+    "start": ["python3", "main.py", "start"],
+    "stop": ["python3", "main.py", "stop"],
+    "note": "只读扫描，不改任何源码。判断逻辑：生成文件跳过、已在 .strings 里的跳过、print/日志里的不算。"
+  },
+
+  "permissions": [
+    {
+      "id": "fs.read.source",
+      "why": "扫源码找硬编码文案，以及读 .strings 看哪些已本地化",
+      "risk": "低：只读文本，不写不改",
+      "mitigation": "只读 .swift/.m/.mm/.strings 文件；跳过 Pods/build/DerivedData；不读其他类型文件"
+    },
+    {
+      "id": "net.outbound.ai",
+      "why": "把硬编码文案清单发给 AI，判断哪些真的要改",
+      "risk": "中：源码片段会离开本机",
+      "mitigation": "**只有点「让 AI 判断」才外发**；只发文案和文件名行号，不发完整源码文件"
+    },
+    {
+      "id": "fs.write",
+      "why": "扫描记录落盘",
+      "risk": "低：只写本功能目录",
+      "mitigation": "只追加写 scans.jsonl"
+    }
+  ],
+
+  "data": {
+    "produces": [
+      { "id": "scans", "file": "scans.jsonl", "kind": "append-only",
+        "desc": "每次扫描的统计（带 user_id）" }
+    ],
+    "consumes": [
+      { "feature": "platform", "via": "http", "endpoints": ["/api/ai/chat"],
+        "desc": "用平台的 AI 能力判断优先级" }
+    ]
+  },
+
+  "exposes": {
+    "base": "http://127.0.0.1:8923",
+    "endpoints": [
+      { "path": "/api/status", "desc": "版本 + 扫到的候选工程", "auth": "local-only" },
+      { "path": "/api/scan", "desc": "扫工程 ?project=", "auth": "local-only" },
+      { "path": "/api/digest", "desc": "无告警（占位）", "auth": "local-only" }
+    ],
+    "writes": [
+      { "path": "/api/ai", "desc": "让 AI 判断优先级", "auth": "local-only" },
+      { "path": "/api/reveal", "desc": "在访达中打开", "auth": "local-only" }
+    ]
+  },
+
+  "ui": { "entry": "index.html" },
+  "store": { "pricing": "free", "license": "personal" }
+}

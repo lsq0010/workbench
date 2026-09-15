@@ -1,0 +1,112 @@
+{
+  "manifest_version": 1,
+  "id": "apicontract",
+  "name": "接口契约",
+  "description": "从抓到的报文里提取字段契约（字段名/类型/含义/取值），支持两个接口并排对比差异，可导出 Markdown。做端与端之间的契约对齐用。",
+  "version": "0.1.0",
+  "author": "本机",
+  "type": "local",
+  "runtime": {
+    "entry": "main.py",
+    "requires": {
+      "python": ">=3.7"
+    },
+    "dependencies": []
+  },
+  "ports": {
+    "web": 8893
+  },
+  "platform": {
+    "icon": "📋",
+    "color": "#0f9d8f",
+    "open": "http://127.0.0.1:{web}/",
+    "health": "http://127.0.0.1:{web}/api/status",
+    "start": [
+      "python3",
+      "main.py",
+      "start"
+    ],
+    "stop": [
+      "python3",
+      "main.py",
+      "stop"
+    ],
+    "note": "依赖「抓包工作台」提供数据；它没在跑时会明确提示，不会假装有数据。"
+  },
+  "permissions": [
+    {
+      "id": "net.local.read",
+      "why": "读取抓包工作台对外声明的只读接口（/api/flows、/api/semantics）来提取契约",
+      "risk": "低：只读本机 127.0.0.1 的接口，不联网、不改任何数据",
+      "mitigation": "不直接读 flows.jsonl 文件 —— 生产者改了存储实现，这边不用跟着改"
+    },
+    {
+      "id": "fs.write",
+      "why": "导出 Markdown 契约文档、记录导出历史",
+      "scope": "feature-data-dir",
+      "risk": "低：只写本功能自己的目录，不碰抓包数据、不碰别的功能",
+      "mitigation": "写入范围限制在功能目录内（scope=feature-data-dir）；导出历史只追加不覆盖；不写用户其他位置"
+    }
+  ],
+  "data": {
+    "produces": [
+      {
+        "id": "exports",
+        "file": "contracts.json",
+        "kind": "append-only",
+        "desc": "导出历史（只追加不覆盖）"
+      }
+    ],
+    "consumes": [
+      {
+        "feature": "capture",
+        "via": "http",
+        "endpoints": [
+          "/api/flows",
+          "/api/semantics",
+          "/api/status"
+        ],
+        "desc": "报文与字段含义都来自抓包工作台，不重复实现"
+      }
+    ]
+  },
+  "exposes": {
+    "base": "http://127.0.0.1:8893",
+    "endpoints": [
+      {
+        "path": "/api/contracts",
+        "desc": "提取出的接口契约",
+        "auth": "local-only"
+      },
+      {
+        "path": "/api/diff",
+        "desc": "两个接口的字段差异 ?a=&b=",
+        "auth": "local-only"
+      },
+      {
+        "path": "/api/markdown",
+        "desc": "契约的 Markdown 版",
+        "auth": "local-only"
+      },
+      {
+        "path": "/api/status",
+        "desc": "服务状态 + 数据源可用性",
+        "auth": "local-only"
+      }
+    ],
+    "writes": [
+      {
+        "path": "/api/export",
+        "desc": "导出 Markdown 到本功能目录",
+        "auth": "local-only"
+      }
+    ]
+  },
+  "ui": {
+    "entry": "index.html"
+  },
+  "store": {
+    "pricing": "free",
+    "license": "personal"
+  }
+}

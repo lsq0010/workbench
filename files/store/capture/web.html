@@ -1,0 +1,1760 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>capture 抓包工作台</title>
+<style>
+  /* ══════════════════════════════════════════════════════════
+     设计令牌
+     ══════════════════════════════════════════════════════════ */
+  :root{
+    --bg:#f4f5f7;
+    --panel:#ffffff;
+    --panel-2:#fafbfc;
+    --line:#e6e8ec;
+    --line-soft:#f0f1f4;
+    --text:#16181d;
+    --text-2:#5b6472;
+    --text-3:#98a1ad;
+    --brand:#2f6df6;
+    --brand-soft:#eef3ff;
+    --brand-line:#cfdffd;
+    --ok:#12894f;
+    --ok-soft:#e7f6ee;
+    --warn:#a9670a;
+    --warn-soft:#fdf3e3;
+    --danger:#d23b3b;
+    --danger-soft:#fdecec;
+    --r-sm:7px; --r:10px; --r-lg:14px;
+    --sh-1:0 1px 2px rgba(16,24,40,.05);
+    --sh-2:0 2px 6px rgba(16,24,40,.06), 0 1px 2px rgba(16,24,40,.04);
+    --sh-3:0 10px 32px rgba(16,24,40,.12), 0 2px 8px rgba(16,24,40,.06);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",
+           "Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  }
+  *{box-sizing:border-box}
+  ::-webkit-scrollbar{width:11px;height:11px}
+  ::-webkit-scrollbar-thumb{background:#cfd3da;border:3px solid transparent;
+    background-clip:content-box;border-radius:8px}
+  ::-webkit-scrollbar-thumb:hover{background:#b3b9c2;border:3px solid transparent;
+    background-clip:content-box}
+  ::-webkit-scrollbar-track{background:transparent}
+  html,body{height:100%}
+  body{margin:0;font:14px/1.55 var(--sans);background:var(--bg);color:var(--text);
+       display:flex;flex-direction:column;overflow:hidden;
+       -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+
+  /* ══════════════════════════════════════════════════════════
+     顶栏
+     ══════════════════════════════════════════════════════════ */
+  header{flex:none;background:var(--panel);border-bottom:1px solid var(--line);
+         box-shadow:var(--sh-1);z-index:3}
+  .bar{display:flex;align-items:center;gap:10px;padding:0 16px;height:54px}
+  .brand{display:flex;align-items:baseline;gap:8px;font-weight:650;font-size:15.5px;
+         letter-spacing:-.01em}
+  .brand::before{content:"";width:9px;height:9px;border-radius:3px;align-self:center;
+         background:linear-gradient(135deg,var(--brand),#7aa5ff);
+         box-shadow:0 0 0 3px var(--brand-soft)}
+  .brand small{color:var(--text-3);font-weight:450;font-size:12.5px;letter-spacing:0}
+  .spacer{flex:1}
+  .stat{color:var(--text-2);font-size:13px;white-space:nowrap;display:flex;
+        align-items:center;gap:6px}
+  .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--ok);
+       box-shadow:0 0 0 3px var(--ok-soft)}
+  .dot.off{background:var(--text-3);box-shadow:0 0 0 3px #eef0f3}
+  .vsep{width:1px;height:20px;background:var(--line);flex:none}
+  #uiVer{font-size:11px;color:#c3c8d0;font-variant-numeric:tabular-nums}
+  button{border:1px solid var(--line);background:var(--panel);border-radius:var(--r-sm);
+         padding:6px 12px;cursor:pointer;font:inherit;font-size:13px;color:var(--text);
+         transition:background .13s,border-color .13s,box-shadow .13s,transform .06s}
+  button:hover{background:#f7f8fa;border-color:#d6dae0}
+  button:active{transform:translateY(.5px)}
+  button:focus-visible{outline:2px solid var(--brand);outline-offset:1px}
+  .pill{background:var(--panel-2);border-radius:999px;padding:5px 13px;font-size:12.5px;
+        display:flex;align-items:center;gap:7px;cursor:pointer;color:var(--text-2);
+        transition:background .13s,border-color .13s,color .13s}
+  .pill:hover{background:var(--brand-soft);border-color:var(--brand-line);color:var(--brand)}
+  .pill.on{background:var(--brand-soft);border-color:var(--brand-line);color:var(--brand);
+           font-weight:550}
+
+  /* ── 过滤条 ─────────────────────────────── */
+  .flab{color:var(--text-3);font-size:11.5px;font-weight:600;letter-spacing:.02em;
+        margin-left:4px}
+  .filters{display:flex;align-items:center;gap:7px;padding:10px 16px;flex-wrap:wrap;
+           border-top:1px solid var(--line-soft);background:var(--panel-2)}
+  input,select{font:inherit;font-size:13px;border:1px solid var(--line);background:var(--panel);
+               border-radius:var(--r-sm);padding:6px 10px;color:var(--text);outline:none;
+               transition:border-color .13s,box-shadow .13s}
+  input:focus,select:focus{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft)}
+  select{appearance:none;padding-right:26px;cursor:pointer;
+         background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6'><path d='M1 1l4 4 4-4' fill='none' stroke='%2398a1ad' stroke-width='1.6' stroke-linecap='round'/></svg>");
+         background-repeat:no-repeat;background-position:right 9px center}
+  label.ck{color:var(--text-2);font-size:13px;display:flex;align-items:center;gap:6px;
+           cursor:pointer;user-select:none;padding:5px 9px;border-radius:var(--r-sm);
+           border:1px solid transparent}
+  label.ck:hover{background:#f1f3f6}
+  label.ck input{accent-color:var(--brand);margin:0;cursor:pointer}
+  .tabs2{display:flex;gap:3px;background:#eceef2;padding:3px;border-radius:9px}
+  .tabs2 button{border:none;background:transparent;border-radius:6px;padding:5px 15px;
+                font-size:13px;color:var(--text-2);font-weight:500;transition:all .14s}
+  .tabs2 button:hover{color:var(--text)}
+  .tabs2 button.on{background:var(--panel);color:var(--brand);font-weight:600;
+                   box-shadow:var(--sh-1)}
+
+  /* ══════════════════════════════════════════════════════════
+     主体
+     ══════════════════════════════════════════════════════════ */
+  /* overflow:hidden 必须加：两个右侧面板靠负 margin 滑出屏幕，
+     不裁剪的话隐藏的那个会盖在另一个上面（曾出现"设备与状态"标题
+     透过 AI 面板露出来）。裁剪后仍保留滑出动画。 */
+  .body{flex:1;display:flex;min-height:0;position:relative;overflow:hidden}
+  main{flex:1;display:flex;min-height:0;min-width:0}
+  #list{width:47%;min-width:320px;overflow:auto;background:var(--panel);
+        border-right:1px solid var(--line)}
+  #detail{flex:1;overflow:auto;padding:0;background:var(--bg)}
+
+  /* ── 请求行 ─────────────────────────────── */
+  .row{display:grid;grid-template-columns:54px 58px minmax(0,1fr) auto;gap:11px;
+       align-items:center;padding:10px 16px 10px 13px;
+       border-bottom:1px solid var(--line-soft);cursor:pointer;
+       border-left:3px solid transparent;transition:background .1s,porder-color .1s}
+  .row:hover{background:#f8fafc}
+  .row.sel{background:var(--brand-soft);border-left-color:var(--brand)}
+  .row .id{color:var(--text-3);font-family:var(--mono);font-size:11.5px;
+           font-variant-numeric:tabular-nums}
+  .row .m{font-family:var(--mono);font-weight:700;font-size:10px;letter-spacing:.02em;
+          text-align:center;padding:2.5px 0;border-radius:5px;background:#f1f3f6;
+          color:var(--text-2)}
+  .row .p{font-family:var(--mono);font-size:12.5px;overflow:hidden;text-overflow:ellipsis;
+          white-space:nowrap;min-width:0}
+  .row .p .host{color:var(--text-3)}
+  .row .rt{display:flex;align-items:center;gap:10px;flex:none}
+  .row .s{font-family:var(--mono);font-size:11.5px;font-weight:650;min-width:32px;
+          text-align:right;font-variant-numeric:tabular-nums}
+  .row .t{color:var(--text-3);font-size:11.5px;min-width:56px;text-align:right;
+          font-variant-numeric:tabular-nums}
+  .m-GET{background:#eef3ff;color:#2f6df6}
+  .m-POST{background:#e7f6ee;color:#12894f}
+  .m-PUT,.m-PATCH{background:#fdf3e3;color:#a9670a}
+  .m-DELETE{background:#fdecec;color:#d23b3b}
+  .m-CONNECT{background:#f1f3f6;color:#8b93a0}
+  .s-2{color:var(--ok)} .s-3{color:var(--warn)} .s-4,.s-5{color:var(--danger)}
+  /* 隧道（CONNECT）没有响应码，用一个弱化的 "隧道" 标签，别拿红叉吓人 */
+  .s-null{color:var(--text-3);font-weight:500;font-size:10.5px}
+  mark{background:#fff2a8;color:inherit;padding:0 1.5px;border-radius:2.5px}
+
+  /* ── 详情 ───────────────────────────────── */
+  #detail .dwrap{padding:20px 24px 40px;max-width:1020px}
+  #detail h2{margin:0 0 8px;font-size:17px;font-family:var(--mono);word-break:break-all;
+             font-weight:650;letter-spacing:-.01em;line-height:1.4}
+  .meta{color:var(--text-2);font-size:13px;margin-bottom:16px;display:flex;gap:8px;
+        flex-wrap:wrap;align-items:center}
+  .meta .chip{display:inline-flex;align-items:center;gap:5px;background:var(--panel);
+              border:1px solid var(--line);border-radius:999px;padding:3px 11px;
+              font-size:12.5px;box-shadow:var(--sh-1)}
+  .meta .chip b{font-weight:650;color:var(--text)}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);
+        margin-bottom:14px;overflow:hidden;box-shadow:var(--sh-1)}
+  .card>summary{padding:11px 15px;cursor:pointer;font-weight:600;font-size:13.5px;
+                background:var(--panel-2);user-select:none;display:flex;align-items:center;
+                gap:8px;list-style:none;transition:background .12s}
+  .card>summary::-webkit-details-marker{display:none}
+  .card>summary::before{content:"▸";color:var(--text-3);font-size:11px;
+                        transition:transform .15s;display:inline-block}
+  .card[open]>summary::before{transform:rotate(90deg)}
+  .card>summary:hover{background:#f4f6f9}
+  pre{margin:0;padding:14px 15px;overflow:auto;font-family:var(--mono);font-size:12.5px;
+      line-height:1.65;white-space:pre-wrap;word-break:break-all;max-height:54vh}
+  .kv{display:grid;grid-template-columns:minmax(120px,220px) 1fr}
+  .kv div{padding:7px 15px;border-bottom:1px solid var(--line-soft);
+          font-family:var(--mono);font-size:12.5px;word-break:break-all}
+  .kv div:nth-child(odd){color:var(--text-2);background:var(--panel-2);font-family:var(--sans);
+                          font-size:12.5px}
+  .kv div:last-child,.kv div:nth-last-child(2){border-bottom:none}
+  .legend{color:var(--text-2);font-size:12px;padding:8px 15px;
+          border-bottom:1px solid var(--line-soft);background:var(--panel-2)}
+
+  /* ── 空态 / 骨架屏 ───────────────────────── */
+  .empty{color:var(--text-2);padding:56px 24px;text-align:center;font-size:13.5px;
+         display:flex;flex-direction:column;align-items:center;gap:10px}
+  .empty .big{font-size:30px;line-height:1;opacity:.5}
+  .empty b{color:var(--text);font-weight:600}
+  .empty button{margin-top:2px}
+  @keyframes shimmer{0%{background-position:-460px 0}100%{background-position:460px 0}}
+  .skel{padding:14px}
+  .skel .s{height:15px;border-radius:6px;margin-bottom:13px;
+    background:linear-gradient(90deg,#eef0f3 25%,#f7f8fa 37%,#eef0f3 63%);
+    background-size:920px 100%;animation:shimmer 1.35s ease-in-out infinite}
+  .skel .s:nth-child(1){width:72%} .skel .s:nth-child(2){width:88%}
+  .skel .s:nth-child(3){width:64%} .skel .s:nth-child(4){width:81%}
+  .skel .s:nth-child(5){width:56%} .skel .s:nth-child(6){width:77%}
+
+  /* ══════════════════════════════════════════════════════════
+     右侧抽屉
+     ══════════════════════════════════════════════════════════ */
+  #drawer{width:404px;flex:none;background:var(--bg);border-left:1px solid var(--line);
+          overflow:auto;padding:0;transition:margin-right .22s cubic-bezier(.32,.72,0,1);
+          box-shadow:-8px 0 28px rgba(16,24,40,.05)}
+  /* 隐藏时直接不渲染。原先用负 margin 滑出屏幕，但它的绘制位置仍在
+     AI 面板之上，导致"设备与状态"标题透过 AI 面板露出来（截图里两个 ✕）。 */
+  #drawer.hide{display:none}
+  #drawer .dhead{position:sticky;top:0;z-index:2;display:flex;align-items:center;
+                 justify-content:space-between;padding:14px 16px;background:var(--panel);
+                 border-bottom:1px solid var(--line)}
+  #drawer .dhead>span{font-weight:650;font-size:14.5px}
+  #drawer .dclose{border:none;background:none;font-size:14px;color:var(--text-3);
+                  cursor:pointer;padding:4px 9px;border-radius:var(--r-sm);line-height:1;
+                  transition:background .12s,color .12s}
+  #drawer .dclose:hover{background:#f1f3f6;color:var(--text)}
+  #drawer .dbody{padding:14px 16px 28px}
+  .box{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);
+       padding:14px 15px;margin-bottom:12px;box-shadow:var(--sh-1)}
+  .box h3{margin:0 0 10px;font-size:13.5px;font-weight:650;display:flex;align-items:center;
+          gap:8px;letter-spacing:-.005em}
+  .badge{font-size:11.5px;padding:2px 9px;border-radius:999px;font-weight:600;
+         letter-spacing:.01em}
+  .b-ok{background:var(--ok-soft);color:var(--ok)}
+  .b-idle{background:var(--warn-soft);color:var(--warn)}
+  .b-off{background:#f1f3f6;color:var(--text-3)}
+  .b-live{background:var(--ok-soft);color:var(--ok)}
+  .b-hist{background:var(--brand-soft);color:var(--brand)}
+
+  /* ── 设备行 ─────────────────────────────── */
+  .dev{display:flex;gap:11px;align-items:flex-start;padding:10px 0;
+       border-bottom:1px solid var(--line-soft);border-radius:8px;
+       transition:background .1s}
+  .dev:last-child{border-bottom:none}
+  .dev .ico{font-size:17px;line-height:1.25;width:20px;text-align:center;flex:none}
+  .dev .t1{font-weight:600;font-size:13.5px;display:flex;align-items:center;gap:7px;
+           flex-wrap:wrap}
+  .dev .t2{color:var(--text-3);font-size:11.5px;margin-top:3px;word-break:break-all;
+           font-variant-numeric:tabular-nums}
+  /* 没在监听：轻微弱化（不是"离线"那种淡出），仍清晰可点 */
+  .dev.idle{opacity:.74}
+  .dev.idle:hover{opacity:1;background:var(--panel-2)}
+  /* 绿点 = 正在监听（.mon，别和顶部"实时"指示灯的 .dot 撞名） */
+  .mon{width:13px;height:13px;border-radius:50%;flex:none;margin-top:4px;cursor:pointer;
+       box-sizing:border-box;border:2px solid #ccd2da;background:transparent;
+       transition:transform .14s,border-color .14s,background .14s,box-shadow .14s}
+  .mon:hover{transform:scale(1.22);border-color:var(--ok)}
+  .mon.on{background:var(--ok);border-color:var(--ok);
+          box-shadow:0 0 0 3.5px rgba(18,137,79,.15)}
+  .mon.on:hover{box-shadow:0 0 0 5px rgba(18,137,79,.18)}
+
+  /* ── 接入指引 ───────────────────────────── */
+  .addr{font-family:var(--mono);font-size:14.5px;background:var(--panel-2);
+        border:1px solid var(--line);border-radius:var(--r-sm);padding:9px 12px;
+        display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:9px 0}
+  .addr b{color:var(--brand);font-weight:650}
+  .addr button{margin-left:auto;padding:4px 10px;font-size:12px}
+  ol.steps{margin:8px 0 0;padding-left:0;font-size:12.5px;list-style:none;
+           counter-reset:st}
+  ol.steps li{margin:7px 0;padding-left:26px;position:relative;color:var(--text-2);
+              line-height:1.55}
+  ol.steps li::before{counter-increment:st;content:counter(st);position:absolute;
+    left:0;top:1px;width:17px;height:17px;border-radius:50%;background:var(--brand-soft);
+    color:var(--brand);font-size:10.5px;font-weight:700;display:flex;align-items:center;
+    justify-content:center}
+  .tabs3{display:flex;gap:4px;margin-bottom:6px;background:#eceef2;padding:3px;
+         border-radius:9px}
+  .tabs3 button{border:none;background:transparent;border-radius:6px;padding:5px 0;
+                font-size:12.5px;color:var(--text-2);font-weight:500;flex:1;
+                transition:all .14s}
+  .tabs3 button.on{background:var(--panel);color:var(--brand);font-weight:600;
+                   box-shadow:var(--sh-1)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .cell{background:var(--panel-2);border:1px solid var(--line);border-radius:var(--r-sm);
+        padding:9px 11px}
+  .cell .k{color:var(--text-3);font-size:11.5px;margin-bottom:3px}
+  .cell .v{font-family:var(--mono);font-size:13px;font-weight:650;word-break:break-all;
+           font-variant-numeric:tabular-nums}
+  .hint{color:var(--text-2);font-size:12px;margin-top:7px;line-height:1.6}
+  .hint b{color:var(--text);font-weight:600}
+
+  /* ── 手机扫码 ───────────────────────────── */
+  .qrwrap{display:flex;gap:14px;align-items:center;margin:12px 0 6px;padding:12px;
+          background:var(--panel-2);border:1px solid var(--line);border-radius:var(--r)}
+  #qrCanvas{flex:none;border-radius:8px;background:#fff;image-rendering:pixelated;
+            box-shadow:var(--sh-2)}
+  .qrtip{font-size:12.5px;line-height:1.55;min-width:0}
+  .qrtip b{font-weight:650}
+  .qraddr{font-family:var(--mono);font-size:11.5px;color:var(--brand);margin-top:7px;
+          word-break:break-all;background:var(--brand-soft);border:1px solid var(--brand-line);
+          border-radius:6px;padding:5px 9px}
+
+  /* ══════════════════════════════════════════════════════════
+     底部搜索
+     ══════════════════════════════════════════════════════════ */
+  footer{display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--panel);
+         border-top:1px solid var(--line);flex:none;box-shadow:0 -1px 3px rgba(16,24,40,.03)}
+  footer .flabel{color:var(--text-3);font-size:11.5px;font-weight:700;letter-spacing:.06em;
+                 text-transform:uppercase}
+  footer input{flex:1;border-radius:999px;padding:7px 16px;background:var(--panel-2);
+               border-color:var(--line)}
+  footer input:focus{background:var(--panel)}
+  footer .fcount{color:var(--text-2);font-size:12.5px;white-space:nowrap;min-width:76px;
+                 text-align:right;font-variant-numeric:tabular-nums}
+  footer button{border-radius:50%;width:28px;height:28px;padding:0;line-height:1;
+                color:var(--text-3);flex:none}
+  footer button:hover{color:var(--text)}
+
+  /* ── 提示条 ─────────────────────────────── */
+  .toast{position:fixed;bottom:26px;left:50%;transform:translate(-50%,10px);
+         background:#1c1f26;color:#fff;padding:10px 20px;border-radius:10px;
+         opacity:0;transition:opacity .2s,transform .2s;pointer-events:none;font-size:13px;
+         z-index:99;box-shadow:var(--sh-3);max-width:80vw;text-align:center}
+  .toast.on{opacity:.97;transform:translate(-50%,0)}
+
+  /* ── 窄屏 ───────────────────────────────── */
+  @media (max-width:1100px){
+    #list{width:54%;min-width:0}
+    #drawer{width:360px} #drawer.hide{margin-right:-360px}
+  }
+  @media (max-width:820px){
+    .brand small{display:none}
+    main{flex-direction:column}
+    #list{width:auto;border-right:none;border-bottom:1px solid var(--line);max-height:46%}
+    #detail{flex:1}
+    #drawer{position:absolute;right:0;top:0;bottom:0;width:min(92vw,404px);z-index:5}
+    .filters{padding:8px 12px;gap:6px}
+    .bar{padding:0 12px;height:50px}
+  }
+
+  /* ══════════════════════════════════════════════════════════
+     AI 助手面板
+     ══════════════════════════════════════════════════════════ */
+  #ai{width:446px;flex:none;background:var(--panel);border-left:1px solid var(--line);
+      display:flex;flex-direction:column;min-height:0;
+      transition:margin-right .22s cubic-bezier(.32,.72,0,1);
+      box-shadow:-8px 0 28px rgba(16,24,40,.05)}
+  #ai.hide{display:none}
+  #ai .ahead{display:flex;align-items:center;gap:9px;padding:13px 15px;
+             border-bottom:1px solid var(--line);flex:none}
+  #ai .ahead .t{font-weight:650;font-size:14.5px}
+  #ai .ahead .m{color:var(--text-3);font-size:11.5px;margin-left:auto;
+                max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #ai .abody{flex:1;overflow:auto;padding:14px 15px;min-height:0;
+             display:flex;flex-direction:column;gap:12px}
+  #ai .afoot{flex:none;border-top:1px solid var(--line);padding:11px 13px;
+             background:var(--panel-2)}
+
+  /* ── 模型设置卡片 ── */
+  .aiconf{background:var(--panel-2);border:1px solid var(--line);border-radius:var(--r);
+          padding:12px;margin-bottom:2px}
+  .aiconf .row{display:flex;gap:7px;align-items:center;margin-bottom:8px}
+  .aiconf label{font-size:11.5px;color:var(--text-3);width:58px;flex:none}
+  .aiconf input,.aiconf select{flex:1;min-width:0;font-size:12.5px;padding:6px 9px}
+  .aiconf .acts{display:flex;gap:7px;flex-wrap:wrap;margin-top:2px}
+  .aiconf .acts button{font-size:12px;padding:5px 11px}
+  .btn-primary{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:600}
+  .btn-primary:hover{background:#245ad9;border-color:#245ad9}
+  .btn-ghost{background:transparent}
+  .aistate{font-size:11.5px;margin-top:8px;line-height:1.6;white-space:pre-line;max-height:150px;overflow:auto}
+  .aistate.ok{color:var(--ok)} .aistate.bad{color:var(--danger)}
+  .aistate.warn{color:var(--warn)}
+
+  /* ── 消息气泡 ── */
+  .msg{display:flex;gap:9px;align-items:flex-start;max-width:100%}
+  .msg .who{width:23px;height:23px;border-radius:50%;flex:none;font-size:12px;
+            display:flex;align-items:center;justify-content:center;margin-top:1px}
+  .msg.u{flex-direction:row-reverse}
+  .msg.u .who{background:#e8eefc;color:#2f6df6}
+  .msg.a .who{background:linear-gradient(135deg,#2f6df6,#7aa5ff);color:#fff}
+  .msg .bub{border-radius:12px;padding:9px 13px;font-size:13.5px;line-height:1.65;
+            max-width:100%;overflow-wrap:anywhere;min-width:0}
+  .msg.u .bub{background:var(--brand);color:#fff;border-bottom-right-radius:4px}
+  .msg.a .bub{background:var(--panel-2);border:1px solid var(--line);
+              border-bottom-left-radius:4px;flex:1}
+  .msg .bub p{margin:0 0 8px} .msg .bub p:last-child{margin-bottom:0}
+  .msg .bub h1,.msg .bub h2,.msg .bub h3{font-size:14px;margin:11px 0 6px;font-weight:700}
+  .msg .bub h1:first-child,.msg .bub h2:first-child,.msg .bub h3:first-child{margin-top:0}
+  .msg .bub ul,.msg .bub ol{margin:6px 0;padding-left:19px}
+  .msg .bub li{margin:3px 0}
+  .msg .bub code{background:#e9ecf1;border-radius:4px;padding:1px 5px;
+                 font-family:var(--mono);font-size:12px}
+  .msg .bub pre{background:#1c1f26;color:#e6e9ef;border-radius:8px;padding:10px 12px;
+                overflow:auto;margin:8px 0;max-height:320px}
+  .msg .bub pre code{background:none;color:inherit;padding:0;font-size:12px;line-height:1.6}
+  .msg .bub strong{font-weight:700}
+  .msg .bub hr{border:none;border-top:1px solid var(--line);margin:11px 0}
+  .msg .bub table{border-collapse:collapse;margin:8px 0;font-size:12.5px;width:100%}
+  .msg .bub th,.msg .bub td{border:1px solid var(--line);padding:5px 9px;text-align:left}
+  .msg .bub th{background:var(--panel-2);font-weight:650}
+  .cursor{display:inline-block;width:7px;height:14px;background:var(--brand);
+          vertical-align:-2px;animation:blink 1s steps(2) infinite;margin-left:2px}
+  @keyframes blink{50%{opacity:0}}
+  .scope{font-size:11px;color:var(--text-3);margin-bottom:5px;display:flex;
+         align-items:center;gap:6px}
+  .scope .tag2{background:var(--brand-soft);color:var(--brand);border-radius:5px;
+               padding:1px 7px;font-weight:600}
+
+  /* ── 输入区 ── */
+  #ai .qbox{display:flex;gap:8px;align-items:flex-end}
+  #aiQ{flex:1;resize:none;font-size:13.5px;line-height:1.55;padding:9px 12px;
+       border-radius:10px;max-height:130px;min-height:40px;font-family:var(--sans)}
+  #aiSend{border-radius:10px;padding:9px 15px;flex:none;height:40px;font-weight:600}
+  #aiSend:disabled{opacity:.45;cursor:not-allowed}
+  .quick{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:9px}
+  .quick button{font-size:11.5px;padding:4px 10px;border-radius:999px;
+                background:var(--panel);color:var(--text-2)}
+  .quick button:hover{background:var(--brand-soft);border-color:var(--brand-line);
+                      color:var(--brand)}
+  .aifoot-note{font-size:11px;color:var(--text-3);margin-top:7px;text-align:center}
+
+  @media (max-width:820px){
+    #ai{position:absolute;right:0;top:0;bottom:0;width:min(94vw,446px);z-index:6}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="bar">
+    <span class="brand">capture<small>抓包工作台</small></span>
+    <span class="stat" id="live"></span>
+    <span class="stat" id="stat"></span>
+    <button id="btnRefresh">刷新</button>
+    <span class="stat" id="uiVer" style="font-size:11px;color:#b0b6be"></span>
+    <span class="spacer"></span>
+    <button class="pill" id="aiBtn" onclick="toggleAI()" title="AI 助手：诊断问题 / 分析数据">
+      <span id="aiPill">AI 助手</span>
+    </button>
+    <button class="pill" id="drawerBtn" onclick="toggleDrawer()" title="打开设备与状态面板">
+      <span id="devPill">设备与状态</span>
+      <span id="drawerChev" style="color:var(--sub)">▸</span>
+    </button>
+  </div>
+  <div class="filters" id="filters">
+    <span class="flab">范围</span>
+    <div class="tabs2" id="modeTabs">
+      <button data-m="live" class="on">当前</button>
+      <button data-m="all">历史</button>
+    </div>
+    <span class="flab">设备</span>
+    <select id="fDevice" title="按设备筛选"><option value="">全部设备</option></select>
+    <span class="flab">主机</span>
+    <select id="fHost"><option value="">全部主机</option></select>
+    <span class="flab">方法</span>
+    <select id="fMethod">
+      <option value="">全部方法</option><option>GET</option><option>POST</option>
+      <option>PUT</option><option>DELETE</option><option>CONNECT</option>
+    </select>
+    <span class="flab">状态</span>
+    <select id="fStatus">
+      <option value="">全部状态</option><option value="2">2xx</option>
+      <option value="4">4xx</option><option value="5">5xx</option><option value="err">异常</option>
+    </select>
+    <label class="ck"><input type="checkbox" id="fNoise"> 含系统杂音</label>
+  </div>
+</header>
+
+<div class="body">
+  <main>
+    <div id="list"><div class="empty">加载中…</div></div>
+    <div id="detail"><div class="empty">点击左侧任意请求查看详情</div></div>
+  </main>
+
+  <!-- 右侧抽屉：设备 + 状态 -->
+  <aside id="drawer" class="hide">
+    <div class="dhead">
+      <span>设备与状态</span>
+      <button class="dclose" onclick="toggleDrawer(false)" title="收起（也可以点空白处或按 Esc）">✕</button>
+    </div>
+
+    <div class="dbody">
+
+    <div class="box"><h3>设备 <span class="badge" id="devCount">—</span>
+      <button class="dclose" id="devShowAll" style="font-size:11.5px;margin-left:auto;color:var(--blue)">显示全部</button></h3>
+      <div class="hint" style="margin:0 0 8px">点<b>圆点</b>变绿 = 开始监听这台（绿了它的日志才进来）；点<b>整行</b> = 只看它的日志。</div>
+      <div id="devList"><div class="hint">加载中…</div></div>
+    </div>
+
+    <div class="box" id="usbBox" style="display:none"><h3>USB 连接的设备</h3><div id="usbList"></div>
+      <div class="hint">USB 插着 ≠ 能抓包 —— 抓包靠 Wi-Fi 代理，USB 只是确认设备在。</div>
+    </div>
+
+    <div class="box">
+      <h3>让手机连上这里</h3>
+      <div class="addr">主机名 <b id="pHost">—</b> 端口 <b id="pPort">—</b>
+        <button onclick="copyText($('pHost').textContent)">复制</button></div>
+      <div class="qrwrap">
+        <canvas id="qrCanvas" width="132" height="132" title="手机扫码打开接入页"></canvas>
+        <div class="qrtip">
+          <b>手机扫这个码</b>
+          <div style="margin-top:4px">自动打开接入页，照着填代理，<b>不用手打 IP</b>。</div>
+          <div id="qrUrl" class="qraddr">—</div>
+          <div id="qrNote" class="hint" style="margin-top:6px"></div>
+        </div>
+      </div>
+      <div class="tabs3" id="guideTabs"></div>
+      <ol class="steps" id="guideSteps"></ol>
+      <div class="hint">照着填就行。改完把 App 杀掉重开一次。填好后它会出现在上面的设备列表里，点绿才开始抓。</div>
+    </div>
+
+    <div class="box"><h3>本机流量 <span class="badge" id="localBadge">—</span>
+      <span class="badge b-off" id="guardBadge" style="display:none">—</span></h3>
+      <div class="hint">开启后，<b>这台电脑</b>上的浏览器 / App 流量也会被抓到（相当于 Charles 的 macOS Proxy）。</div>
+      <button id="localToggle" style="width:100%;margin-top:9px">…</button>
+      <div class="hint" id="localWarn" style="display:none;color:var(--amber)">
+        ⚠️ 本工具停掉时系统代理会自动还原；就算被强杀，断网保护也会在几秒内把网络接回来
+      </div>
+    </div>
+
+    <div class="box"><h3>服务状态</h3>
+      <div class="grid2" id="svcGrid"></div>
+      <div class="hint" id="svcHome"></div>
+    </div>
+
+    <div class="box"><h3>抓不到包？按顺序检查</h3>
+      <ol class="steps">
+        <li>手机和这台电脑连<b>同一个 Wi-Fi</b></li>
+        <li>手机 Wi-Fi 代理填上面的<b>主机名和端口</b></li>
+        <li>改完把 App <b>杀掉重开</b></li>
+        <li>还不行：手机浏览器随便开个网页，看列表有没有新记录</li>
+      </ol>
+      <div class="hint">手机连上后即使不发业务请求，也会做联网探测，这里能看到它。</div>
+    </div>
+    </div><!-- /.dbody -->
+  </aside>
+
+  <!-- AI 助手 -->
+  <aside id="ai" class="hide">
+    <div class="ahead">
+      <span class="t">AI 助手</span>
+      <span class="badge b-off" id="aiBadge">未配置</span>
+      <span class="m" id="aiModel">—</span>
+      <button class="dclose" onclick="toggleAI(false)" title="收起">✕</button>
+    </div>
+    <div class="abody" id="aiLog"></div>
+    <div class="afoot">
+      <div class="quick" id="aiQuick"></div>
+      <div class="qbox">
+        <textarea id="aiQ" rows="1" placeholder="问它：手机连不上怎么办 / 分析这批录单为什么失败…"></textarea>
+        <button id="aiSend" class="btn-primary">发送</button>
+      </div>
+      <div class="aifoot-note">它读的是本机实时状态 + 数据字典，不猜字段含义</div>
+    </div>
+  </aside>
+</div>
+
+<footer>
+  <span class="flabel">Filter</span>
+  <input type="search" id="q" placeholder="输入关键字过滤请求：路径 / 主机 / 请求体 / 响应体…" autocomplete="off">
+  <span class="fcount" id="fcount"></span>
+  <button id="qClear" title="清空过滤">✕</button>
+</footer>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* 纯 JS 二维码编码器（零依赖，内嵌自 .qrcheck/qr.js —— 已与 Python qrcode 库逐位对拍验证）
+   只做 Byte 模式（UTF-8），版本 1–10，ECC L/M/Q/H。
+   算法按 ISO/IEC 18004，输出 0/1 二维数组。 */
+function qrEncode(text, opts) {
+  opts = opts || {};
+  var wantEcc = opts.ecc || "M";
+  var forceVer = opts.version || 0;
+  var forceMask = (opts.mask === undefined || opts.mask === null) ? -1 : opts.mask;
+
+  var ECC_BITS = { L: 1, M: 0, Q: 3, H: 2 };   // 格式信息里的 2 位编码
+
+  // 每版本的数据码字数：ECL 顺序 [L, M, Q, H]（= 总码字 − 每块纠错码字 × 块数）
+  var DATA_CW = [
+    null,
+    [19, 16, 13, 9], [34, 28, 22, 16], [55, 44, 34, 26], [80, 64, 48, 36],
+    [108, 86, 62, 46], [136, 108, 76, 60], [156, 124, 88, 66], [194, 154, 110, 86],
+    [232, 182, 132, 100], [274, 216, 154, 122]
+  ];
+  // 每版本每块的纠错码字数：ECL 顺序 [L, M, Q, H]
+  var ECC_PER_BLOCK = [
+    null,
+    [7, 10, 13, 17], [10, 16, 22, 28], [15, 26, 18, 22], [20, 18, 26, 16],
+    [26, 24, 18, 22], [18, 16, 24, 28], [20, 18, 18, 26], [24, 22, 22, 26],
+    [30, 22, 20, 24], [18, 26, 24, 28]
+  ];
+  // 分块数：ECL 顺序 [L, M, Q, H]
+  var BLOCKS = [
+    null,
+    [1, 1, 1, 1], [1, 1, 1, 1], [1, 1, 2, 2], [1, 2, 2, 4], [1, 2, 4, 4],
+    [2, 4, 4, 4], [2, 4, 6, 5], [2, 4, 6, 6], [2, 5, 8, 8], [4, 5, 8, 8]
+  ];
+  var ALIGN = [null, [], [6, 18], [6, 22], [6, 26], [6, 30], [6, 34],
+               [6, 22, 38], [6, 24, 42], [6, 26, 46], [6, 28, 50]];
+
+  /* ── GF(256) ── */
+  var EXP = new Array(512), LOG = new Array(256);
+  (function () {
+    var x = 1;
+    for (var i = 0; i < 255; i++) { EXP[i] = x; LOG[x] = i; x <<= 1; if (x & 0x100) x ^= 0x11d; }
+    for (var j = 255; j < 512; j++) EXP[j] = EXP[j - 255];
+  })();
+  function gmul(a, b) { return (a === 0 || b === 0) ? 0 : EXP[LOG[a] + LOG[b]]; }
+
+  function rsGenPoly(deg) {
+    var poly = [1];
+    for (var i = 0; i < deg; i++) {
+      var next = new Array(poly.length + 1).fill(0);
+      for (var j = 0; j < poly.length; j++) {
+        next[j] ^= gmul(poly[j], 1);
+        next[j + 1] ^= gmul(poly[j], EXP[i]);
+      }
+      poly = next;
+    }
+    return poly;
+  }
+  function rsEncode(data, ecLen) {
+    var gen = rsGenPoly(ecLen);
+    var res = new Array(ecLen).fill(0);
+    for (var i = 0; i < data.length; i++) {
+      var factor = data[i] ^ res[0];
+      res.shift(); res.push(0);
+      for (var j = 0; j < ecLen; j++) res[j] ^= gmul(gen[j + 1], factor);
+    }
+    return res;
+  }
+
+  /* ── 数据编码 ── */
+  var bytes = [];
+  for (var i = 0; i < text.length; i++) {
+    var c = text.charCodeAt(i);
+    if (c < 0x80) bytes.push(c);
+    else if (c < 0x800) { bytes.push(0xc0 | (c >> 6), 0x80 | (c & 63)); }
+    else { bytes.push(0xe0 | (c >> 12), 0x80 | ((c >> 6) & 63), 0x80 | (c & 63)); }
+  }
+
+  var eccIdx = { L: 0, M: 1, Q: 2, H: 3 }[wantEcc];
+  var version = forceVer, dataCw = 0, ecPerBlock = 0, numBlocks = 0;
+  for (var v = 1; v <= 10; v++) {
+    dataCw = DATA_CW[v][eccIdx];
+    numBlocks = BLOCKS[v][eccIdx];
+    ecPerBlock = ECC_PER_BLOCK[v][eccIdx];
+    if (forceVer && v !== forceVer) continue;
+    var ccBits = v < 10 ? 8 : 16;
+    if (4 + ccBits + bytes.length * 8 <= dataCw * 8) { version = v; break; }
+  }
+  if (!version) throw new Error("内容太长，超出二维码容量");
+
+  var ccBits = version < 10 ? 8 : 16;
+  var bits = [];
+  function push(val, len) { for (var k = len - 1; k >= 0; k--) bits.push((val >> k) & 1); }
+  push(0b0100, 4);                 // Byte 模式
+  push(bytes.length, ccBits);
+  for (var b = 0; b < bytes.length; b++) push(bytes[b], 8);
+
+  var capBits = dataCw * 8;
+  for (var t = 0; t < 4 && bits.length < capBits; t++) bits.push(0);
+  while (bits.length % 8 !== 0) bits.push(0);
+  var padToggle = 0;
+  while (bits.length < capBits) { push(padToggle ? 0x11 : 0xEC, 8); padToggle ^= 1; }
+
+  var allCw = [];
+  for (var p = 0; p < bits.length; p += 8) {
+    var byteVal = 0;
+    for (var q = 0; q < 8; q++) byteVal = (byteVal << 1) | bits[p + q];
+    allCw.push(byteVal);
+  }
+
+  /* ── 分块 + 纠错 + 交织 ── */
+  var shortLen = Math.floor(dataCw / numBlocks);
+  var numLong = dataCw % numBlocks;
+  var blocks = [], pos = 0;
+  for (var bi = 0; bi < numBlocks; bi++) {
+    var len = shortLen + (bi >= numBlocks - numLong ? 1 : 0);
+    var d = allCw.slice(pos, pos + len); pos += len;
+    blocks.push({ d: d, e: rsEncode(d, ecPerBlock) });
+  }
+  var finalCw = [];
+  var maxData = Math.max.apply(null, blocks.map(function (x) { return x.d.length; }));
+  for (var ci = 0; ci < maxData; ci++)
+    for (var bj = 0; bj < blocks.length; bj++)
+      if (ci < blocks[bj].d.length) finalCw.push(blocks[bj].d[ci]);
+  for (var ei = 0; ei < ecPerBlock; ei++)
+    for (var bk = 0; bk < blocks.length; bk++) finalCw.push(blocks[bk].e[ei]);
+
+  /* ── 矩阵 ── */
+  var size = version * 4 + 17;
+  var m = [], resv = [];
+  for (var r = 0; r < size; r++) { m.push(new Array(size).fill(0)); resv.push(new Array(size).fill(0)); }
+
+  function setF(r, c, v) { if (r >= 0 && r < size && c >= 0 && c < size) { m[r][c] = v; resv[r][c] = 1; } }
+  function finder(r0, c0) {
+    for (var dr = -1; dr <= 7; dr++) for (var dc = -1; dc <= 7; dc++) {
+      var rr = r0 + dr, cc = c0 + dc;
+      if (rr < 0 || rr >= size || cc < 0 || cc >= size) continue;
+      var inner = (dr >= 0 && dr <= 6 && dc >= 0 && dc <= 6);
+      var v = 0;
+      if (inner) {
+        if (dr === 0 || dr === 6 || dc === 0 || dc === 6) v = 1;
+        else if (dr >= 2 && dr <= 4 && dc >= 2 && dc <= 4) v = 1;
+      }
+      setF(rr, cc, v);
+    }
+  }
+  finder(0, 0); finder(0, size - 7); finder(size - 7, 0);
+  for (var i2 = 8; i2 < size - 8; i2++) { setF(6, i2, i2 % 2 === 0 ? 1 : 0); setF(i2, 6, i2 % 2 === 0 ? 1 : 0); }
+
+  var ap = ALIGN[version];
+  for (var a1 = 0; a1 < ap.length; a1++) for (var a2 = 0; a2 < ap.length; a2++) {
+    var cr = ap[a1], cc2 = ap[a2];
+    if ((cr <= 8 && cc2 <= 8) || (cr <= 8 && cc2 >= size - 9) || (cr >= size - 9 && cc2 <= 8)) continue;
+    for (var dr2 = -2; dr2 <= 2; dr2++) for (var dc2 = -2; dc2 <= 2; dc2++) {
+      var vv = (Math.max(Math.abs(dr2), Math.abs(dc2)) !== 1) ? 1 : 0;
+      setF(cr + dr2, cc2 + dc2, vv);
+    }
+  }
+  setF(size - 8, 8, 1);                              // 固定暗模块
+
+  for (var k1 = 0; k1 <= 8; k1++) {                  // 预留格式信息
+    if (k1 !== 6) { setF(8, k1, 0); setF(k1, 8, 0); }
+  }
+  for (var k2 = 0; k2 < 8; k2++) {
+    setF(8, size - 1 - k2, 0);
+    setF(size - 1 - k2, 8, 0);
+  }
+
+  for (var vi = 0; vi < 2; vi++) {                   // 预留版本信息（v>=7）
+    if (version < 7) break;
+    for (var vj = 0; vj < 3; vj++) {
+      setF(size - 11 + vj, vi, 0);
+      setF(vi, size - 11 + vj, 0);
+    }
+  }
+
+  /* ── 放数据 ── */
+  var allBits = [];
+  for (var f1 = 0; f1 < finalCw.length; f1++)
+    for (var f2 = 7; f2 >= 0; f2--) allBits.push((finalCw[f1] >> f2) & 1);
+
+  var idx = 0, up = true;
+  for (var col = size - 1; col > 0; col -= 2) {
+    if (col === 6) col = 5;                          // 跳过竖直定时图案那一列
+    for (var n = 0; n < size; n++) {
+      var row = up ? (size - 1 - n) : n;
+      for (var s = 0; s < 2; s++) {
+        var cx = col - s;
+        if (resv[row][cx]) continue;
+        m[row][cx] = idx < allBits.length ? allBits[idx++] : 0;
+      }
+    }
+    up = !up;
+  }
+
+  /* ── 掩码 ── */
+  function maskFn(k, r, c) {
+    switch (k) {
+      case 0: return (r + c) % 2 === 0;
+      case 1: return r % 2 === 0;
+      case 2: return c % 3 === 0;
+      case 3: return (r + c) % 3 === 0;
+      case 4: return (Math.floor(r / 2) + Math.floor(c / 3)) % 2 === 0;
+      case 5: return ((r * c) % 2) + ((r * c) % 3) === 0;
+      case 6: return (((r * c) % 2) + ((r * c) % 3)) % 2 === 0;
+      case 7: return (((r + c) % 2) + ((r * c) % 3)) % 2 === 0;
+    }
+    return false;
+  }
+  function applyMask(k) {
+    var out = m.map(function (row) { return row.slice(); });
+    for (var r = 0; r < size; r++) for (var c = 0; c < size; c++)
+      if (!resv[r][c] && maskFn(k, r, c)) out[r][c] ^= 1;
+    return out;
+  }
+
+  /* ── 格式信息 ── */
+  function formatBits(eccName, mask) {
+    var data = (ECC_BITS[eccName] << 3) | mask;
+    var rem = data << 10;
+    for (var i = 14; i >= 10; i--) if ((rem >> i) & 1) rem ^= 0x537 << (i - 10);
+    return ((data << 10) | rem) ^ 0x5412;
+  }
+  function drawFormat(mat, eccName, mask) {
+    var f = formatBits(eccName, mask);
+    var bit = function (i) { return (f >> i) & 1; };
+    // 规范落点：bit0 在 (8,0) 与 (size-1,8)，bit14 在 (14,8) 与 (8,size-15)
+    for (var i = 0; i < 15; i++) {
+      var r, c;
+      if (i < 6) { r = i; c = 8; }                       // 左上竖直段 行0-5
+      else if (i < 8) { r = i + 1; c = 8; }              // 跳过第 6 行（竖直定时图案）
+      else { r = size - 15 + i; c = 8; }                 // 左下竖直段
+      mat[r][c] = bit(i);
+
+      if (i < 8) { r = 8; c = size - 1 - i; }            // 右上水平段
+      else if (i < 9) { r = 8; c = 15 - i - 1 + 1; }     // c = 7
+      else { r = 8; c = 15 - i - 1; }                    // 左上水平段
+      mat[r][c] = bit(i);
+    }
+    mat[size - 8][8] = 1;                                // 固定暗模块
+    return mat;
+  }
+
+  /* ── 选掩码（规范惩罚分）── */
+  function penalty(mat) {
+    var p = 0, r, c, run, dark = 0;
+    function lineScore(get) {
+      var sc = 0, cur = get(0), len = 1;
+      for (var i = 1; i < size; i++) {
+        var v = get(i);
+        if (v === cur) { len++; } else {
+          if (len >= 5) sc += 3 + (len - 5);
+          cur = v; len = 1;
+        }
+      }
+      if (len >= 5) sc += 3 + (len - 5);
+      return sc;
+    }
+    for (r = 0; r < size; r++) p += lineScore(function (i) { return mat[r][i]; });
+    for (c = 0; c < size; c++) p += lineScore(function (i) { return mat[i][c]; });
+    for (r = 0; r < size - 1; r++) for (c = 0; c < size - 1; c++) {
+      var v0 = mat[r][c];
+      if (v0 === mat[r][c + 1] && v0 === mat[r + 1][c] && v0 === mat[r + 1][c + 1]) p += 3;
+    }
+    var pat1 = [1, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0];
+    var pat2 = [0, 0, 0, 0, 1, 0, 1, 1, 1, 0, 1];
+    for (r = 0; r < size; r++) for (c = 0; c < size; c++) {
+      if (c + 11 <= size) {
+        var ok1 = true, ok2 = true;
+        for (var i = 0; i < 11; i++) {
+          if (mat[r][c + i] !== pat1[i]) ok1 = false;
+          if (mat[r][c + i] !== pat2[i]) ok2 = false;
+        }
+        if (ok1 || ok2) p += 40;
+      }
+      if (r + 11 <= size) {
+        var ok3 = true, ok4 = true;
+        for (var j = 0; j < 11; j++) {
+          if (mat[r + j][c] !== pat1[j]) ok3 = false;
+          if (mat[r + j][c] !== pat2[j]) ok4 = false;
+        }
+        if (ok3 || ok4) p += 40;
+      }
+    }
+    for (r = 0; r < size; r++) for (c = 0; c < size; c++) if (mat[r][c]) dark++;
+    var ratio = dark * 100 / (size * size);
+    p += Math.floor(Math.abs(ratio - 50) / 5) * 10;
+    return p;
+  }
+
+  // 逐个掩码打分，取惩罚分最低的（forceMask 指定时只算那一个）
+  var candidates = forceMask >= 0 ? [forceMask] : [0, 1, 2, 3, 4, 5, 6, 7];
+  var finalMat = null, finalScore = null, bestMask = 0;
+  for (var mj = 0; mj < candidates.length; mj++) {
+    var cm = drawFormat(applyMask(candidates[mj]), wantEcc, candidates[mj]);
+    var scj = penalty(cm);
+    if (finalScore === null || scj < finalScore) {
+      finalScore = scj; finalMat = cm; bestMask = candidates[mj];
+    }
+  }
+  return { matrix: finalMat, size: size, version: version, mask: bestMask, ecc: wantEcc };
+}
+</script>
+
+<script>
+"use strict";
+const S = { flows: [], selected: null, timer: null, detail: null, dev: null,
+            device: "", devMap: {}, mode: "live", status: null, live: false,
+            monitored: new Set(), devAll: false, selfIps: new Set(["127.0.0.1","::1"]) };
+const ONLINE_SEC = 180;
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const api = async p => { const r = await fetch(p); if(!r.ok) throw new Error(r.status); return r.json(); };
+function toast(m){ const t=$("toast"); t.textContent=m; t.classList.add("on"); setTimeout(()=>t.classList.remove("on"),1500); }
+function fmtJSON(t){ if(!t) return ""; try{ return JSON.stringify(JSON.parse(t),null,2);}catch(e){ return t; } }
+window.copyText = t => navigator.clipboard.writeText(t).then(()=>toast("已复制"));
+
+function hl(text, q){
+  const t = String(text ?? "");
+  if(!q) return esc(t);
+  const i = t.toLowerCase().indexOf(q);
+  if(i < 0) return esc(t);
+  return esc(t.slice(0,i)) + "<mark>" + esc(t.slice(i, i+q.length)) + "</mark>" + esc(t.slice(i+q.length));
+}
+
+/* ── 抽屉 ─────────────────────────────────────── */
+function toggleDrawer(force){
+  const d = $("drawer");
+  const hide = force === undefined ? !d.classList.contains("hide") : !force;
+  d.classList.toggle("hide", hide);
+  localStorage.setItem("cap.drawer", hide ? "0" : "1");
+  const chev = $("drawerChev"), btn = $("drawerBtn");
+  if(chev) chev.textContent = hide ? "▸" : "▾";
+  if(btn) btn.classList.toggle("on", !hide);
+  if(!hide){ renderDrawer(); renderLocal(); }
+}
+window.toggleDrawer = toggleDrawer;
+
+/* ── 设备状态 ─────────────────────────────────── */
+function clientLastSeen(){
+  const last = {};
+  S.flows.forEach(f => { if(f.client && (!last[f.client] || f.ts > last[f.client])) last[f.client] = f.ts; });
+  return last;
+}
+function isLocal(ip){ return ip === "127.0.0.1" || ip === "::1"; }
+function isMonitored(ip){ return S.monitored.has(ip); }
+function known(ip){ return ip || "__unknown__"; }   // 早期记录没有 client 字段
+function isSelf(ip){ return isLocal(ip) || ip === "__unknown__"; }  // 不需要联网探测的"自己人"
+function onlineState(ip){
+  if(isSelf(ip)) return true;               // 本机 / 未知来源组：不靠 ping，跟着进程活着
+  const d = S.devMap[ip];
+  if(d && d.online !== null && d.online !== undefined) return d.online;
+  const ts = clientLastSeen()[ip];
+  if(!ts) return false;
+  return (Date.now() - new Date(ts).getTime()) / 1000 < ONLINE_SEC;
+}
+function onlineClients(){
+  const set = new Set();
+  Object.entries(S.devMap).forEach(([ip, d]) => { if(d.online === true) set.add(ip); });
+  const last = clientLastSeen(), now = Date.now();
+  Object.entries(last).forEach(([ip, ts]) => {
+    if(isSelf(ip)){ set.add(ip); return; }
+    const meta = S.devMap[ip];
+    if(meta && meta.online !== null && meta.online !== undefined) return;
+    const age = (now - new Date(ts).getTime()) / 1000;
+    if(age >= 0 && age < ONLINE_SEC) set.add(ip);
+  });
+  return set;
+}
+function ageText(ts){
+  if(!ts) return "—";
+  const s = Math.max(0, (Date.now() - new Date(ts).getTime()) / 1000);
+  if(s < 60) return `${s|0} 秒前`;
+  if(s < 3600) return `${(s/60)|0} 分钟前`;
+  return `${(s/3600)|0} 小时前`;
+}
+function devMeta(ip){
+  if(ip === "127.0.0.1" || ip === "::1") return { icon:"🖥", title:"本机（这台 Mac）" };
+  if(ip === "__unknown__") return { icon:"❓", title:"未知来源（早期记录）" };
+  const d = S.devMap[ip];
+  if(!d) return { icon:"❔", title:"未识别" };
+  const plat = d.platform || d.probe || "";
+  const icon = plat.startsWith("iOS") ? "🍎" : plat.startsWith("Android") ? "🤖"
+             : plat ? "💻" : (d.browser ? "🌐" : (d.title ? "🖥" : "❔"));
+  const title = d.title || (d.platform ? (d.platform + (d.model ? " · " + d.model : ""))
+              : d.probe ? d.probe
+              : d.browser ? "浏览器流量" : "未识别");
+  return { icon, title };
+}
+
+/* ── 请求列表 ─────────────────────────────────── */
+function visible(){
+  const q=$("q").value.trim().toLowerCase(), host=$("fHost").value, m=$("fMethod").value,
+        st=$("fStatus").value, noise=$("fNoise").checked, dev=$("fDevice").value;
+  const online = onlineClients();
+  const devs = [...S.monitored];          // 没点绿的设备：一条都不进列表
+  return S.flows.filter(f=>{
+    if(!devs.includes(known(f.client))) return false;
+    if(S.mode === "live" && !online.has(f.client)) return false;
+    if(dev && f.client !== dev) return false;
+    if(!noise && f.noise) return false;
+    if(host && f.host!==host) return false;
+    if(m && (f.method||"")!==m) return false;
+    if(st){ if(st==="err"){ if(!(f.error||(f.status||0)>=400)) return false; }
+            else if(String(f.status||"").charAt(0)!==st) return false; }
+    if(q){ const hay=(f.path||"")+" "+(f.host||"")+" "+(f.req_body||"")+" "+(f.resp_body||"");
+           if(!hay.toLowerCase().includes(q)) return false; }
+    return true;
+  });
+}
+function renderListEmpty(){
+  if(!S.monitored.size)
+    return `<div class="empty"><span class="big">🎧</span>
+      <b>还没有监听任何设备</b>
+      <span style="font-size:12.5px;max-width:340px">打开「设备与状态」，点设备左边的<b>圆点变绿</b> —— 变绿的设备，它的报文才会出现在这里</span>
+      <button onclick="toggleDrawer(true)">打开设备列表</button></div>`;
+  if(S.mode === "live")
+    return `<div class="empty"><span class="big">💤</span>
+      <b>当前没有在线设备的流量</b>
+      <span style="font-size:12.5px;max-width:360px">设备断开后，它的日志会从「当前」移除（数据没丢，仍在「历史」里）</span>
+      <button onclick="setMode('all')">切到「历史」看全部</button></div>`;
+  return `<div class="empty"><span class="big">🔍</span>
+    <b>没有匹配的请求</b>
+    <span style="font-size:12.5px">换个关键字，或把筛选条件放宽一点</span></div>`;
+}
+function renderList(){
+  const rows=visible(), sel=$("fHost"), q=$("q").value.trim().toLowerCase();
+  if(sel.options.length<=1) [...new Set(S.flows.map(f=>f.host).filter(Boolean))].sort()
+      .forEach(h=>sel.add(new Option(h,h)));
+  const fc = $("fcount");
+  if(fc) fc.textContent = q ? `${rows.length} / ${S.flows.length}` : `${rows.length} 条`;
+  if(!rows.length){ $("list").innerHTML = renderListEmpty(); return; }
+  $("list").innerHTML = rows.slice().reverse().map(f=>{
+    const cls = f.kind==="connect" ? "CONNECT" : (f.method||"");
+    const sc = f.status==null ? "s-null" : "s-"+String(f.status).charAt(0);
+    const stTxt = f.kind==="connect" ? "隧道" : (f.status ?? "×");
+    const label = f.kind==="connect" ? (f.host+":"+f.port) : (f.host+f.path);
+    const tail = f.kind==="connect" ? hl(label, q)
+               : `<span class="host">${esc(f.host||"")}</span>${hl(f.path||"", q)}`;
+    return `<div class="row${S.selected===f.id?" sel":""}" data-id="${f.id}" title="${esc(label)}">
+      <span class="id">${f.id}</span><span class="m m-${cls}">${esc(cls)}</span>
+      <span class="p">${tail}</span>
+      <span class="rt"><span class="s ${sc}">${stTxt}</span><span class="t">${(f.ts||"").slice(11,19)}</span></span></div>`;
+  }).join("");
+}
+function updateStat(){
+  const online = onlineClients();
+  const devLabel = S.device ? `　·　${esc(devMeta(S.device).title)}` : "";
+  const badge = S.mode === "live" ? '<span class="badge b-live">当前</span>'
+                                  : '<span class="badge b-hist">历史</span>';
+  // 监听状态直接写在顶栏：绿点到底有没有真的生效，一眼可查
+  const nm = S.monitored.size;
+  const listen = nm
+    ? `<span class="badge b-ok">🎧 监听中 ${nm} 台</span>`
+    : `<span class="badge b-off">🎧 未监听任何设备</span>`;
+  $("stat").innerHTML = `${badge} ${listen} <span class="vsep"></span><span>${visible().length} 条${devLabel}</span>`;
+  const dp = $("devPill");
+  if(dp) dp.textContent = online.size ? `🟢 ${online.size} 台在线` : "⚪️ 无设备在线";
+}
+
+/* ── 详情 ─────────────────────────────────────── */
+function kv(o){ const k=Object.keys(o||{});
+  if(!k.length) return '<pre>(无)</pre>';
+  return '<div class="kv">'+k.map(x=>`<div>${esc(x)}</div><div>${esc(o[x])}</div>`).join("")+"</div>"; }
+function card(t,i,open){ return `<details class="card"${open?" open":""}><summary>${esc(t)}</summary>${i}</details>`; }
+function renderDetail(f){
+  if(!f){
+    $("detail").innerHTML = `<div class="empty"><span class="big">👈</span>
+      <b>选一个请求看详情</b>
+      <span style="font-size:12.5px;max-width:320px">左边点任意一行，这里会显示完整的请求头 / 请求体 / 响应头 / 响应体</span></div>`;
+    return;
+  }
+  const url = f.kind==="connect" ? `CONNECT ${f.host}:${f.port}` : (f.url||"");
+  const sc = f.status==null ? "" : "s-"+String(f.status).charAt(0);
+  let h = `<div class="dwrap"><h2>${esc(f.method)} ${esc(url)}</h2>
+    <div class="meta">
+      <span class="chip">状态 <b class="${sc}">${f.status ?? "—"}</b></span>
+      <span class="chip">耗时 <b>${f.ms ?? "—"}</b> ms</span>
+      <span class="chip">${esc((f.ts||"").replace("T"," "))}</span>
+      ${f.client?`<span class="chip">${esc(devMeta(f.client).title)} <b style="color:var(--text-3)">${esc(f.client)}</b></span>`:""}
+      <span class="spacer"></span>
+      <button onclick="copyJSON()">复制 JSON</button>
+      ${f.kind!=="connect"?`<button onclick="copyCurl()">复制 cURL</button>`:""}
+    </div>`;
+  if(f.kind==="connect"){
+    $("detail").innerHTML = h + '<div class="card"><div class="legend">HTTPS 透传，未解密 —— 只记录到目标主机，看不到内容。要解密需在手机上装根证书。</div></div></div>';
+    return;
+  }
+  if(f.error) h += `<div class="card"><div class="legend" style="color:var(--danger)">错误：${esc(f.error)}</div></div>`;
+  h += card("请求头", kv(f.req_headers), true)
+     + card("请求体", `<pre>${esc(fmtJSON(f.req_body))||"(空)"}</pre>`, true)
+     + card("响应头", kv(f.resp_headers))
+     + card("响应体", `<pre>${esc(fmtJSON(f.resp_body))||"(空)"}</pre>`, true)
+     + '</div>';
+  $("detail").innerHTML = h;
+}
+window.copyJSON=()=>navigator.clipboard.writeText(JSON.stringify(S.detail,null,2)).then(()=>toast("已复制 JSON"));
+window.copyCurl=()=>{ const f=S.detail; if(!f) return;
+  const hs=Object.entries(f.req_headers||{}).filter(([k])=>k!=="host").map(([k,v])=>`-H '${k}: ${v}'`).join(" \\\n  ");
+  const b=f.req_body?` \\\n  --data-raw '${String(f.req_body).replace(/'/g,"'\\''")}'`:"";
+  navigator.clipboard.writeText(`curl -X ${f.method} '${f.url}' \\\n  ${hs}${b}`).then(()=>toast("已复制 cURL")); };
+
+/* ── 本机流量开关 ─────────────────────────────── */
+async function renderLocal(){
+  try{
+    const st = await api("/api/local");
+    S.local = st;
+    const on = !!st.pointing_here;
+    const b = $("localBadge");
+    b.textContent = on ? "已开启" : "已关闭";
+    b.className = "badge " + (on ? "b-ok" : "b-off");
+    $("localToggle").textContent = on ? "关闭（还原系统代理）" : "开启（把系统代理指向本工具）";
+    $("localWarn").style.display = on ? "" : "none";
+    // 断网保护只在"代理已接管"时才有意义 —— 它盯着代理崩了没人还原这件事
+    const g = $("guardBadge");
+    g.style.display = on ? "" : "none";
+    g.textContent = st.guard ? "🛡 断网保护在岗" : "⚠️ 断网保护未运行";
+    g.className = "badge " + (st.guard ? "b-ok" : "b-idle");
+    g.title = st.guard ? "代理进程若崩溃或被强杀，几秒内自动还原系统代理"
+                       : "跑一下 cap guard start 可恢复保护";
+  }catch(e){ $("localBadge").textContent = "不可用"; }
+}
+/* 这个按钮和「设备」页里点绿「本机」是同一件事：
+   都走 /api/monitor —— 免得两套开关各记一份状态、互相打架。
+   它只是把"本机"这一台的绿点开关，重复放在了本机流量这一栏。 */
+$("localToggle").onclick = async () => {
+  const on = !(S.local && S.local.pointing_here);
+  const btn = $("localToggle");
+  btn.disabled = true; btn.textContent = on ? "开启中…" : "还原中…";
+  try{
+    const r = await fetch("/api/monitor?set=127.0.0.1", {method:"POST"});
+    const j = await r.json();
+    if(!r.ok || j.ok === false) throw new Error(j.error || r.status);
+    toast(j.note || (on ? "已开启本机抓包" : "已还原系统代理"));
+  }catch(e){ toast("操作失败：" + (e.message||e)); }
+  btn.disabled = false;
+  renderLocal();
+};
+
+/* ── 抽屉内容 ─────────────────────────────────── */
+function renderDrawer(d){
+  if(d) S.dev = d;
+  const v = S.dev;
+  if(!v){ return; }
+  const p = v.proxy;
+  $("pHost").textContent = p.host;
+  $("pPort").textContent = p.port;
+  renderQR(v.setup_url);
+
+  // 接入指引
+  const keys = Object.keys(v.guide);
+  const gt = $("guideTabs");
+  if(gt.dataset.built !== keys.join(",")){
+    gt.dataset.built = keys.join(",");
+    gt.innerHTML = keys.map((k,i)=>`<button data-g="${esc(k)}" class="${i===0?"on":""}">${esc(k)}</button>`).join("");
+    gt.querySelectorAll("button").forEach(b => b.onclick = () => showGuide(b.dataset.g));
+  }
+  showGuide(gt.querySelector("button.on")?.dataset.g || keys[0]);
+
+  // 设备：点圆点 = 开始/停止监听（绿 = 正在监听）
+  // 默认只列「在线」的 —— 离线/从没抓到流量的机器堆在这里只会淹没有用的信息。
+  // 想看全部就点标题右边的「显示全部」。
+  const online = onlineClients(), last = clientLastSeen();
+  const all = v.connected;
+  const shown = S.devAll ? all : all.filter(d => onlineState(d.client) !== false);
+  const hidden = all.length - shown.length;
+  const nMon = all.filter(d=>isMonitored(d.client)).length;
+  const nOnline = all.filter(d=>onlineState(d.client) !== false).length;
+  $("devCount").textContent = `监听 ${nMon} · 在线 ${nOnline}`;
+  $("devCount").className = "badge " + (nMon ? "b-ok" : "b-off");
+  const btnAll = $("devShowAll");
+  btnAll.style.display = (hidden || S.devAll) ? "" : "none";
+  btnAll.textContent = S.devAll ? "只显示在线" : `显示全部（+${hidden} 台离线）`;
+  $("devList").innerHTML = shown.length ? shown.map(d=>{
+    const meta = devMeta(d.client);
+    const mon = isMonitored(d.client);
+    const isOn = onlineState(d.client);
+    // 在线状态用文字，不再用绿色 —— 绿色在全界面只表示"正在监听"
+    const badge = isOn === null ? '<span class="badge b-idle">探测中</span>'
+                : isOn ? '<span class="dot" style="width:6px;height:6px;box-shadow:none"></span><span style="color:var(--ok);font-size:11.5px">在线</span>'
+                : '<span class="badge b-off">离线</span>';
+    const bits = [];
+    if(d.source === "lan") bits.push("同网段 · 代理未指向本机 " + (d.mac||""));
+    if(d.source === "local" && !d.pointing_here) bits.push("系统代理未指向本工具 —— 点绿即自动接上");
+    if(d.app_version) bits.push("App "+d.app_version);
+    if(d.country) bits.push(d.country);
+    if(d.site) bits.push("网点 "+d.site);
+    const tip = mon ? "点击停止监听（数据仍保留）" : "点击开始监听这台设备";
+    const line = d.requests ? `${esc(d.client)}　${d.requests} 条　最后活动 ${ageText(last[d.client])}`
+                            : `${esc(d.client)}　还没抓到流量`;
+    return `<div class="dev${mon?"":" idle"}" data-ip="${esc(d.client)}">
+      <span class="mon${mon?" on":""}" data-toggle="${esc(d.client)}" title="${tip}"></span>
+      <div class="ico">${meta.icon}</div>
+      <div style="flex:1"><div class="t1">${esc(d.title||meta.title)} ${badge}</div>
+        <div class="t2">${line}</div>
+        ${bits.length?`<div class="t2">${esc(bits.join(" · "))}</div>`:""}</div></div>`;
+  }).join("") : `<div class="hint">没有在线设备。${
+      hidden ? `（有 ${hidden} 台离线，点上面「显示全部」可看）<br>` : ""
+    }让设备连上来：按下面「让手机连上这里」把 Wi-Fi 代理填成 ${esc((v.proxy||{}).host||"")}:${esc((v.proxy||{}).port||"")}。</div>`;
+
+  // USB
+  if(v.usb && v.usb.length){
+    $("usbBox").style.display = "";
+    $("usbList").innerHTML = v.usb.map(d=>`<div class="dev"><div class="ico">🔌</div>
+      <div><div class="t1">${esc([d.platform,d.name,d.model].filter(Boolean).join(" · "))}</div>
+      <div class="t2">${d.os_version?"iOS "+esc(d.os_version)+"":esc(d.udid||"")}</div></div></div>`).join("");
+  } else { $("usbBox").style.display = "none"; }
+
+  // 同网段的机器已经并进上面的设备列表（带绿点、可点），这里不再重复列一遍
+}
+function showGuide(key){
+  const v = S.dev; if(!v) return;
+  document.querySelectorAll("#guideTabs button").forEach(b=>b.classList.toggle("on", b.dataset.g===key));
+  $("guideSteps").innerHTML = (v.guide[key]||[]).map(s=>`<li>${esc(s)}</li>`).join("");
+}
+
+/* ── 手机扫码：把接入页地址画成二维码 ─────────────── */
+function renderQR(url){
+  const cv = $("qrCanvas");
+  if(!cv || !url) return;
+  try{
+    const r = qrEncode(url, { ecc: "M" });
+    const quiet = 4, n = r.size, side = n + quiet*2, scale = 5;   // 静默区按规范留 4 模块
+    const px = side * scale;
+    cv.width = px; cv.height = px;
+    const g = cv.getContext("2d");
+    g.fillStyle = "#fff"; g.fillRect(0, 0, px, px);
+    g.fillStyle = "#111827";
+    for(let y=0;y<n;y++) for(let x=0;x<n;x++)
+      if(r.matrix[y][x]) g.fillRect((x+quiet)*scale, (y+quiet)*scale, scale, scale);
+    $("qrUrl").textContent = url;
+    $("qrNote").textContent = `v${r.version} · 纠错 ${r.ecc}`;
+  }catch(e){
+    $("qrUrl").textContent = url;
+    $("qrNote").textContent = "二维码生成失败：" + e.message;
+  }
+}
+
+function renderSvc(){
+  const s = S.status; if(!s) return;
+  $("svcGrid").innerHTML = `
+    <div class="cell"><div class="k">服务</div><div class="v">${s.running?"✅ 运行中":"⛔️ 未运行"}</div></div>
+    <div class="cell"><div class="k">代理地址</div><div class="v">${esc(s.host)}:${s.proxy_port}</div></div>
+    <div class="cell"><div class="k">已抓请求</div><div class="v">${s.business} / ${s.total}</div></div>
+    <div class="cell"><div class="k">脱敏</div><div class="v">${s.redact?"开":"关"}</div></div>`;
+  $("svcHome").textContent = "数据目录：" + s.home;
+}
+
+/* ── 模式 / 设备筛选 ──────────────────────────── */
+function setMode(m){
+  S.mode = m;
+  localStorage.setItem("cap.mode", m);
+  document.querySelectorAll("#modeTabs button").forEach(b => b.classList.toggle("on", b.dataset.m === m));
+  S.selected = null; S.detail = null; devSig = "";
+  renderDetail(null);
+  renderDeviceOptions(); renderList(); updateStat();
+}
+window.setMode = setMode;
+document.querySelectorAll("#modeTabs button").forEach(b => b.onclick = () => setMode(b.dataset.m));
+
+let devSig = "";
+function renderDeviceOptions(){
+  const sel = $("fDevice");
+  const counts = {};
+  S.flows.forEach(f => { if(f.client) counts[f.client] = (counts[f.client] || 0) + 1; });
+  const online = onlineClients();
+  // 下拉框只是"在已监听的设备里挑一台看"，它不决定监听谁 —— 那个由绿点决定
+  let ips = [...S.monitored];
+  if(S.mode === "live") ips = ips.filter(ip => online.has(ip));
+  ips.sort((a,b) => (counts[b]||0) - (counts[a]||0));
+  const sig = S.mode + "|" + ips.join(",") + "|" + Object.keys(S.devMap).join(",") + "|" + counts[ips[0]];
+  if(sig === devSig) return;
+  devSig = sig;
+  const cur = S.device || localStorage.getItem("cap.device") || "";
+  sel.innerHTML = (ips.length
+      ? `<option value="">全部监听设备（${ips.length} 台）</option>`
+      : `<option value="">未监听设备</option>`)
+    + ips.map(ip => {
+      const m = devMeta(ip);
+      const dot = online.has(ip) ? "🟢" : "⚪️";
+      return `<option value="${esc(ip)}">${dot} ${m.icon} ${esc(m.title)} · ${counts[ip]||0} 条</option>`;
+    }).join("");
+  // 还有点不绿的设备时，在下拉框里直接给个入口，省得用户找不到抽屉
+  const unmon = (S.dev && S.dev.connected ? S.dev.connected : []).filter(x=>!isMonitored(x.client));
+  if(unmon.length){
+    const o = new Option(`⚪️ 还有 ${unmon.length} 台未监听 —— 点这里去开`, "__pick__");
+    sel.add(o);
+  }
+  sel.value = ips.includes(cur) ? cur : "";
+  S.device = sel.value;
+}
+function pickDevice(ip){
+  if(ip && S.mode === "live" && !onlineClients().has(ip)){
+    S.mode = "all";
+    localStorage.setItem("cap.mode", "all");
+    document.querySelectorAll("#modeTabs button").forEach(b => b.classList.toggle("on", b.dataset.m === "all"));
+    devSig = "";
+  }
+  S.device = ip;
+  localStorage.setItem("cap.device", ip);
+  S.selected = null; S.detail = null;
+  renderDetail(null); renderDeviceOptions(); renderList(); updateStat();
+}
+function applyMonitored(list){
+  S.monitored = new Set(list || []);
+  pickDevice("");          // 清掉可能指向"已停止监听"那台的下拉选择
+  devSig = "";
+  renderDeviceOptions();
+}
+$("devList").addEventListener("click", e => {
+  // 点圆点 = 切换监听（绿 ↔ 灰）
+  const dot = e.target.closest(".mon[data-toggle]");
+  if(dot){ e.stopPropagation(); toggleMonitor(dot.dataset.toggle); return; }
+  // 点整行 = 在下拉框里选中这台
+  const row = e.target.closest(".dev[data-ip]"); if(!row) return;
+  if(!isMonitored(row.dataset.ip)){ toast("这台还没在监听，先点它左边的圆点"); return; }
+  pickDevice(row.dataset.ip);
+});
+async function toggleMonitor(ip){
+  const before = [...S.monitored];
+  const wasOn = isMonitored(ip);
+  // 先动界面，再发请求：点一下就有反馈，不等网络
+  const next = new Set(S.monitored);
+  wasOn ? next.delete(ip) : next.add(ip);
+  applyMonitored([...next]);
+  renderDrawer(); renderList(); updateStat();
+  toast(wasOn ? "已停止监听" : "已开始监听");
+  try{
+    const r = await fetch("/api/monitor?set=" + encodeURIComponent(ip), {method:"POST"});
+    const j = await r.json();
+    if(!r.ok || j.ok === false) throw new Error(j.error || ("HTTP " + r.status));
+    applyMonitored(j.monitored); S.pollCount = 0;      // 强制全量重拉：新监听的设备历史立刻出现
+    await refresh();
+    toast(j.note ? j.note : (wasOn ? "已停止监听" : "已开始监听"));
+  }catch(err){
+    toast("切换失败：" + err.message + " —— 已还原");
+    applyMonitored(before);                            // 还原成点击前的样子
+    renderDrawer(); renderList(); updateStat();
+  }
+}
+
+/* 归一化：早期记录没有 client 字段 → __unknown__；
+   本机自己的 LAN IP（代理填了 192.168.x.x 那部分）→ 归到本机，别当成另一台设备 */
+function normFlow(r){
+  if(!r.client) r.client = "__unknown__";
+  else if(S.selfIps && S.selfIps.has(r.client)) r.client = "127.0.0.1";
+  return r;
+}
+
+/* 增量拉取：只取比本地最新的 id 更新的记录；每 5 轮做一次全量校准 */
+async function loadFlows(){
+  S.pollCount = (S.pollCount || 0) + 1;
+  const full = !S.flows.length || S.pollCount % 5 === 1;
+  const since = full ? 0 : (S.flows[S.flows.length - 1].id || 0);
+  const rows = (await api("/api/flows" + (since ? "?since_id=" + since : ""))).map(normFlow);
+  if(full || !rows.length){
+    if(full) S.flows = rows;
+    return;
+  }
+  const have = new Set(S.flows.map(f => f.id));
+  const add = rows.filter(r => !have.has(r.id));
+  if(add.length) S.flows = S.flows.concat(add);
+}
+
+/* ── 刷新 ─────────────────────────────────────── */
+async function refresh(){
+  try{
+    const s = await api("/api/status");
+    if(s.ui_version && window.__UI_VERSION__ && s.ui_version !== window.__UI_VERSION__){
+      location.reload(); return;
+    }
+    S.status = s;
+
+    await loadFlows();
+    try{
+      const d = await api("/api/devices");
+      S.devMap = {}; d.connected.forEach(x => S.devMap[x.client] = x);
+      S.dev = d;
+      S.selfIps = new Set(["127.0.0.1", "::1", (d.proxy||{}).host].filter(Boolean));
+      // 监听集合以服务端为准（别人改了这边也跟着变）
+      const mon = d.monitored || d.connected.filter(x=>x.monitored).map(x=>x.client);
+      if(mon.join(",") !== [...S.monitored].sort().join(",")){
+        S.monitored = new Set(mon);
+        S.device = ""; localStorage.setItem("cap.device", "");
+        devSig = "";
+      }
+    }catch(e){}
+
+    renderDeviceOptions();
+    renderList(); updateStat();
+    if(!$("drawer").classList.contains("hide")) { renderDrawer(); renderSvc(); }
+    if(S.selected!=null){
+      const c = S.flows.find(f => f.id === S.selected);
+      if(c && (!S.device || c.client === S.device)){ S.detail=c; renderDetail(c); }
+    }
+  }catch(e){ $("stat").innerHTML='<span class="dot off"></span>连不上 capture 服务'; }
+}
+function schedule(){ clearInterval(S.timer); S.timer=setInterval(refresh, 6000); }
+
+/* ── 实时推送（SSE） ──────────────────────────── */
+function markLive(){
+  const el = $("live"); if(!el) return;
+  el.innerHTML = S.live ? '<span class="dot"></span>实时' : '<span class="dot off"></span>重连中…';
+  const v = $("uiVer");
+  if(v && window.__APP_VERSION__) v.textContent = "v" + window.__APP_VERSION__;
+}
+function connectEvents(){
+  try{
+    const es = new EventSource("/api/events");
+    es.onopen = () => { S.live = true; markLive(); };
+    es.onerror = () => { S.live = false; markLive(); };
+    es.addEventListener("flow", e => {
+      S.live = true;
+      const f = JSON.parse(e.data);
+      if(S.flows.some(x => x.id === f.id)) return;
+      S.flows.push(f);
+      renderDeviceOptions(); renderList(); updateStat();
+      if(!$("drawer").classList.contains("hide")) renderDrawer();
+    });
+    es.addEventListener("presence", e => {
+      S.live = true;
+      const p = JSON.parse(e.data);
+      const d = S.devMap[p.client] || (S.devMap[p.client] = { client: p.client });
+      d.online = p.online;
+      if(S.dev) (S.dev.connected || []).forEach(x => { if(x.client === p.client) x.online = p.online; });
+      devSig = "";
+      renderDeviceOptions(); renderList(); updateStat();
+      if(!$("drawer").classList.contains("hide")) renderDrawer();
+    });
+    es.addEventListener("monitored", e => {
+      // 监听集合被别处改了（另一个标签页 / 命令行）
+      const m = JSON.parse(e.data).monitored || [];
+      if(m.join(",") === [...S.monitored].sort().join(",")) return;
+      S.monitored = new Set(m);
+      S.device = ""; localStorage.setItem("cap.device", "");
+      devSig = ""; S.pollCount = 0;
+      renderDeviceOptions(); renderList(); updateStat();
+      if(!$("drawer").classList.contains("hide")) renderDrawer();
+    });
+  }catch(err){}
+}
+
+/* ── 事件绑定 ─────────────────────────────────── */
+$("list").addEventListener("click", async e=>{
+  const row=e.target.closest(".row"); if(!row) return;
+  S.selected=Number(row.dataset.id); renderList();
+  const f=await api("/api/flow?id="+S.selected); S.detail=f; renderDetail(f);
+});
+["fHost","fMethod","fStatus","fNoise"].forEach(id=>{
+  $(id).addEventListener("input",()=>{renderList();updateStat();});
+  $(id).addEventListener("change",()=>{renderList();updateStat();});
+});
+$("fDevice").addEventListener("change", () => {
+  const v = $("fDevice").value;
+  if(v === "__pick__"){                    // 选的是"去开监听"这个入口
+    $("fDevice").value = S.device || "";
+    toggleDrawer(true);
+    toast("点设备左边的圆点让它变绿 = 开始监听");
+    return;
+  }
+  pickDevice(v);
+});
+$("btnRefresh").onclick = refresh;
+$("devShowAll").onclick = () => {
+  S.devAll = !S.devAll;
+  localStorage.setItem("cap.devAll", S.devAll ? "1" : "0");
+  renderDrawer();
+};
+$("q").addEventListener("input", () => { renderList(); updateStat(); });
+$("qClear").onclick = () => { $("q").value = ""; renderList(); updateStat(); $("q").focus(); };
+document.addEventListener("keydown", e => {
+  if((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "f"){
+    e.preventDefault(); $("q").focus(); $("q").select();
+  }
+  if(e.key === "Escape"){
+    if(document.activeElement === $("q")){
+      $("q").value = ""; renderList(); updateStat();
+    } else if(!$("drawer").classList.contains("hide")){
+      toggleDrawer(false);
+    }
+  }
+});
+
+/* 点抽屉外面（列表/详情/空白处）自动收起 */
+document.addEventListener("click", e => {
+  const d = $("drawer");
+  if(d.classList.contains("hide")) return;
+  if(d.contains(e.target)) return;               // 点在抽屉里 → 不动
+  if($("drawerBtn").contains(e.target)) return;  // 点在按钮上 → 交给按钮切换
+  toggleDrawer(false);
+});
+
+
+/* ══════════════════════════════════════════════════════════
+   AI 助手
+   ══════════════════════════════════════════════════════════ */
+S.aiConf = null;
+S.aiBusy = false;
+S.aiHistory = [];
+
+window.toggleAI = function(force){
+  const el = $("ai");
+  const hide = force === undefined ? !el.classList.contains("hide") : !force;
+  el.classList.toggle("hide", hide);
+  $("aiBtn").classList.toggle("on", !hide);
+  localStorage.setItem("cap.ai", hide ? "0" : "1");
+  if(!hide) loadAIConf();
+};
+function hide2drawer(){ return !$("drawer").classList.contains("hide"); }
+
+function aiSay(role, text, opts){
+  opts = opts || {};
+  const log = $("aiLog");
+  const d = document.createElement("div");
+  d.className = "msg " + (role === "u" ? "u" : "a");
+  d.innerHTML = `<div class="who">${role === "u" ? "我" : "AI"}</div>
+    <div class="bub"${opts.id ? ` id="${opts.id}"` : ""}></div>`;
+  log.appendChild(d);
+  const bub = d.querySelector(".bub");
+  if(role === "u") bub.textContent = text;
+  else bub.innerHTML = text;
+  log.scrollTop = log.scrollHeight;
+  return bub;
+}
+
+/* 迷你 Markdown —— 只支持模型实际会用的那些语法。
+   先转义 HTML，再套标记，避免注入。 */
+function md(src){
+  let t = String(src ?? "");
+  const codes = [];
+  t = t.replace(/```(\w*)\n?([\s\S]*?)```/g, (m, lang, code) => {
+    codes.push(code.replace(/\n$/, ""));
+    return `\u0000CODE${codes.length - 1}\u0000`;
+  });
+  const esc2 = s => s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  let out = [];
+  const lines = t.split("\n");
+  let inUl = false, inOl = false, inTable = false;
+  const closeList = () => {
+    if(inUl){ out.push("</ul>"); inUl = false; }
+    if(inOl){ out.push("</ol>"); inOl = false; }
+  };
+  const closeTable = () => { if(inTable){ out.push("</table>"); inTable = false; } };
+  for(let raw of lines){
+    let line = raw;
+    const seg = [];
+    line = line.replace(/`([^`]+)`/g, (m, c) => { seg.push(esc2(c)); return `\u0001${seg.length-1}\u0001`; });
+    line = esc2(line).replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+                     .replace(/(^|[^*])\*([^*]+)\*/g, "$1<em>$2</em>");
+    line = line.replace(/\u0001(\d+)\u0001/g, (m, i) => "<code>" + seg[+i] + "</code>");
+    line = line.replace(/\u0000CODE(\d+)\u0000/g, (m, i) => "<pre><code>" + esc2(codes[+i]) + "</code></pre>");
+    // 表格
+    if(/^\s*\|.*\|\s*$/.test(line)){
+      const cells = line.trim().replace(/^\||\|$/g, "").split("|").map(x => x.trim());
+      if(cells.every(c => /^:?-{2,}:?$/.test(c))) continue;      // 分隔行
+      if(!inTable){ closeList(); out.push("<table>"); inTable = true;
+                    out.push("<tr>" + cells.map(c => "<th>" + c + "</th>").join("") + "</tr>"); }
+      else out.push("<tr>" + cells.map(c => "<td>" + c + "</td>").join("") + "</tr>");
+      continue;
+    } else closeTable();
+    // 标题
+    const h = line.match(/^(#{1,4})\s+(.*)$/);
+    if(h){ closeList(); out.push(`<h${h[1].length + 1}>${h[2]}</h${h[1].length + 1}>`); continue; }
+    if(/^\s*([-*_])\1{2,}\s*$/.test(line)){ closeList(); out.push("<hr>"); continue; }
+    // 列表
+    const ul = line.match(/^\s*[-*+]\s+(.*)$/);
+    const ol = line.match(/^\s*\d+[.)]\s+(.*)$/);
+    if(ul){ if(inOl){ out.push("</ol>"); inOl = false; }
+            if(!inUl){ out.push("<ul>"); inUl = true; } out.push("<li>" + ul[1] + "</li>"); continue; }
+    if(ol){ if(inUl){ out.push("</ul>"); inUl = false; }
+            if(!inOl){ out.push("<ol>"); inOl = true; } out.push("<li>" + ol[1] + "</li>"); continue; }
+    closeList();
+    out.push(line.trim() === "" ? "<p></p>" : "<p>" + line + "</p>");
+  }
+  closeList(); closeTable();
+  return out.join("");
+}
+
+/* ── 模型配置 ── */
+async function loadAIConf(){
+  try{
+    const c = await api("/api/ai/config");
+    S.aiConf = c;
+    const b = $("aiBadge");
+    b.textContent = c.ready ? "已就绪" : (c.key_set ? "待测试" : "未配置");
+    b.className = "badge " + (c.ready ? "b-ok" : (c.key_set ? "b-idle" : "b-off"));
+    $("aiModel").textContent = c.key_set ? (c.model || "—") : "";
+    $("aiPill").textContent = c.ready ? "AI 助手" : "AI 助手 ⚠";
+    renderAIConf(c);
+    renderQuick();
+  }catch(e){
+    $("aiBadge").textContent = "不可用";
+  }
+}
+
+function renderAIConf(c){
+  const log = $("aiLog");
+  if($("aiConf")) return;
+  const box = document.createElement("div");
+  box.className = "aiconf"; box.id = "aiConf";
+  const provs = Object.entries(c.providers || {})
+    .map(([k, v]) => `<option value="${k}"${k === c.provider ? " selected" : ""}>${esc(v.name)}</option>`)
+    .join("");
+  const models = (c.preset_models || []).map(m => `<option value="${m}"></option>`).join("");
+  box.innerHTML = `
+    <div class="row"><label>服务商</label>
+      <select id="aiProv">${provs}</select></div>
+    <div class="row"><label>模型</label>
+      <input id="aiMdl" list="aiMdls" value="${esc(c.model || "")}" placeholder="模型名">
+      <datalist id="aiMdls">${models}</datalist></div>
+    <div class="row"><label>Base URL</label>
+      <input id="aiUrl" value="${esc(c.base_url || "")}" placeholder="https://.../v1"></div>
+    <div class="row"><label>API Key</label>
+      <input id="aiKey" type="password" placeholder="${c.key_set ? esc(c.key_hint || "已设置") : "粘贴你的 key"}"></div>
+    <div class="acts">
+      <button class="btn-primary" id="aiSave">保存并测试</button>
+      <button id="aiFill" title="从本机已装的 AI 客户端里读取 key">一键填写</button>
+      <button id="aiModels" class="btn-ghost" title="从服务商拉取可用模型">拉模型列表</button>
+      <button id="aiHide" class="btn-ghost">收起设置</button>
+    </div>
+    <div class="aistate" id="aiState">${
+      c.ready ? "✅ 已配置好，直接在下面提问" :
+      "还没有 key。点「一键填写」可自动读取本机已有的 key，或手动粘贴。"}</div>`;
+  log.parentNode.insertBefore(box, log);
+  $("aiHide").onclick = () => { box.style.display = "none"; };
+  $("aiProv").onchange = () => {
+    const p = (c.providers || {})[$("aiProv").value];
+    if(p){ $("aiUrl").value = p.base_url || ""; if(p.models[0]) $("aiMdl").value = p.models[0];
+           $("aiMdls").innerHTML = p.models.map(m => `<option value="${m}"></option>`).join(""); }
+  };
+  $("aiFill").onclick = async () => {
+    setAIState("warn", "正在读取本机已有的 key…");
+    try{
+      const r = await fetch("/api/ai/autofill", {method: "POST"});
+      const j = await r.json();
+      if(!r.ok) throw new Error(j.error || ("HTTP " + r.status));
+      // 如实显示试了哪些、哪个能用 —— 否则用户不知道自己的 key 为何没被采用
+      const tried = (j.tried || []);
+      let extra = "";
+      if(tried.length > 1 || (tried[0] && !tried[0].ok)){
+        extra = "\n" + tried.map(function(t){
+          return (t.ok ? "✅ " : "❌ ") + t.source + "（" + t.hint + "）" +
+                 (t.ok ? "" : "：" + t.message);
+        }).join("\n");
+      }
+      setAIState(j.test_ok ? "ok" : "bad",
+        (j.test_ok ? "✅ 已采用 " + j.hint + "，来源：" + j.source : "⚠️ 没测通") +
+        extra + (j.test_ok ? "" : "\n" + (j.error || j.message || "")));
+      await loadAIConf();
+    }catch(e){ setAIState("bad", "一键填写失败：" + e.message + " —— 请手动粘贴 key"); }
+  };
+  $("aiSave").onclick = async () => {
+    setAIState("warn", "正在保存并测试…");
+    try{
+      const r = await fetch("/api/ai/save", {method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+          provider: $("aiProv").value, model: $("aiMdl").value.trim(),
+          base_url: $("aiUrl").value.trim(), api_key: $("aiKey").value.trim() || undefined})});
+      const j = await r.json();
+      if(!r.ok || !j.ok) throw new Error(j.error || ("HTTP " + r.status));
+      setAIState(j.test_ok ? "ok" : "bad",
+        (j.test_ok ? "✅ 连上了：" : "⚠️ 保存了但没测通：") + j.message);
+      $("aiKey").value = "";
+      await loadAIConf();
+    }catch(e){ setAIState("bad", "保存失败：" + e.message); }
+  };
+  $("aiModels").onclick = async () => {
+    setAIState("warn", "正在拉取模型列表…");
+    try{
+      const d = await api("/api/ai/models");
+      if(!d.models || !d.models.length) return setAIState("bad", "没拉到模型（key 或 Base URL 可能不对）");
+      $("aiMdls").innerHTML = d.models.map(m => `<option value="${m}"></option>`).join("");
+      setAIState("ok", "拉到 " + d.models.length + " 个模型，点「模型」输入框可下拉选");
+    }catch(e){ setAIState("bad", "拉取出错：" + e.message); }
+  };
+}
+function setAIState(kind, text){
+  const el = $("aiState");
+  if(!el) return;
+  el.className = "aistate " + kind;
+  el.textContent = text;
+}
+
+/* ── 快捷提问（跟着现场状态变，问到点子上）── */
+function renderQuick(){
+  const q = $("aiQuick"); if(!q) return;
+  const c = S.aiConf || {};
+  const items = [
+    ["现在能抓包吗？", "现在能抓包吗？我的设备连上来了没有？"],
+    ["手机连不上怎么排查", "手机连不上抓不到数据，帮我按顺序排查，告诉我下一步该做什么"],
+    ["这批数据能看出什么", "分析一下最近抓到的报文，有哪些值得注意的地方"],
+    ["这些字段是什么意思", "把最近报文里出现的业务字段，按数据字典解释一遍，字典里没有的明确标出来"],
+  ];
+  q.innerHTML = items.map((it, i) =>
+    `<button data-i="${i}">${esc(it[0])}</button>`).join("");
+  q.querySelectorAll("button").forEach(b => {
+    b.onclick = () => { $("aiQ").value = items[+b.dataset.i][1]; askAI(); };
+  });
+  if(!c.ready){
+    q.innerHTML = `<button id="aiSetup">配置 AI（填 key）</button>` + q.innerHTML;
+    $("aiSetup").onclick = () => { const b = $("aiConf"); if(b) b.style.display = ""; };
+  }
+}
+
+/* ── 提问 + 流式接收 ── */
+async function askAI(){
+  const q = $("aiQ").value.trim();
+  if(!q || S.aiBusy) return;
+  $("aiQ").value = "";
+  S.aiBusy = true; $("aiSend").disabled = true;
+  aiSay("u", q);
+  const bub = aiSay("a", '<span class="cursor"></span>');
+  let acc = "";
+  try{
+    const r = await fetch("/api/ai/chat", {method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({q: q, history: S.aiHistory.slice(-6)})});
+    if(!r.ok) throw new Error("HTTP " + r.status);
+    const reader = r.body.getReader();
+    const dec = new TextDecoder();
+    let buf = "", scope = "";
+    while(true){
+      const {done, value} = await reader.read();
+      if(done) break;
+      buf += dec.decode(value, {stream: true});
+      const parts = buf.split("\n\n");
+      buf = parts.pop();
+      for(const blk of parts){
+        const ev = (blk.match(/^event: (.+)$/m) || [])[1];
+        const dt = (blk.match(/^data: (.+)$/m) || [])[1];
+        if(!dt) continue;
+        let obj; try{ obj = JSON.parse(dt); }catch(e){ continue; }
+        if(ev === "meta"){
+          scope = obj.scope === "analyze" ? "数据分析" : "问题诊断";
+          bub.innerHTML = `<div class="scope"><span class="tag2">${scope}</span>${esc(obj.model || "")}</div>`
+                        + '<span class="cursor"></span>';
+        } else if(ev === "delta"){
+          acc += obj.t || "";
+          const head = scope ? `<div class="scope"><span class="tag2">${scope}</span></div>` : "";
+          bub.innerHTML = head + md(acc) + '<span class="cursor"></span>';
+          $("aiLog").scrollTop = $("aiLog").scrollHeight;
+        }
+      }
+    }
+    const head = scope ? `<div class="scope"><span class="tag2">${scope}</span></div>` : "";
+    bub.innerHTML = head + md(acc || "（没有回复）");
+    S.aiHistory.push({role: "user", content: q});
+    S.aiHistory.push({role: "assistant", content: acc.slice(0, 2000)});
+    if(S.aiHistory.length > 12) S.aiHistory = S.aiHistory.slice(-12);
+  }catch(e){
+    bub.innerHTML = md("⚠️ 请求失败：" + e.message + "\n\n检查一下 AI 配置，或者看 `cap trace` 里的 AI 日志。");
+  }
+  S.aiBusy = false; $("aiSend").disabled = false;
+  $("aiLog").scrollTop = $("aiLog").scrollHeight;
+}
+$("aiSend").onclick = askAI;
+$("aiQ").addEventListener("keydown", e => {
+  if(e.key === "Enter" && !e.shiftKey){ e.preventDefault(); askAI(); }
+});
+$("aiQ").addEventListener("input", () => {
+  const t = $("aiQ"); t.style.height = "auto";
+  t.style.height = Math.min(t.scrollHeight, 130) + "px";
+});
+
+/* 两个右侧面板互斥：先关掉对方，再切换自己。
+   之前的写法是在 toggleAI 里调 toggleDrawer，两个包装函数互相踩，
+   结果两个面板同时开着（截图里出现两个 ✕）。 */
+function closeAI(){ $("ai").classList.add("hide"); $("aiBtn").classList.remove("on");
+                    localStorage.setItem("cap.ai", "0"); }
+function closeDrawer(){ toggleDrawer(false); }
+window.toggleAI = function(force){
+  const el = $("ai");
+  const hide = force === undefined ? !el.classList.contains("hide") : !force;
+  if(!hide) closeDrawer();                    // 开 AI → 关抽屉
+  el.classList.toggle("hide", hide);
+  $("aiBtn").classList.toggle("on", !hide);
+  localStorage.setItem("cap.ai", hide ? "0" : "1");
+  if(!hide) loadAIConf();
+};
+const _origDrawer = window.toggleDrawer;
+window.toggleDrawer = function(force){
+  const el = $("drawer");
+  const hide = force === undefined ? !el.classList.contains("hide") : !force;
+  if(!hide) closeAI();                        // 开抽屉 → 关 AI
+  return _origDrawer(force);
+};
+
+/* ── 启动 ─────────────────────────────────────── */
+(async () => {
+  try{
+    const d = await api("/api/devices");
+    S.devMap = {}; d.connected.forEach(x => S.devMap[x.client] = x);
+    S.dev = d;
+    S.selfIps = new Set(["127.0.0.1", "::1", (d.proxy||{}).host].filter(Boolean));
+    S.monitored = new Set(d.monitored || d.connected.filter(x=>x.monitored).map(x=>x.client));
+    devSig = "";
+  }catch(e){}
+  S.device = localStorage.getItem("cap.device") || "";
+  S.mode = localStorage.getItem("cap.mode") || "live";
+  S.devAll = localStorage.getItem("cap.devAll") === "1";
+  document.querySelectorAll("#modeTabs button").forEach(b => b.classList.toggle("on", b.dataset.m === S.mode));
+  // 抽屉默认收起，只有用户点按钮才展开（记忆上次状态）
+  toggleDrawer(localStorage.getItem("cap.drawer") === "1");
+  if(localStorage.getItem("cap.ai") === "1") window.toggleAI(true);
+  markLive();
+  refresh(); schedule(); connectEvents();
+})();
+</script>
+</body>
+</html>

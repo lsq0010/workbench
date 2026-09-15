@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>崩溃日志符号化</title>
+<style>
+  :root{--bg:#f6f7f9;--panel:#fff;--line:#e5e7eb;--soft:#f1f2f5;--text:#17191e;
+    --t2:#5a6472;--t3:#98a1ad;--brand:#be123c;--brand-soft:#fdf2f5;--brand-line:#f2ccd7;
+    --ok:#15803d;--ok-soft:#eafaf0;--danger:#b91c1c;--warn:#a16207;--warn-soft:#fef9e7;
+    --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif}
+  *{box-sizing:border-box}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:#cfd3da;border:3px solid transparent;
+    background-clip:content-box;border-radius:8px}
+  body{margin:0;font:14px/1.6 var(--sans);background:var(--bg);color:var(--text)}
+  header{background:var(--panel);border-bottom:1px solid var(--line);
+    position:sticky;top:0;z-index:10}
+  .bar{display:flex;align-items:center;gap:10px;padding:0 20px;height:56px;
+    max-width:1160px;margin:0 auto;flex-wrap:wrap}
+  .brand{font-weight:650;font-size:15.5px;display:flex;align-items:center;gap:9px}
+  .brand .mk{width:25px;height:25px;border-radius:6px;display:flex;align-items:center;
+    justify-content:center;font-size:13px;background:var(--brand);color:#fff}
+  .spacer{flex:1}
+  .stat{color:var(--t3);font-size:12.5px;font-family:var(--mono)}
+  button.b{border:1px solid var(--line);background:var(--panel);border-radius:8px;
+    padding:7px 14px;cursor:pointer;font:inherit;font-size:13px;color:var(--text)}
+  button.b:hover{background:var(--brand-soft);border-color:var(--brand-line);color:var(--brand)}
+  button.b.pri{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:620}
+  button.b:disabled{opacity:.45;cursor:not-allowed}
+  main{max-width:1160px;margin:22px auto 80px;padding:0 20px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:13px;
+    padding:18px 20px;margin-bottom:16px}
+  .card h3{margin:0 0 12px;font-size:14.5px;font-weight:650}
+  .crash{padding:11px 13px;border:1px solid var(--line);border-radius:9px;
+    margin-bottom:8px;cursor:pointer;font-size:13px;display:flex;gap:10px;
+    align-items:center;flex-wrap:wrap}
+  .crash:hover{border-color:var(--brand-line);background:var(--brand-soft)}
+  .crash.on{border-color:var(--brand);background:var(--brand-soft)}
+  .crash .nm{font-family:var(--mono);font-size:12.5px;flex:1;min-width:200px}
+  .crash .wh{color:var(--t3);font-size:12px}
+  .drop{border:2px dashed var(--line);border-radius:11px;padding:20px;text-align:center;
+    color:var(--t2);cursor:pointer;font-size:13.5px}
+  .drop:hover{border-color:var(--brand-line);background:var(--brand-soft)}
+  .sum{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:11px;
+    padding:11px 16px;min-width:120px}
+  .kpi .k{color:var(--t3);font-size:11.5px}
+  .kpi .v{font-size:18px;font-weight:650;font-family:var(--mono);margin-top:3px}
+  table{width:100%;border-collapse:collapse;font-size:12.5px;font-family:var(--mono)}
+  th{text-align:left;color:var(--t3);font-weight:600;font-size:11px;padding:7px 8px;
+    text-transform:uppercase;letter-spacing:.05em}
+  td{padding:7px 8px;border-top:1px solid var(--soft);vertical-align:top;
+    word-break:break-all}
+  tr.mine{background:var(--ok-soft)}
+  tr.mine td:first-child{border-left:3px solid var(--ok)}
+  tr.sys{color:var(--t3)}
+  .frm{white-space:pre-wrap;line-height:1.7}
+  .miss{background:var(--warn-soft);border:1px solid #f0e0b0;border-radius:9px;
+    padding:12px 15px;font-size:12.5px;color:var(--warn);line-height:1.8;margin-top:14px}
+  .spin{display:inline-block;width:13px;height:13px;border:2px solid var(--line);
+    border-top-color:var(--brand);border-radius:50%;animation:sp .7s linear infinite;
+    vertical-align:-2px;margin-right:7px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .toast{position:fixed;bottom:26px;left:50%;transform:translate(-50%,10px);
+    background:#1c1f26;color:#fff;padding:10px 20px;border-radius:10px;opacity:0;
+    transition:all .2s;pointer-events:none;font-size:13px;z-index:99}
+  .toast.on{opacity:.97;transform:translate(-50%,0)}
+  .hint{color:var(--t3);font-size:12.5px;line-height:1.8}
+</style>
+</head>
+<body>
+<header><div class="bar">
+  <span class="brand"><span class="mk">💥</span>崩溃日志符号化</span>
+  <span class="stat" id="stat"></span>
+  <span class="spacer"></span>
+  <button class="b" id="btnDsym">dSYM 索引</button>
+</div></header>
+<main>
+  <div class="card">
+    <h3>选一个崩溃日志</h3>
+    <div id="list"><div class="hint">读取中…</div></div>
+    <div class="drop" id="drop" style="margin-top:12px">或者把 .ips / .crash 文件拖进来</div>
+  </div>
+  <div id="out"></div>
+</main>
+<div class="toast" id="toast"></div>
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g,
+  c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const api = async p => { const r = await fetch(p); if(!r.ok) throw new Error(r.status); return r.json(); };
+const post = async (p,b,t) => (await fetch(p, {method:"POST",
+  headers:{"Content-Type":"application/json"}, body: JSON.stringify(b||{})})).json();
+function toast(m){ const t=$("toast"); t.textContent=m; t.classList.add("on");
+  setTimeout(()=>t.classList.remove("on"),2600); }
+
+async function boot(){
+  $("btnDsym").onclick = showDsym;
+  ["dragenter","dragover"].forEach(ev => $("drop").addEventListener(ev, e => {
+    e.preventDefault(); $("drop").classList.add("on"); }));
+  ["dragleave","drop"].forEach(ev => $("drop").addEventListener(ev, e => {
+    e.preventDefault(); $("drop").classList.remove("on"); }));
+  $("drop").addEventListener("drop", e => {
+    const f = [...(e.dataTransfer.files||[])][0];
+    if(f && f.path) run(f.path);
+    else toast("浏览器拿不到文件路径 —— 用下面的列表选，或粘贴路径");
+  });
+  $("drop").onclick = () => {
+    const p = prompt("粘贴崩溃日志的完整路径：", "~/Library/Logs/DiagnosticReports/xxx.ips");
+    if(p) run(p);
+  };
+  await loadList();
+}
+
+async function loadList(){
+  try{
+    const d = await api("/api/status");
+    const cs = d.crashes || [];
+    $("stat").textContent = cs.length ? `${cs.length} 个崩溃日志（近 30 天）` : "";
+    $("list").innerHTML = cs.length ? cs.map((c, i) =>
+      `<div class="crash" data-i="${i}">
+        <span class="nm">${esc(c.name)}</span>
+        <span class="wh">${esc(c.when)} · ${c.kb} KB</span>
+      </div>`).join("")
+      : `<div class="hint">近 30 天没找到崩溃日志。<br>
+         崩溃日志一般在 <code>~/Library/Logs/DiagnosticReports/</code>，
+         或者从 App Store Connect / Firebase 下载。</div>`;
+    document.querySelectorAll("[data-i]").forEach(el => el.onclick = () => {
+      document.querySelectorAll(".crash").forEach(x => x.classList.remove("on"));
+      el.classList.add("on");
+      run(cs[+el.dataset.i].path);
+    });
+  }catch(e){
+    $("list").innerHTML = `<div class="hint" style="color:var(--danger)">${esc(e.message)}</div>`;
+  }
+}
+
+async function run(path){
+  $("out").innerHTML = `<div class="card"><span class="spin"></span>
+    符号化中…（第一次要建 dSYM 索引，十几秒；之后 0.2 秒）</div>`;
+  try{
+    const r = await post("/api/symbolicate", {path});
+    if(!r.ok){ $("out").innerHTML = `<div class="card" style="color:var(--danger)">
+      ${esc(r.error)}</div>`; return; }
+    paint(r);
+  }catch(e){
+    $("out").innerHTML = `<div class="card" style="color:var(--danger)">${esc(e.message)}</div>`;
+  }
+}
+
+function paint(r){
+  const c = r.crash;
+  const row = (f, i) => {
+    const im = (r.images.find(x => x.index === f.imageIndex) || {});
+    const sym = f.resolved || f.symbol || "";
+    const mine = im.found && sym && /\\w/.test(sym);
+    return `<tr class="${mine ? "mine" : "sys"}">
+      <td style="width:34px;color:var(--t3)">${i}</td>
+      <td style="width:170px">${esc(im.name || "?")}</td>
+      <td class="frm">${esc(sym || "(没符号)")}</td>
+    </tr>`;
+  };
+  $("out").innerHTML = `
+    <div class="sum">
+      <div class="kpi"><div class="k">App</div><div class="v" style="font-size:15px">
+        ${esc(c.app || "?")}</div></div>
+      <div class="kpi"><div class="k">版本</div><div class="v" style="font-size:15px">
+        ${esc(c.version || "?")}</div></div>
+      <div class="kpi"><div class="k">异常</div><div class="v" style="font-size:14px">
+        ${esc((c.exception || "?") + " " + (c.signal || ""))}</div></div>
+      <div class="kpi"><div class="k">符号化</div>
+        <div class="v" style="color:${r.resolved_frames ? "var(--ok)" : "var(--danger)"}">
+          ${r.resolved_frames}/${r.total_frames}</div></div>
+    </div>
+
+    <div class="card">
+      <h3>崩溃调用栈</h3>
+      <div class="hint" style="margin-bottom:9px">
+        绿色高亮的是<b>你自己的代码</b>（找到了 dSYM 的）——
+        问题就在这几帧里。灰色的是系统库。</div>
+      <table>
+        <tr><th>#</th><th>二进制</th><th>符号</th></tr>
+        ${r.frames.map(row).join("")}
+      </table>
+    </div>
+
+    <div class="card">
+      <h3>让 AI 分析这个崩溃</h3>
+      <div class="hint" style="margin-bottom:11px">
+        把符号化后的调用栈交给 AI，让它判断原因、指出改哪一行。
+        （会把栈信息发给 AI 服务商 —— 里面可能有类名和文件路径。）</div>
+      <div style="display:flex;gap:9px;align-items:center;flex-wrap:wrap">
+        <button class="b pri" id="btnAskAI">让 AI 看看</button>
+        <input type="text" id="crashq" style="flex:1;min-width:240px;
+          font:inherit;font-size:13px;border:1px solid var(--line);border-radius:8px;
+          padding:8px 11px;outline:none"
+          placeholder="想让它重点看什么？（可留空）">
+      </div>
+      <div id="crashai" style="white-space:pre-wrap;font-size:13.5px;
+        line-height:1.85;margin-top:13px"></div>
+    </div>
+
+    ${r.missing_dsym.length ? `<div class="miss">
+      <b>有 ${r.missing_dsym.length} 个二进制没找到 dSYM</b>，它们的帧符号化不出来：<br>
+      ${r.missing_dsym.slice(0,10).map(m =>
+        `· <code>${esc(m.name)}</code> <span style="opacity:.7">${esc(m.uuid)}</code>`).join("<br>")}
+      <div style="margin-top:9px">
+        <b>不要去网上随便找个 dSYM 来凑</b> —— UUID 对不上，
+        符号化出来的函数名是错的，比不符号化更危险。
+        要符号化这些帧，得拿到**同一份构建**的 dSYM。</div>
+    </div>` : ""}
+
+    <div class="card">
+      <h3>dSYM 索引</h3>
+      <div class="hint">扫了 ${r.dsym_index.count} 个 dSYM，
+        覆盖 ${r.dsym_index.uuids} 个 UUID${r.dsym_index.capped
+          ? "（到时间上限了，可能有没扫到的）" : ""}。
+        索引缓存 7 天，有新归档会自动重建。</div>
+    </div>
+
+    <div class="card">
+      <h3>所有二进制</h3>
+      <table>
+        <tr><th>#</th><th>名字</th><th>UUID</th><th>dSYM</th></tr>
+        ${r.images.map(x => `<tr>
+          <td>${x.index}</td><td>${esc(x.name || "?")}</td>
+          <td style="color:var(--t3)">${esc(x.uuid || "-")}</td>
+          <td>${x.found ? '<span style="color:var(--ok)">✅ 找到</span>'
+                        : '<span style="color:var(--warn)">没找到</span>'}</td>
+        </tr>`).join("")}
+      </table>
+    </div>`;
+  const ab = $("btnAskAI");
+  if(ab) ab.onclick = () => askAI(r);
+}
+
+function crashDigest(r){
+  const c = r.crash;
+  const lines = [
+    "App: " + (c.app || "?") + " " + (c.version || ""),
+    "包名: " + (c.bundle || "?"),
+    "系统: " + (c.os || "?") + "  设备: " + (c.device || "?"),
+    "异常: " + (c.exception || "?") + " " + (c.signal || ""),
+    "终止原因: " + (c.termination || "-"),
+    "",
+    "崩溃调用栈（序号 二进制 符号）：",
+  ];
+  r.frames.slice(0, 30).forEach((f, i) => {
+    const im = r.images.find(x => x.index === f.imageIndex) || {};
+    const sym = f.resolved || f.symbol || "(没符号)";
+    lines.push(i + "  " + (im.name || "?") + "  " + sym);
+  });
+  if(r.missing_dsym.length){
+    lines.push("", "没找到 dSYM 的二进制（这些帧符号化不出来）：" +
+      r.missing_dsym.map(m => m.name).join("、"));
+  }
+  return lines.join("\n");
+}
+
+async function askAI(r){
+  const b = $("btnAskAI");
+  b.disabled = true;
+  const out = $("crashai");
+  out.textContent = "AI 正在看…（几秒到十几秒）";
+  const q = ($("crashq").value || "").trim();
+  const prompt = "下面是一份 iOS 崩溃日志的符号化结果。请判断：\n" +
+    "1. 崩在什么地方（哪个类、哪个方法）\n" +
+    "2. 最可能的原因是什么\n" +
+    "3. 怎么修 —— 具体到改哪个文件、加什么判断\n" +
+    "4. 如果栈里信息不够，直说「看不出来」，不要猜\n" +
+    (q ? "\n我特别想知道：" + q + "\n" : "") +
+    "\n" + crashDigest(r);
+  try{
+    const resp = await fetch("http://127.0.0.1:8880/api/ai/chat", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({q: prompt})});
+    const reader = resp.body.getReader(), dec = new TextDecoder();
+    let buf = "", text = "";
+    while(true){
+      const {done, value} = await reader.read();
+      if(done) break;
+      buf += dec.decode(value, {stream:true});
+      const parts = buf.split("\n\n"); buf = parts.pop();
+      for(const part of parts){
+        const line = part.replace(/^data:\s*/, "");
+        if(!line) continue;
+        let ev; try{ ev = JSON.parse(line); }catch(e){ continue; }
+        if(ev.type === "text"){ text += ev.text; out.textContent = text; }
+      }
+    }
+    if(!text) out.textContent = "（AI 没给出内容）";
+  }catch(e){
+    out.textContent = "❌ 调 AI 失败：" + e.message +
+      "\n（确认平台 AI 配好了：http://127.0.0.1:8880 设置页）";
+  }
+  b.disabled = false;
+}
+
+async function showDsym(){
+  $("out").innerHTML = `<div class="card"><span class="spin"></span>扫 dSYM 索引…</div>`;
+  try{
+    const d = await api("/api/dsym");
+    $("out").innerHTML = `<div class="card">
+      <h3>dSYM 索引</h3>
+      <div class="sum">
+        <div class="kpi"><div class="k">dSYM 数量</div><div class="v">${d.dsym_count}</div></div>
+        <div class="kpi"><div class="k">UUID 数量</div><div class="v">${d.uuid_count}</div></div>
+      </div>
+      <div class="hint">扫这些地方：<br>${(d.roots||[]).map(r =>
+        "· <code>" + esc(r) + "</code>").join("<br>")}
+        ${d.capped ? "<br>⚠️ 到时间上限了 —— 有些归档可能没扫到" : ""}</div>
+    </div>`;
+  }catch(e){ toast("失败：" + e.message); }
+}
+
+boot();
+</script>
+</body>
+</html>

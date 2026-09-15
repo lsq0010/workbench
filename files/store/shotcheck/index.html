@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>上架材料检查</title>
+<style>
+  :root{
+    --bg:#f6f7f9;--panel:#fff;--panel2:#fafbfc;--line:#e5e7eb;--soft:#f1f2f5;
+    --text:#17191e;--t2:#5a6472;--t3:#98a1ad;
+    --brand:#b45309;--brand-soft:#fdf4e7;--brand-line:#f0d9b5;
+    --ok:#15803d;--ok-soft:#eafaf0;--warn:#a16207;--warn-soft:#fef9e7;--danger:#c2410c;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB",sans-serif;
+  }
+  *{box-sizing:border-box}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:#cfd3da;border:3px solid transparent;
+    background-clip:content-box;border-radius:8px}
+  body{margin:0;font:14px/1.6 var(--sans);background:var(--bg);color:var(--text);
+       min-height:100vh;-webkit-font-smoothing:antialiased}
+  header{background:var(--panel);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:10}
+  .bar{display:flex;align-items:center;gap:10px;padding:0 20px;height:56px;max-width:1180px;margin:0 auto}
+  .brand{font-weight:650;font-size:15.5px;display:flex;align-items:center;gap:9px}
+  .brand .mk{width:25px;height:25px;border-radius:6px;display:flex;align-items:center;
+    justify-content:center;font-size:13px;background:var(--brand);color:#fff}
+  .spacer{flex:1}
+  button.b{border:1px solid var(--line);background:var(--panel);border-radius:8px;
+    padding:7px 14px;cursor:pointer;font:inherit;font-size:13px;color:var(--text)}
+  button.b:hover{background:var(--brand-soft);border-color:var(--brand-line);color:var(--brand)}
+  button.b.pri{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:620}
+  button.b:disabled{opacity:.45;cursor:not-allowed}
+  main{max-width:1180px;margin:24px auto 80px;padding:0 20px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:13px;
+    padding:18px 20px;margin-bottom:16px}
+  .card h3{margin:0 0 13px;font-size:14.5px;font-weight:650;display:flex;align-items:center;gap:8px}
+  .drop{border:2px dashed var(--line);border-radius:11px;padding:22px;text-align:center;
+    color:var(--t2);cursor:pointer;font-size:13.5px;background:var(--panel2)}
+  .drop:hover{border-color:var(--brand-line);background:var(--brand-soft)}
+  .drop.on{border-color:var(--brand);background:var(--brand-soft)}
+  .fld{display:flex;gap:9px;align-items:center;margin-top:12px;flex-wrap:wrap}
+  input[type=text]{flex:1;min-width:240px;font:inherit;font-size:13px;border:1px solid var(--line);
+    border-radius:8px;padding:9px 12px;outline:none;background:var(--panel)}
+  input[type=text]:focus{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft)}
+  .verdict{border-radius:11px;padding:15px 18px;margin-bottom:16px;font-size:14px}
+  .verdict.good{background:var(--ok-soft);border:1px solid #bfe6cf;color:var(--ok)}
+  .verdict.bad{background:#fdf2ec;border:1px solid #f3d0bb;color:var(--danger)}
+  .verdict b{font-size:15px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;color:var(--t3);font-weight:600;font-size:11.5px;
+    text-transform:uppercase;letter-spacing:.05em;padding:7px 8px}
+  td{padding:9px 8px;border-top:1px solid var(--soft);vertical-align:top}
+  code{font-family:var(--mono);font-size:12px;background:var(--soft);
+    padding:1px 6px;border-radius:4px}
+  .tag{display:inline-block;font-size:11.5px;padding:2px 8px;border-radius:999px;
+    font-weight:600}
+  .tag.ok{background:var(--ok-soft);color:var(--ok)}
+  .tag.no{background:#fdecec;color:var(--danger)}
+  .tag.opt{background:var(--warn-soft);color:var(--warn)}
+  ul.prob{margin:0;padding-left:18px;font-size:13px;line-height:1.9}
+  ul.prob li{margin-bottom:3px}
+  .specs{font-size:12.5px;color:var(--t2);line-height:1.9}
+  .specs b{color:var(--text)}
+  .specs .req{color:var(--danger);font-weight:600}
+  .aiout{white-space:pre-wrap;font-size:13.5px;line-height:1.85;margin-top:12px}
+  .aiout b{color:var(--brand)}
+  .thumbs{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+  .thumbs div{width:88px}
+  .thumbs img{width:88px;height:150px;object-fit:cover;object-position:top;
+    border:1px solid var(--line);border-radius:8px;display:block;background:#111}
+  .thumbs span{display:block;font-size:11px;color:var(--t3);margin-top:4px;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .spin{display:inline-block;width:13px;height:13px;border:2px solid var(--line);
+    border-top-color:var(--brand);border-radius:50%;animation:sp .7s linear infinite;
+    vertical-align:-2px;margin-right:7px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .toast{position:fixed;bottom:26px;left:50%;transform:translate(-50%,10px);
+    background:#1c1f26;color:#fff;padding:10px 20px;border-radius:10px;opacity:0;
+    transition:all .2s;pointer-events:none;font-size:13px;z-index:99}
+  .toast.on{opacity:.97;transform:translate(-50%,0)}
+  a{color:var(--brand)}
+  .warnbox{background:var(--warn-soft);border:1px solid #f0e0b0;border-radius:9px;
+    padding:11px 14px;font-size:12.5px;color:var(--warn);line-height:1.75}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="bar">
+    <span class="brand"><span class="mk">🧾</span>上架材料检查</span>
+    <span class="spacer"></span>
+    <button class="b" id="btnSpec">规格表</button>
+  </div>
+</header>
+
+<main>
+  <div class="card">
+    <h3>选一个文件夹</h3>
+    <div class="drop" id="drop">把文件夹拖进来，或点这里选</div>
+    <div class="fld">
+      <input type="text" id="folder" placeholder="或者直接粘贴路径，例如 ~/Desktop/审核图片">
+      <button class="b pri" id="btnCheck">检查</button>
+    </div>
+    <div id="recent" style="margin-top:14px"></div>
+  </div>
+  <div id="out"></div>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+const S = { folder: "", result: null, busy: false };
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g,
+  c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const api = async p => { const r = await fetch(p); if(!r.ok) throw new Error(r.status); return r.json(); };
+const post = async (p,b) => (await fetch(p, {method:"POST",
+  headers:{"Content-Type":"application/json"}, body: JSON.stringify(b||{})})).json();
+function toast(m){ const t=$("toast"); t.textContent=m; t.classList.add("on");
+  setTimeout(()=>t.classList.remove("on"),2600); }
+
+function md(t){
+  return esc(t)
+    .replace(/^### (.+)$/gm, "<b>$1</b>")
+    .replace(/^## (.+)$/gm, "<b style='font-size:15px'>$1</b>")
+    .replace(/^# (.+)$/gm, "<b style='font-size:15.5px'>$1</b>")
+    .replace(/\*\*([^*]+)\*\*/g, "<b style='color:#111'>$1</b>")
+    .replace(/`([^`\n]+)`/g, "<code>$1</code>");
+}
+
+async function boot(){
+  $("btnCheck").onclick = () => check($("folder").value.trim());
+  $("folder").addEventListener("keydown", e => { if(e.key === "Enter") $("btnCheck").click(); });
+  $("drop").onclick = pickFolder;
+  ["dragenter","dragover"].forEach(ev => $("drop").addEventListener(ev, e => {
+    e.preventDefault(); $("drop").classList.add("on"); }));
+  ["dragleave","drop"].forEach(ev => $("drop").addEventListener(ev, e => {
+    e.preventDefault(); $("drop").classList.remove("on"); }));
+  $("drop").addEventListener("drop", e => {
+    const f = [...(e.dataTransfer.files||[])][0];
+    if(f) check(f.path || "");
+  });
+  $("btnSpec").onclick = showSpec;
+  try{
+    const st = await api("/api/status");
+    if(st.folders && st.folders.length){
+      $("recent").innerHTML = `<div style="font-size:12.5px;color:var(--t3);
+        margin-bottom:7px">扫到这些可能相关的文件夹：</div>` +
+        st.folders.map(f => `<button class="b" style="margin:0 7px 7px 0"
+          data-f="${esc(f.path)}">${esc(f.name)}　<span style="color:var(--t3)">
+          ${f.count} 张</span></button>`).join("");
+      document.querySelectorAll("[data-f]").forEach(b => b.onclick = () => {
+        $("folder").value = b.dataset.f; check(b.dataset.f);
+      });
+    }
+  }catch(e){}
+}
+
+async function pickFolder(){
+  // 浏览器给不了目录路径，让用户粘贴。拖文件夹在部分浏览器能拿到 path。
+  const p = prompt("粘贴文件夹的完整路径：", $("folder").value || "~/Desktop/审核图片");
+  if(p) { $("folder").value = p; check(p); }
+}
+
+async function check(folder){
+  if(!folder){ toast("先选个文件夹"); return; }
+  S.folder = folder;
+  $("out").innerHTML = `<div class="card"><span class="spin"></span>检查中…</div>`;
+  try{
+    const r = await api("/api/check?folder=" + encodeURIComponent(folder));
+    if(!r.ok){ $("out").innerHTML = `<div class="card" style="color:var(--danger)">
+      ${esc(r.error)}</div>`; return; }
+    S.result = r;
+    paint(r);
+  }catch(e){
+    $("out").innerHTML = `<div class="card" style="color:var(--danger)">${esc(e.message)}</div>`;
+  }
+}
+
+function paint(r){
+  const good = !r.problems.length;
+  const rows = r.items.map(x => {
+    const ds = x.device_set;
+    const isReq = ds && (ds === "6.9 寸" || ds === "6.5 寸");
+    const tag = !ds ? `<span class="tag no">不合规</span>`
+      : isReq ? `<span class="tag ok">${esc(ds)}</span>`
+      : `<span class="tag opt">${esc(ds)} 可选</span>`;
+    return `<tr>
+      <td><code>${esc(x.file)}</code><div style="color:var(--t3);font-size:11.5px">
+        ${x.kb} KB${x.alpha ? " · 有透明通道" : ""}</div></td>
+      <td><code>${x.w ? x.w + "×" + x.h : "?"}</code></td>
+      <td>${tag}</td>
+      <td style="font-size:12.5px;color:${x.ok ? "var(--ok)" : "var(--danger)"}">
+        ${x.ok ? "✅ 没问题" : esc((x.issues||[]).join("；"))}</td>
+    </tr>`;
+  }).join("");
+
+  $("out").innerHTML = `
+    <div class="verdict ${good ? "good" : "bad"}">
+      <b>${good ? "✅ 可以提交" : "⚠️ " + r.verdict}</b>
+      <div style="margin-top:5px;font-size:13px;opacity:.9">
+        ${esc(r.folder)} · 共 ${r.count} 张
+        ${Object.keys(r.by_set).length ? " · " + Object.entries(r.by_set)
+          .map(([k,v]) => k + " " + v + " 张").join("、") : ""}
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>逐张核对</h3>
+      <table>
+        <tr><th>文件</th><th>尺寸</th><th>档位</th><th>检查</th></tr>
+        ${rows}
+      </table>
+    </div>
+
+    ${r.problems.length ? `<div class="card">
+      <h3>要处理的</h3>
+      <ul class="prob">${r.problems.map(p =>
+        `<li><b>${esc(p.file)}</b>：${esc((p.issues||[]).join("；"))}</li>`).join("")}</ul>
+    </div>` : ""}
+
+    <div class="card">
+      <h3>预览</h3>
+      <div class="thumbs">${r.items.filter(x => x.w).map(x =>
+        `<div><img src="/api/thumb?path=${encodeURIComponent(x.path)}" alt="">
+          <span title="${esc(x.file)}">${esc(x.file)}</span></div>`).join("")}</div>
+    </div>
+
+    <div class="card">
+      <h3>让 AI 看内容</h3>
+      <div class="warnbox">截图上可能有<b>真实工号、站点名、手机号</b> ——
+        点下面按钮会把图发给 AI 服务商。介意就先打码。</div>
+      <div style="margin-top:12px;display:flex;gap:9px;align-items:center;flex-wrap:wrap">
+        <button class="b pri" id="btnReview">让 AI 看内容</button>
+        <input type="text" id="aiq" style="flex:1;min-width:260px"
+          placeholder="想让它重点看什么？（可留空）">
+      </div>
+      <div id="aiout" class="aiout"></div>
+    </div>`;
+  const b = $("btnReview");
+  if(b) b.onclick = review;
+}
+
+async function review(){
+  const b = $("btnReview");
+  b.disabled = true;
+  $("aiout").innerHTML = `<span class="spin"></span>AI 正在看这 ${S.result.items.length} 张图…（十几秒）`;
+  try{
+    const r = await post("/api/review", {folder: S.folder, q: $("aiq").value.trim()});
+    $("aiout").innerHTML = r.ok ? md(r.text)
+      : `<span style="color:var(--danger)">${esc(r.error)}</span>`;
+  }catch(e){
+    $("aiout").innerHTML = `<span style="color:var(--danger)">${esc(e.message)}</span>`;
+  }
+  b.disabled = false;
+}
+
+async function showSpec(){
+  const st = await api("/api/status");
+  $("out").innerHTML = `
+    <div class="card">
+      <h3>Apple 的截图规格（2026）</h3>
+      <table>
+        <tr><th>档位</th><th>竖屏尺寸</th><th>是否必需</th><th>对应机型</th></tr>
+        ${st.sets.map(s => `<tr>
+          <td><b>${esc(s.name)}</b></td>
+          <td>${s.portrait.map(p => `<code>${esc(p)}</code>`).join(" ")}</td>
+          <td>${s.required ? '<span class="tag no">必需</span>'
+                           : '<span class="tag opt">可选</span>'}</td>
+          <td style="font-size:12px;color:var(--t2)">${esc(s.devices)}</td>
+        </tr>`).join("")}
+      </table>
+      <div class="specs" style="margin-top:14px">
+        <b>要点</b>：至少要有 <b>6.9 寸</b> 或 <b>6.5 寸</b> 其中一档，
+        否则提交会被拒。其他档位可选 —— 缺了 App Store 会从上一档自动缩小生成。<br>
+        每档 <b>1~10 张</b>，支持 <code>png</code>/<code>jpg</code>/<code>jpeg</code>，
+        <b>不能有透明通道</b>（要展平）。<br>
+        来源：<a href="${esc(st.spec_source)}" target="_blank">Apple 官方规格页</a>
+      </div>
+    </div>`;
+}
+
+boot();
+</script>
+</body>
+</html>

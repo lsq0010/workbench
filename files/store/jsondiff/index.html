@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>报文对比</title>
+<style>
+  :root{
+    --bg:#f4f5f7;--panel:#fff;--panel2:#fafbfc;--line:#e6e8ec;--soft:#f0f1f4;
+    --text:#16181d;--t2:#5b6472;--t3:#98a1ad;
+    --brand:#e0533d;--brand-soft:#fdeeea;--brand-line:#f8d3cb;
+    --ok:#12894f;--ok-soft:#e7f6ee;--warn:#a9670a;--warn-soft:#fdf3e3;--danger:#d23b3b;
+    --sh1:0 1px 2px rgba(16,24,40,.05);--sh2:0 2px 8px rgba(16,24,40,.07);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB",sans-serif;
+  }
+  *{box-sizing:border-box}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:#cfd3da;border:3px solid transparent;
+    background-clip:content-box;border-radius:8px}
+  html,body{height:100%}
+  body{margin:0;font:14px/1.55 var(--sans);background:var(--bg);color:var(--text);
+       display:flex;flex-direction:column;overflow:hidden;-webkit-font-smoothing:antialiased}
+  header{flex:none;background:var(--panel);border-bottom:1px solid var(--line);
+         box-shadow:var(--sh1);z-index:5}
+  .bar{display:flex;align-items:center;gap:9px;padding:0 18px;height:54px}
+  .brand{font-weight:650;font-size:15.5px;display:flex;align-items:center;gap:8px}
+  .brand i{width:9px;height:9px;border-radius:3px;background:linear-gradient(135deg,#e0533d,#ff9d8a)}
+  .spacer{flex:1}
+  .stat{color:var(--t2);font-size:12.5px}
+  button{border:1px solid var(--line);background:var(--panel);border-radius:8px;
+    padding:6px 12px;cursor:pointer;font:inherit;font-size:13px;color:var(--text);
+    transition:all .13s}
+  button:hover{background:#f7f8fa}
+  button.pri{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:600}
+  button.pri:hover{background:#c8462f}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  .seg{display:flex;gap:3px;background:#eceef2;padding:3px;border-radius:9px}
+  .seg button{border:none;background:transparent;border-radius:6px;padding:5px 13px;
+    font-size:12.5px;color:var(--t2);font-weight:500}
+  .seg button.on{background:var(--panel);color:var(--brand);font-weight:600;box-shadow:var(--sh1)}
+
+  main{flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+  .panes{flex:none;display:grid;grid-template-columns:1fr 1fr;gap:0;min-height:0;
+    height:46%;border-bottom:1px solid var(--line)}
+  .pane{display:flex;flex-direction:column;min-height:0;background:var(--panel)}
+  .pane+.pane{border-left:1px solid var(--line)}
+  .phead{display:flex;align-items:center;gap:8px;padding:9px 13px;border-bottom:1px solid var(--soft);
+    background:var(--panel2);flex:none}
+  .phead input{border:1px solid var(--line);border-radius:7px;padding:4px 9px;font:inherit;
+    font-size:12.5px;width:130px;background:var(--panel)}
+  .phead .lbl{font-weight:620;font-size:13px}
+  .phead .sp{flex:1}
+  textarea{flex:1;border:none;outline:none;resize:none;padding:12px 14px;font-family:var(--mono);
+    font-size:12.5px;line-height:1.6;background:var(--panel);color:var(--text);min-height:0}
+  textarea::placeholder{color:var(--t3)}
+
+  #out{flex:1;overflow:auto;padding:18px 22px 60px;min-height:0}
+  .chips{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px}
+  .chip{background:var(--panel);border:1px solid var(--line);border-radius:999px;
+    padding:3px 12px;font-size:12px;color:var(--t2);box-shadow:var(--sh1)}
+  .chip b{color:var(--text);font-weight:650}
+  table{width:100%;border-collapse:collapse;font-size:12.5px;background:var(--panel);
+    border:1px solid var(--line);border-radius:11px;overflow:hidden;box-shadow:var(--sh1)}
+  th{text-align:left;color:var(--t3);font-weight:600;font-size:11.5px;padding:9px 12px;
+     background:var(--panel2);border-bottom:1px solid var(--line)}
+  td{padding:8px 12px;border-bottom:1px solid var(--soft);vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  .fld{font-family:var(--mono);font-size:12px;color:#a8402c;word-break:break-all}
+  .vl{font-family:var(--mono);font-size:11.5px;color:var(--t2);word-break:break-all}
+  .tag{font-size:10.5px;border-radius:5px;padding:2px 8px;font-weight:600;white-space:nowrap}
+  .s-A{background:#fdecec;color:var(--danger)}
+  .s-B{background:var(--ok-soft);color:var(--ok)}
+  .s-V{background:var(--warn-soft);color:var(--warn)}
+  .s-T{background:#f1edff;color:#7c5cff}
+  .ok{background:var(--ok-soft);border:1px solid #bfe6cf;color:#0d6b3e;border-radius:10px;
+    padding:12px 15px;font-size:13px}
+  .err{background:#fdecec;border:1px solid #f6c9c9;color:#a02c2c;border-radius:10px;
+    padding:11px 14px;font-size:12.5px;margin-bottom:13px;font-family:var(--mono)}
+  .picker{position:absolute;z-index:20;background:var(--panel);border:1px solid var(--line);
+    border-radius:11px;box-shadow:var(--sh2);width:520px;max-height:380px;overflow:auto;display:none}
+  .picker .it{padding:8px 13px;border-bottom:1px solid var(--soft);cursor:pointer;font-size:12.5px}
+  .picker .it:hover{background:#f8fafc}
+  .picker .it .m{font-family:var(--mono);font-size:10.5px;font-weight:700;border-radius:4px;
+    padding:1px 6px;background:#f1f3f6;margin-right:7px}
+  .toast{position:fixed;bottom:24px;left:50%;transform:translate(-50%,10px);
+    background:#1c1f26;color:#fff;padding:10px 20px;border-radius:10px;opacity:0;
+    transition:all .2s;pointer-events:none;font-size:13px;z-index:99}
+  .toast.on{opacity:.97;transform:translate(-50%,0)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="bar">
+    <span class="brand"><i></i>报文对比</span>
+    <div class="seg" id="seg">
+      <button data-v="diff" class="on">对比</button>
+      <button data-v="query">查字段</button>
+    </div>
+    <span class="spacer"></span>
+    <span class="stat" id="stat"></span>
+    <button id="btnCompare" class="pri">开始对比</button>
+    <button id="btnSwap">⇄ 交换</button>
+    <button id="btnClear">清空</button>
+  </div>
+</header>
+
+<main>
+  <div class="panes" id="panes">
+    <div class="pane">
+      <div class="phead">
+        <span class="lbl" style="color:#d23b3b">A</span>
+        <input id="la" value="A" title="这份数据的名字">
+        <span class="sp"></span>
+        <button data-pick="a">从抓包选</button>
+        <button data-fmt="a">格式化</button>
+      </div>
+      <textarea id="ta" placeholder="粘贴 JSON，或点右上「从抓包选」"></textarea>
+    </div>
+    <div class="pane">
+      <div class="phead">
+        <span class="lbl" style="color:#12894f">B</span>
+        <input id="lb" value="B" title="这份数据的名字">
+        <span class="sp"></span>
+        <button data-pick="b">从抓包选</button>
+        <button data-fmt="b">格式化</button>
+      </div>
+      <textarea id="tb" placeholder="粘贴另一份 JSON"></textarea>
+    </div>
+  </div>
+  <div id="out"><div class="ok">把两份 JSON 贴进上面，点「开始对比」。
+    相同路径的值不同、类型不同、只在一边出现 —— 都会逐条列出来。</div></div>
+</main>
+
+<div class="picker" id="picker"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+const S = { view:"diff", src:{ok:false} };
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g,
+  c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const api = async p => { const r = await fetch(p); if(!r.ok) throw new Error(r.status); return r.json(); };
+const post = async (p,b) => {
+  const r = await fetch(p,{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify(b||{})});
+  const j = await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(j.error || ("HTTP "+r.status));
+  return j;
+};
+function toast(m){ const t=$("toast"); t.textContent=m; t.classList.add("on");
+  setTimeout(()=>t.classList.remove("on"),1900); }
+
+async function boot(){
+  try{
+    const st = await api("/api/status");
+    S.src = st.source || {};
+    $("stat").innerHTML = S.src.ok
+      ? `<span style="color:var(--ok)">●</span> 可读抓包（${S.src.total} 条）`
+      : `<span style="color:var(--t3)">●</span> 抓包未启动（仍可手动粘贴）`;
+  }catch(e){}
+}
+
+async function compare(){
+  const a = $("ta").value, b = $("tb").value;
+  if(!a.trim() || !b.trim()){
+    $("out").innerHTML = `<div class="err">两边都要有内容才能对比</div>`;
+    return;
+  }
+  try{
+    const d = await post("/api/diff", {a, b, la:$("la").value.trim()||"A",
+                                             lb:$("lb").value.trim()||"B"});
+    paint(d);
+  }catch(e){
+    $("out").innerHTML = `<div class="err">${esc(e.message)}</div>`;
+  }
+}
+
+function paint(d){
+  const c = d.counts;
+  const cls = s => s === "类型不同" ? "s-T"
+    : s === "值不同" ? "s-V" : (s.endsWith(d.a.label) ? "s-A" : "s-B");
+  let h = `<div class="chips">
+    <span class="chip"><b>${esc(d.a.label)}</b> ${d.a.keys} 个路径</span>
+    <span class="chip"><b>${esc(d.b.label)}</b> ${d.b.keys} 个路径</span>
+    <span class="chip">只在 ${esc(d.a.label)} <b>${c["只在A"]}</b></span>
+    <span class="chip">只在 ${esc(d.b.label)} <b>${c["只在B"]}</b></span>
+    <span class="chip">值不同 <b>${c["值不同"]}</b></span>
+    <span class="chip" style="color:${c["类型不同"]?'#7c5cff':'var(--t2)'}">类型不同 <b>${c["类型不同"]}</b></span>
+    <span class="spacer" style="flex:1"></span>
+    <button id="btnMd">复制 Markdown</button>
+  </div>`;
+  if(!d.diffs.length){
+    h += `<div class="ok">✅ 两份完全一致（${d.a.keys} 个路径全部相同）</div>`;
+  }else{
+    h += `<table><thead><tr><th style="width:36%">路径</th><th style="width:11%">差异</th>
+      <th style="width:26%">${esc(d.a.label)}</th><th style="width:27%">${esc(d.b.label)}</th>
+      </tr></thead><tbody>` + d.diffs.map(r => `<tr>
+        <td class="fld">${esc(r.path)}</td>
+        <td><span class="tag ${cls(r.state)}">${esc(r.state)}</span></td>
+        <td class="vl">${esc(r.a)}${r.ta?` <span style="color:var(--t3)">(${esc(r.ta)})</span>`:""}</td>
+        <td class="vl">${esc(r.b)}${r.tb?` <span style="color:var(--t3)">(${esc(r.tb)})</span>`:""}</td>
+      </tr>`).join("") + `</tbody></table>`;
+  }
+  $("out").innerHTML = h;
+  $("btnMd").onclick = () => {
+    navigator.clipboard.writeText(d.markdown || "").then(()=>toast("Markdown 已复制"));
+  };
+}
+
+/* ── 从抓包挑选 ── */
+let pickTarget = "a";
+async function openPicker(which){
+  pickTarget = which;
+  const p = $("picker");
+  p.style.display = "block";
+  const r = $("panes").getBoundingClientRect?.();
+  p.style.left = (which === "a" ? 60 : Math.max(60, window.innerWidth/2 + 20)) + "px";
+  p.style.top = "100px";
+  p.innerHTML = `<div class="it" style="color:var(--t3)">加载中…</div>`;
+  try{
+    const d = await api("/api/flows");
+    if(!d.flows.length){ p.innerHTML = `<div class="it" style="color:var(--t3)">
+      没有可选的报文（只有隧道或抓包没数据）</div>`; return; }
+    p.innerHTML = `<div class="it" style="background:var(--panel2);color:var(--t3);
+      position:sticky;top:0">选一条报文 → 再选要哪一边（请求体/响应体）</div>` +
+      d.flows.map(f => `<div class="it" data-id="${f.id}">
+        <span class="m">${esc(f.method)}</span>${esc(f.host)}${esc(f.path)}
+        <div style="color:var(--t3);font-size:11.5px;margin-top:2px">
+          id ${f.id} · ${esc(f.ts||"")} · 状态 ${esc(String(f.status??"—"))}
+          ${f.has_req?" · 有请求体":""}${f.has_resp?" · 有响应体":""}</div>
+      </div>`).join("");
+    p.querySelectorAll("[data-id]").forEach(el => {
+      el.onclick = async () => {
+        const id = el.dataset.id;
+        const side = (el.textContent.includes("有响应体") && !el.textContent.includes("有请求体"))
+          ? "resp" : (confirm("取哪一边？\n确定 = 请求体，取消 = 响应体") ? "req" : "resp");
+        try{
+          const f = await api(`/api/flow?id=${id}&side=${side}`);
+          const ta = pickTarget === "a" ? $("ta") : $("tb");
+          ta.value = f.body || "";
+          const lab = pickTarget === "a" ? $("la") : $("lb");
+          lab.value = `${f.method} ${(f.path||"").split("?")[0].slice(-18)}·${side==="resp"?"响应":"请求"}`;
+          if(!f.body) toast("这条报文的这一边是空的");
+        }catch(e){ toast("取报文失败：" + e.message); }
+        p.style.display = "none";
+      };
+    });
+  }catch(e){
+    p.innerHTML = `<div class="it" style="color:var(--danger)">读抓包失败：${esc(e.message)}</div>`;
+  }
+}
+document.addEventListener("click", e => {
+  const p = $("picker");
+  if(p.style.display === "block" && !p.contains(e.target) && !e.target.closest("[data-pick]"))
+    p.style.display = "none";
+});
+
+document.querySelectorAll("[data-pick]").forEach(b =>
+  b.onclick = e => { e.stopPropagation(); openPicker(b.dataset.pick); });
+
+document.querySelectorAll("[data-fmt]").forEach(b => b.onclick = async () => {
+  const which = b.dataset.fmt;
+  const ta = which === "a" ? $("ta") : $("tb");
+  try{
+    const d = await post("/api/format", {text: ta.value});
+    ta.value = d.text;
+    toast("已格式化");
+  }catch(e){ toast(e.message); }
+});
+
+$("btnCompare").onclick = () => {
+  if(S.view === "query") return runQuery();
+  compare();
+};
+$("btnSwap").onclick = () => {
+  const a = $("ta").value; $("ta").value = $("tb").value; $("tb").value = a;
+  const l = $("la").value; $("la").value = $("lb").value; $("lb").value = l;
+  toast("已交换");
+};
+$("btnClear").onclick = () => {
+  $("ta").value = ""; $("tb").value = "";
+  $("out").innerHTML = `<div class="ok">已清空</div>`;
+};
+
+/* ── 查字段模式 ── */
+document.querySelectorAll("#seg button").forEach(b => {
+  b.onclick = () => {
+    S.view = b.dataset.v;
+    document.querySelectorAll("#seg button").forEach(x => x.classList.toggle("on", x === b));
+    if(S.view === "query"){
+      $("panes").style.display = "none";
+      $("out").innerHTML = `<div class="chips" style="margin-bottom:12px">
+        <span class="chip">在 A 面板的 JSON 里按路径取值，支持 <code>items[].name</code> 这种写法</span>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">
+        <input id="qpath" placeholder="例如 data.list[].waybillCode" style="flex:1;
+          font:inherit;font-size:13px;border:1px solid var(--line);border-radius:8px;
+          padding:8px 12px;font-family:var(--mono)">
+        <button class="pri" id="btnQ">取值</button>
+      </div><div id="qout"></div>`;
+      $("btnQ").onclick = runQuery;
+      $("qpath").addEventListener("keydown", e => { if(e.key === "Enter") runQuery(); });
+    }else{
+      $("panes").style.display = "";
+      $("out").innerHTML = `<div class="ok">点「开始对比」比较 A 和 B</div>`;
+    }
+  };
+});
+
+async function runQuery(){
+  const path = ($("qpath") ? $("qpath").value : "").trim();
+  if(!path) return toast("先填路径");
+  try{
+    const d = await post("/api/query", {text: $("ta").value, path});
+    $("qout").innerHTML = `<div class="chips">
+      <span class="chip">类型 <b>${esc(d.type)}</b></span>
+      ${d.count !== null ? `<span class="chip">命中 <b>${d.count}</b> 条</span>` : ""}</div>
+      <pre style="background:var(--panel);border:1px solid var(--line);border-radius:11px;
+        padding:14px;overflow:auto;max-height:44vh;font-family:var(--mono);font-size:12.5px;
+        white-space:pre-wrap;word-break:break-all">${esc(d.text)}</pre>`;
+  }catch(e){
+    $("qout").innerHTML = `<div class="err">${esc(e.message)}</div>`;
+  }
+}
+
+/* 快捷键：Cmd/Ctrl+Enter 对比 */
+document.addEventListener("keydown", e => {
+  if((e.metaKey || e.ctrlKey) && e.key === "Enter"){
+    e.preventDefault();
+    if(S.view === "query") runQuery(); else compare();
+  }
+});
+boot();
+</script>
+</body>
+</html>

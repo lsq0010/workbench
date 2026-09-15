@@ -1,0 +1,199 @@
+{
+  "$schema": "https://example.invalid/platform/manifest-v1.json",
+  "manifest_version": 1,
+  "id": "capture",
+  "name": "抓包工作台",
+  "description": "HTTP(S) 抓包代理 + 浏览器工作台。抓到的报文落成 JSONL，人和 AI 都能直接读。",
+  "version": "1.0.1",
+  "author": "本机",
+  "type": "local",
+  "runtime": {
+    "entry": "capture.py",
+    "launcher": "cap",
+    "requires": {
+      "python": ">=3.7"
+    },
+    "dependencies": [],
+    "note": "零第三方依赖，只用标准库 —— 便于以后打包进功能商店"
+  },
+  "ports": {
+    "proxy": 8890,
+    "web": 8891,
+    "lan_web": 8892
+  },
+  "permissions": [
+    {
+      "id": "system.proxy",
+      "why": "抓本机流量需要把 macOS 系统代理指向本工具",
+      "risk": "高：本工具停止时若不还原，整台电脑会断网",
+      "mitigation": "退出自动还原 + 断网保护看门狗（崩溃后几秒内还原）"
+    },
+    {
+      "id": "net.bind",
+      "why": "监听端口，接受手机等设备通过 Wi-Fi 代理接进来"
+    },
+    {
+      "id": "net.scan",
+      "why": "扫同网段以发现可接入的设备（cap scan / 设备列表）"
+    },
+    {
+      "id": "fs.write",
+      "why": "在自身数据目录写 flows.jsonl 等数据文件",
+      "scope": "feature-data-dir"
+    },
+    {
+      "id": "net.outbound.ai",
+      "why": "AI 助手需要访问用户配置的大模型服务商（默认 api.deepseek.com）",
+      "risk": "中：会把本机状态摘要与数据字典发给该服务商",
+      "mitigation": "只发送语义化的现场摘要（设备/日志/报文摘要），不发送完整报文正文；key 存在本地 credentials.json（0600）"
+    }
+  ],
+  "data": {
+    "produces": [
+      {
+        "id": "flows",
+        "file": "flows.jsonl",
+        "kind": "append-only",
+        "desc": "抓到的全部报文，只追加不覆盖",
+        "semantics": "semantics.json",
+        "cursor": {
+          "field": "id",
+          "param": "since_id",
+          "desc": "单调递增，增量拉取的唯一锚点"
+        },
+        "identity": {
+          "field": "user_id",
+          "desc": "数据归属；身份层引入，只加不改"
+        }
+      },
+      {
+        "id": "semantics",
+        "file": "semantics.json",
+        "kind": "read-write",
+        "desc": "数据字典：字段含义/单位/取值、接口中文名、业务链路。AI 和别的功能都读它"
+      },
+      {
+        "id": "identity",
+        "file": "identity.json",
+        "kind": "read-write",
+        "desc": "数据归属（本机匿名 id），权限 0600"
+      }
+    ],
+    "consumes": [],
+    "note": "本功能不消费别人的数据。以后加功能时在这里声明依赖，由平台按需授权。",
+    "credentials": {
+      "file": "credentials.json",
+      "mode": "0600",
+      "desc": "AI 的 API Key。与 config.json 分开 —— 配置可能被分享，凭据不行"
+    }
+  },
+  "exposes": {
+    "_comment": "对外提供的只读接口。别的功能只准走这里，不许直接读 flows.jsonl —— 生产者要能随时改存储实现。",
+    "base": "http://127.0.0.1:8891",
+    "endpoints": [
+      {
+        "path": "/api/flows",
+        "desc": "报文记录；支持 ?since_id=N 增量",
+        "auth": "local-only"
+      },
+      {
+        "path": "/api/flow",
+        "desc": "单条完整记录 ?id=N",
+        "auth": "local-only"
+      },
+      {
+        "path": "/api/devices",
+        "desc": "设备列表 + 监听状态 + 语义版本",
+        "auth": "local-only"
+      },
+      {
+        "path": "/api/semantics",
+        "desc": "数据字典；?what=<字段> 查单个含义",
+        "auth": "local-only"
+      },
+      {
+        "path": "/api/identity",
+        "desc": "当前身份与记录归属统计",
+        "auth": "local-only"
+      },
+      {
+        "path": "/api/status",
+        "desc": "服务状态",
+        "auth": "local-only"
+      },
+      {
+        "path": "/api/trace",
+        "desc": "调试日志；?n=&grep=",
+        "auth": "local-only"
+      },
+      {
+        "path": "/api/ai/config",
+        "desc": "AI 配置（不含 key，只给是否已设置）",
+        "auth": "local-only"
+      },
+      {
+        "path": "/api/ai/models",
+        "desc": "拉取服务商可用模型列表",
+        "auth": "local-only"
+      }
+    ],
+    "writes": [
+      {
+        "path": "/api/monitor",
+        "desc": "切换某台设备是否监听（绿点）",
+        "auth": "local-only"
+      },
+      {
+        "path": "/api/semantics",
+        "desc": "AI 核对出新语义后写回数据字典",
+        "auth": "local-only"
+      },
+      {
+        "path": "/api/ai/chat",
+        "desc": "流式对话（SSE）：诊断 / 数据分析",
+        "auth": "local-only"
+      },
+      {
+        "path": "/api/ai/save",
+        "desc": "保存模型配置与 key",
+        "auth": "local-only"
+      },
+      {
+        "path": "/api/ai/autofill",
+        "desc": "一键填写：从本机已有 AI 客户端读取 key",
+        "auth": "local-only"
+      },
+      {
+        "path": "/api/ai/test",
+        "desc": "连通性测试",
+        "auth": "local-only"
+      }
+    ]
+  },
+  "ui": {
+    "entry": "web.html",
+    "note": "界面是投影：整个换掉不影响数据。web.html 一改，页面按版本号自动重载。"
+  },
+  "store": {
+    "pricing": "free",
+    "license": "personal",
+    "note": "以后上传功能商店时的元信息；数据接口可按调用计费，见平台设想.md"
+  },
+  "platform": {
+    "icon": "📡",
+    "color": "#2f6df6",
+    "open": "http://127.0.0.1:{web}/",
+    "health": "http://127.0.0.1:{web}/api/status",
+    "start": [
+      "python3",
+      "capture.py",
+      "start"
+    ],
+    "stop": [
+      "python3",
+      "capture.py",
+      "stop"
+    ],
+    "note": "抓包代理 + 工作台。启动后手机把 Wi-Fi 代理指向本机即可接入。"
+  }
+}

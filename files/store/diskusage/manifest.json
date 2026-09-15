@@ -1,0 +1,93 @@
+{
+  "manifest_version": 1,
+  "id": "diskusage",
+  "name": "磁盘占用",
+  "description": "到底什么占了空间。从任意目录往下钻，按大小排序各子目录，标出 DerivedData / node_modules / 废纸篓 这类常见空间黑洞；也能直接找大文件。只读，不删任何东西。",
+  "version": "0.1.0",
+  "author": "本机",
+  "type": "local",
+  "runtime": {
+    "entry": "main.py",
+    "requires": {
+      "python": ">=3.7"
+    },
+    "dependencies": []
+  },
+  "ports": {
+    "web": 8906
+  },
+  "platform": {
+    "icon": "💽",
+    "color": "#4f46e5",
+    "open": "http://127.0.0.1:{web}/",
+    "health": "http://127.0.0.1:{web}/api/status",
+    "start": [
+      "python3",
+      "main.py",
+      "start"
+    ],
+    "stop": [
+      "python3",
+      "main.py",
+      "stop"
+    ],
+    "note": "会告诉你哪些目录是「可以安全删的」（如 DerivedData、node_modules），但不替你删。"
+  },
+  "permissions": [
+    {
+      "id": "fs.read.all",
+      "why": "遍历用户指定的目录以计算大小",
+      "risk": "中：会读取目录树元数据（文件名、大小）；不读文件内容",
+      "mitigation": "只 stat 不 open 文件内容；只读不写不删；硬链接只算一次避免重复计数；权限不足的目录跳过而不是报错"
+    },
+    {
+      "id": "fs.open",
+      "why": "点条目在访达里定位",
+      "risk": "低：只调用 open",
+      "mitigation": "只调用系统的 open 命令在访达里定位，不读文件内容、不修改、不删除；路径由用户从界面里选，不接受外部传入的任意路径"
+    }
+  ],
+  "data": {
+    "produces": [],
+    "consumes": []
+  },
+  "exposes": {
+    "base": "http://127.0.0.1:8906",
+    "endpoints": [
+      {
+        "path": "/api/status",
+        "desc": "服务状态 + 各磁盘用量 + 常见空间黑洞说明",
+        "auth": "local-only"
+      },
+      {
+        "path": "/api/scan",
+        "desc": "某目录下各子项大小排行 ?path=",
+        "auth": "local-only"
+      },
+      {
+        "path": "/api/bigfiles",
+        "desc": "找出大文件 ?path=&min_mb=",
+        "auth": "local-only"
+      },
+      {
+        "path": "/api/folder",
+        "desc": "列子目录（目录选择用）?path=",
+        "auth": "local-only"
+      }
+    ],
+    "writes": [
+      {
+        "path": "/api/reveal",
+        "desc": "在访达打开",
+        "auth": "local-only"
+      }
+    ]
+  },
+  "ui": {
+    "entry": "index.html"
+  },
+  "store": {
+    "pricing": "free",
+    "license": "personal"
+  }
+}

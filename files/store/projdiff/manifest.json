@@ -1,0 +1,61 @@
+{
+  "manifest_version": 1,
+  "id": "projdiff",
+  "name": "工程对比",
+  "description": "同名文件在各 iOS 工程之间漂移了多少。548 个共用文件里 257 个内容不一致 —— 在一个工程修的 bug，别的工程不会自动得到。支持逐行对比。",
+  "version": "0.1.0",
+  "author": "本机",
+  "type": "local",
+
+  "runtime": { "entry": "main.py", "requires": { "python": ">=3.7" }, "dependencies": [] },
+  "ports": { "web": 8924 },
+
+  "platform": {
+    "icon": "🆚",
+    "color": "#0891b2",
+    "open": "http://127.0.0.1:{web}/",
+    "health": "http://127.0.0.1:{web}/api/status",
+    "start": ["python3", "main.py", "start"],
+    "stop": ["python3", "main.py", "stop"],
+    "note": "全程只读，不改任何工程。索引缓存 1 小时。生成的 R.generated.swift 差异会单独标出（那是正常的）。"
+  },
+
+  "permissions": [
+    {
+      "id": "fs.read.projects",
+      "why": "读各工程的源码文件算哈希、做逐行对比",
+      "risk": "低：只读文本算哈希，不改不删",
+      "mitigation": "只读源码文本文件（.swift/.m/.h/.xib/.strings 等）；跳过 Pods/build/DerivedData；单个文件超过 4MB 跳过"
+    },
+    {
+      "id": "fs.write",
+      "why": "索引缓存（避免每次重扫）",
+      "risk": "低：只写本功能目录",
+      "mitigation": "缓存 1 小时过期；只写 index.json 和 scans.jsonl"
+    }
+  ],
+
+  "data": {
+    "produces": [
+      { "id": "index", "file": "index.json", "kind": "cache",
+        "desc": "各工程文件的哈希索引（1 小时过期，可随时删）" }
+    ],
+    "consumes": []
+  },
+
+  "exposes": {
+    "base": "http://127.0.0.1:8924",
+    "endpoints": [
+      { "path": "/api/status", "desc": "版本 + 扫到的工程", "auth": "local-only" },
+      { "path": "/api/compare", "desc": "对比（?refresh=1 强制重扫）", "auth": "local-only" },
+      { "path": "/api/diff", "desc": "两个工程的同一文件逐行对比 ?a=&b=&file=", "auth": "local-only" },
+      { "path": "/api/digest", "desc": "无告警（占位）", "auth": "local-only" }
+    ],
+    "writes": [
+      { "path": "/api/reveal", "desc": "在访达中打开", "auth": "local-only" }
+    ]
+  },
+
+  "ui": { "entry": "index.html" },
+  "store": { "pricing": "free", "license": "personal" }
+}

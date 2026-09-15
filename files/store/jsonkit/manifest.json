@@ -1,0 +1,115 @@
+{
+  "manifest_version": 1,
+  "id": "jsonkit",
+  "name": "JSON 工具箱",
+  "description": "JSON/YAML/TOML/XML/CSV/QueryString 六种格式互转；JSONPath 取值（支持 $..key 递归）；一眼看清结构（每个路径的类型和示例）；反推 JSON Schema；导出 Excel。",
+  "version": "0.1.0",
+  "author": "本机",
+  "type": "local",
+  "runtime": {
+    "entry": "main.py",
+    "requires": {
+      "python": ">=3.7"
+    },
+    "dependencies": [],
+    "optional_dependencies": {
+      "PyYAML": "YAML 互转需要",
+      "toml": "TOML 互转需要",
+      "openpyxl": "导出 Excel 需要"
+    }
+  },
+  "ports": {
+    "web": 8913
+  },
+  "platform": {
+    "icon": "{}",
+    "color": "#b45309",
+    "open": "http://127.0.0.1:{web}/",
+    "health": "http://127.0.0.1:{web}/api/status",
+    "start": [
+      "python3",
+      "main.py",
+      "start"
+    ],
+    "stop": [
+      "python3",
+      "main.py",
+      "stop"
+    ],
+    "note": "JSONPath 和 XML 转换是自己实现的，不依赖库；YAML/TOML/Excel 用系统已有的库，缺了会在界面上标出来。"
+  },
+  "permissions": [
+    {
+      "id": "fs.write.excel",
+      "why": "「导出 Excel」把数据写成 .xlsx",
+      "risk": "低：只在用户点按钮时写，文件名自动去重",
+      "mitigation": "只写到桌面；重名自动加序号"
+    },
+    {
+      "id": "fs.open",
+      "why": "在访达定位导出的文件",
+      "risk": "低",
+      "mitigation": "只调用系统的 open 命令在访达里定位，不读文件内容、不修改、不删除；路径由用户从界面里选，不接受外部传入的任意路径"
+    }
+  ],
+  "data": {
+    "produces": [
+      {
+        "id": "excel",
+        "file": "~/Desktop/*.xlsx",
+        "kind": "files",
+        "desc": "用户主动导出的 Excel"
+      }
+    ],
+    "consumes": []
+  },
+  "exposes": {
+    "base": "http://127.0.0.1:8913",
+    "endpoints": [
+      {
+        "path": "/api/status",
+        "desc": "服务状态 + 可用格式 + 依赖库",
+        "auth": "local-only"
+      },
+      {
+        "path": "/api/digest",
+        "desc": "无告警（占位）",
+        "auth": "local-only"
+      }
+    ],
+    "writes": [
+      {
+        "path": "/api/convert",
+        "desc": "格式互转",
+        "auth": "local-only"
+      },
+      {
+        "path": "/api/query",
+        "desc": "JSONPath 取值",
+        "auth": "local-only"
+      },
+      {
+        "path": "/api/summary",
+        "desc": "结构摘要",
+        "auth": "local-only"
+      },
+      {
+        "path": "/api/schema",
+        "desc": "生成 JSON Schema",
+        "auth": "local-only"
+      },
+      {
+        "path": "/api/excel",
+        "desc": "导出 Excel",
+        "auth": "local-only"
+      }
+    ]
+  },
+  "ui": {
+    "entry": "index.html"
+  },
+  "store": {
+    "pricing": "free",
+    "license": "personal"
+  }
+}

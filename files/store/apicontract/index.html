@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>接口契约</title>
+<style>
+  :root{
+    --bg:#f4f5f7;--panel:#fff;--panel2:#fafbfc;--line:#e6e8ec;--soft:#f0f1f4;
+    --text:#16181d;--t2:#5b6472;--t3:#98a1ad;
+    --brand:#0f9d8f;--brand-soft:#e6f6f4;--brand-line:#c3e9e5;
+    --ok:#12894f;--ok-soft:#e7f6ee;--warn:#a9670a;--warn-soft:#fdf3e3;--danger:#d23b3b;
+    --sh1:0 1px 2px rgba(16,24,40,.05);
+    --sh2:0 2px 8px rgba(16,24,40,.07);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB",sans-serif;
+  }
+  *{box-sizing:border-box}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:#cfd3da;border:3px solid transparent;
+    background-clip:content-box;border-radius:8px}
+  html,body{height:100%}
+  body{margin:0;font:14px/1.55 var(--sans);background:var(--bg);color:var(--text);
+       display:flex;flex-direction:column;overflow:hidden;-webkit-font-smoothing:antialiased}
+  header{flex:none;background:var(--panel);border-bottom:1px solid var(--line);
+         box-shadow:var(--sh1);z-index:5}
+  .bar{display:flex;align-items:center;gap:10px;padding:0 18px;height:54px}
+  .brand{font-weight:650;font-size:15.5px;display:flex;align-items:center;gap:8px}
+  .brand i{width:9px;height:9px;border-radius:3px;background:linear-gradient(135deg,#0f9d8f,#5fd0c4)}
+  .spacer{flex:1}
+  .stat{color:var(--t2);font-size:12.5px;display:flex;align-items:center;gap:6px}
+  button{border:1px solid var(--line);background:var(--panel);border-radius:8px;
+    padding:6px 12px;cursor:pointer;font:inherit;font-size:13px;color:var(--text);
+    transition:all .13s}
+  button:hover{background:#f7f8fa}
+  button.pri{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:600}
+  button.pri:hover{background:#0c8478}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  .seg{display:flex;gap:3px;background:#eceef2;padding:3px;border-radius:9px}
+  .seg button{border:none;background:transparent;border-radius:6px;padding:5px 14px;
+    font-size:12.5px;color:var(--t2);font-weight:500}
+  .seg button.on{background:var(--panel);color:var(--brand);font-weight:600;box-shadow:var(--sh1)}
+
+  main{flex:1;display:flex;min-height:0;overflow:hidden}
+  #side{width:330px;flex:none;overflow:auto;background:var(--panel);
+        border-right:1px solid var(--line)}
+  #side .hd{padding:12px 15px 8px;color:var(--t3);font-size:11.5px;font-weight:700;
+    letter-spacing:.06em;text-transform:uppercase;position:sticky;top:0;background:var(--panel);
+    border-bottom:1px solid var(--soft);z-index:2}
+  .ep{padding:11px 15px;border-bottom:1px solid var(--soft);cursor:pointer;transition:background .1s}
+  .ep:hover{background:#f8fafc}
+  .ep.on{background:var(--brand-soft);border-left:3px solid var(--brand);padding-left:12px}
+  .ep .m{font-family:var(--mono);font-size:10.5px;font-weight:700;border-radius:5px;
+    padding:2px 7px;background:#f1f3f6;color:var(--t2);display:inline-block}
+  .m-GET{background:#eef3ff;color:#2f6df6}
+  .m-POST{background:#e7f6ee;color:#12894f}
+  .ep .nm{font-weight:600;font-size:13px;margin-top:5px;line-height:1.35}
+  .ep .pt{font-family:var(--mono);font-size:11.5px;color:var(--t3);margin-top:3px;
+    word-break:break-all}
+  .ep .meta{color:var(--t3);font-size:11.5px;margin-top:5px;display:flex;gap:9px;flex-wrap:wrap}
+
+  #main{flex:1;overflow:auto;padding:20px 24px 60px;min-width:0}
+  h2{margin:0 0 4px;font-size:17px;font-weight:650;letter-spacing:-.01em}
+  .sub{color:var(--t2);font-size:12.5px;font-family:var(--mono);margin-bottom:14px;
+       word-break:break-all}
+  .chips{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:16px}
+  .chip{background:var(--panel);border:1px solid var(--line);border-radius:999px;
+    padding:3px 11px;font-size:12px;color:var(--t2);box-shadow:var(--sh1)}
+  .chip b{color:var(--text);font-weight:650}
+  .note{background:var(--brand-soft);border:1px solid var(--brand-line);border-radius:10px;
+    padding:10px 13px;font-size:12.5px;color:#0a6b62;margin-bottom:16px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    margin-bottom:16px;overflow:hidden;box-shadow:var(--sh1)}
+  .card>summary{padding:11px 15px;cursor:pointer;font-weight:620;font-size:13.5px;
+    background:var(--panel2);list-style:none;display:flex;align-items:center;gap:8px;
+    user-select:none}
+  .card>summary::-webkit-details-marker{display:none}
+  .card>summary::before{content:"▸";color:var(--t3);font-size:11px;transition:transform .15s}
+  .card[open]>summary::before{transform:rotate(90deg)}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th{text-align:left;color:var(--t3);font-weight:600;font-size:11.5px;padding:8px 10px;
+     background:var(--panel2);border-bottom:1px solid var(--line);position:sticky;top:0}
+  td{padding:7px 10px;border-bottom:1px solid var(--soft);vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  .fld{font-family:var(--mono);font-size:12px;color:#0a6b62;word-break:break-all}
+  .ty{font-family:var(--mono);font-size:11.5px;color:var(--t2)}
+  .mean{color:var(--t2)}
+  .smp{font-family:var(--mono);font-size:11.5px;color:var(--t3);word-break:break-all}
+  .empty{color:var(--t3);padding:10px 15px;font-size:12.5px}
+  .warnbox{background:var(--warn-soft);border:1px solid #fde68a;color:#92400e;
+    border-radius:10px;padding:11px 14px;font-size:12.5px;margin-bottom:16px}
+  .hero{text-align:center;padding:80px 20px;color:var(--t2)}
+  .hero .big{font-size:44px;opacity:.45;display:block;margin-bottom:14px}
+  .hero b{color:var(--text);display:block;font-size:15px;margin-bottom:8px}
+  .diffrow{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .pick{display:flex;gap:9px;align-items:center;margin-bottom:16px;flex-wrap:wrap}
+  select{font:inherit;font-size:13px;border:1px solid var(--line);border-radius:8px;
+    padding:7px 11px;background:var(--panel);color:var(--text);min-width:230px;
+    appearance:none;padding-right:28px;cursor:pointer;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6'><path d='M1 1l4 4 4-4' fill='none' stroke='%2398a1ad' stroke-width='1.6' stroke-linecap='round'/></svg>");
+    background-repeat:no-repeat;background-position:right 10px center}
+  .tag{font-size:11px;border-radius:5px;padding:2px 8px;font-weight:600}
+  .t-add{background:var(--ok-soft);color:var(--ok)}
+  .t-del{background:#fdecec;color:var(--danger)}
+  .t-mod{background:var(--warn-soft);color:var(--warn)}
+  .toast{position:fixed;bottom:24px;left:50%;transform:translate(-50%,10px);
+    background:#1c1f26;color:#fff;padding:10px 20px;border-radius:10px;opacity:0;
+    transition:all .2s;pointer-events:none;font-size:13px;z-index:99;box-shadow:var(--sh2)}
+  .toast.on{opacity:.97;transform:translate(-50%,0)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="bar">
+    <span class="brand"><i></i>接口契约</span>
+    <div class="seg" id="seg">
+      <button data-v="browse" class="on">看契约</button>
+      <button data-v="diff">对比两个接口</button>
+    </div>
+    <span class="spacer"></span>
+    <span class="stat" id="src"></span>
+    <button id="btnMd">导出 Markdown</button>
+    <button id="btnReload">重新提取</button>
+  </div>
+</header>
+
+<main>
+  <aside id="side"><div class="hd">接口</div><div id="eplist"></div></aside>
+  <div id="main"></div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+const S = { view:"browse", contracts:[], cur:null, diff:null };
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g,
+  c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const api = async p => { const r = await fetch(p); if(!r.ok) throw new Error(r.status); return r.json(); };
+function toast(m){ const t=$("toast"); t.textContent=m; t.classList.add("on");
+  setTimeout(()=>t.classList.remove("on"),1800); }
+
+async function boot(){
+  try{
+    const st = await api("/api/status");
+    const s = st.source || {};
+    $("src").innerHTML = s.ok
+      ? `<span style="color:var(--ok)">●</span> 数据源正常 · ${s.total} 条报文`
+      : `<span style="color:var(--danger)">●</span> 数据源不可用`;
+    if(!s.ok){
+      $("main").innerHTML = `<div class="warnbox"><b>读不到抓包数据</b><br>
+        契约是从抓包工具的数据里提取的，现在连不上它（${esc(st.capture)}）。<br>
+        请先在「工作平台」里把 <b>抓包工作台</b> 启动起来。<br>
+        <span style="font-family:var(--mono);font-size:11.5px">${esc(s.error||"")}</span></div>`;
+      return;
+    }
+  }catch(e){}
+  await reload();
+}
+
+async function reload(){
+  $("eplist").innerHTML = `<div class="empty">提取中…</div>`;
+  try{
+    const d = await api("/api/contracts");
+    S.contracts = d.contracts || [];
+    renderList();
+    if(S.view === "diff") renderDiff(); else renderBrowse();
+    $("src").innerHTML = `<span style="color:var(--ok)">●</span> ${S.contracts.length} 个接口 · ${d.seconds}s`;
+  }catch(e){
+    $("eplist").innerHTML = `<div class="empty">提取失败：${esc(e.message)}</div>`;
+  }
+}
+
+function renderList(){
+  $("eplist").innerHTML = S.contracts.map(c => {
+    const nm = c.name ? esc(c.name) : esc(c.endpoint.split("/").pop());
+    const on = S.cur === c.endpoint ? " on" : "";
+    return `<div class="ep${on}" data-ep="${esc(c.endpoint)}">
+      <span class="m m-${esc(c.method)}">${esc(c.method)}</span>
+      <div class="nm">${nm}</div>
+      <div class="pt">${esc(c.endpoint)}</div>
+      <div class="meta"><span>${c.count} 条样本</span>
+        <span>请求 ${c.req_fields.length}</span><span>响应 ${c.resp_fields.length}</span></div>
+    </div>`;
+  }).join("") || `<div class="empty">没有业务报文（隧道和系统杂音不算）</div>`;
+  document.querySelectorAll(".ep").forEach(el => {
+    el.onclick = () => { S.cur = el.dataset.ep; renderList(); renderBrowse(); };
+  });
+}
+
+function fieldTable(fields, title){
+  if(!fields.length) return `<div class="card"><summary>${title}（0）</summary>
+    <div class="empty">这批报文里没有解析出${title}。可能是 GET 请求没有请求体，或响应不是 JSON。</div></div>`;
+  return `<details class="card" open><summary>${title}（${fields.length}）</summary>
+    <table><thead><tr><th style="width:30%">字段</th><th style="width:12%">类型</th>
+      <th style="width:8%">出现</th><th style="width:22%">含义</th>
+      <th style="width:28%">样例</th></tr></thead><tbody>
+    ${fields.map(f => {
+      let mean = esc(f.meaning || "");
+      if(f.values) mean += ` <span style="color:var(--t3)">取值 ` +
+        Object.entries(f.values).map(([k,v]) => `${esc(k)}=${esc(v)}`).join(" / ") + `</span>`;
+      if(f.unit) mean += ` <span style="color:var(--t3)">(${esc(f.unit)})</span>`;
+      const multi = f.type.includes("|");
+      return `<tr>
+        <td class="fld">${esc(f.path)}</td>
+        <td class="ty"${multi?' style="color:var(--warn)"':''}>${esc(f.type)}</td>
+        <td class="ty">${f.count}</td>
+        <td class="mean">${mean || '<span style="color:var(--t3)">—</span>'}</td>
+        <td class="smp">${esc(f.sample)}</td></tr>`;
+    }).join("")}
+    </tbody></table></details>`;
+}
+
+function renderBrowse(){
+  const c = S.contracts.find(x => x.endpoint === S.cur) || S.contracts[0];
+  if(!c){
+    $("main").innerHTML = `<div class="hero"><span class="big">📋</span>
+      <b>还没有可提取的接口</b>先用抓包工具抓一批业务报文</div>`;
+    return;
+  }
+  S.cur = c.endpoint;
+  const unknown = [...c.req_fields, ...c.resp_fields].filter(f => !f.meaning).length;
+  const total = c.req_fields.length + c.resp_fields.length;
+  $("main").innerHTML = `
+    <h2>${esc(c.name || c.endpoint.split("/").pop())}</h2>
+    <div class="sub">${esc(c.method)} ${esc(c.endpoint)}</div>
+    <div class="chips">
+      <span class="chip">样本 <b>${c.count}</b> 条</span>
+      ${c.last ? `<span class="chip">最近 <b>${esc(c.last.slice(11,19))}</b></span>` : ""}
+      ${Object.entries(c.statuses).map(([k,v]) => `<span class="chip">状态 <b>${esc(k)}</b> ×${v}</span>`).join("")}
+      <span class="chip">字段 <b>${total}</b> 个</span>
+      ${unknown ? `<span class="chip" style="color:var(--warn)">未核对含义 <b>${unknown}</b> 个</span>` : ""}
+    </div>
+    ${c.note ? `<div class="note">📌 ${esc(c.note)}</div>` : ""}
+    ${unknown ? `<div class="warnbox"><b>有 ${unknown} 个字段的含义还没核对过</b><br>
+      带 <span style="font-family:var(--mono)">—</span> 的字段表示字典里没有它。
+      工具<b>不猜</b> —— 要补含义，去抓包工具的 <span style="font-family:var(--mono)">semantics.json</span>
+      的 <span style="font-family:var(--mono)">fields</span> 里加一条。</div>` : ""}
+    ${fieldTable(c.req_fields, "请求字段")}
+    ${fieldTable(c.resp_fields, "响应字段")}
+    <div style="color:var(--t3);font-size:12px">样本记录 id：${c.ids.map(esc).join("、")}</div>`;
+}
+
+function renderDiff(){
+  const opts = S.contracts.map(c =>
+    `<option value="${esc(c.endpoint)}">${esc(c.method)} ${esc(c.endpoint)}</option>`).join("");
+  $("main").innerHTML = `
+    <h2>对比两个接口</h2>
+    <div class="sub">字段级的差异 —— 用来做主端/安卓/iOS 之间的契约对齐</div>
+    <div class="pick">
+      <select id="selA">${opts}</select>
+      <span style="color:var(--t3)">对比</span>
+      <select id="selB">${opts}</select>
+      <button class="pri" id="btnDiff">开始对比</button>
+    </div>
+    <div id="diffout"></div>`;
+  if(S.contracts.length > 1) $("selB").selectedIndex = 1;
+  $("btnDiff").onclick = doDiff;
+  if(S.diff) paintDiff();
+}
+
+async function doDiff(){
+  const a = $("selA").value, b = $("selB").value;
+  $("diffout").innerHTML = `<div class="empty">对比中…</div>`;
+  try{
+    S.diff = await api(`/api/diff?a=${encodeURIComponent(a)}&b=${encodeURIComponent(b)}`);
+    paintDiff();
+  }catch(e){ $("diffout").innerHTML = `<div class="empty">失败：${esc(e.message)}</div>`; }
+}
+
+function paintDiff(){
+  const d = S.diff;
+  if(!d) return;
+  const rows = d.diffs || [];
+  const kind = s => s.includes("只在") ? (s.includes(d.a.label) ? "t-del" : "t-add") : "t-mod";
+  $("diffout").innerHTML = `
+    <div class="chips">
+      <span class="chip"><b>${esc(d.a.label)}</b> ${esc(d.a.endpoint)} · ${d.a.count} 条</span>
+      <span class="chip"><b>${esc(d.b.label)}</b> ${esc(d.b.endpoint)} · ${d.b.count} 条</span>
+      <span class="chip">共同字段 <b>${d.same_req.length + d.same_resp.length}</b></span>
+      <span class="chip" style="color:${rows.length ? "var(--warn)" : "var(--ok)"}">
+        差异 <b>${rows.length}</b> 处</span>
+    </div>
+    ${rows.length ? `<div class="card"><table>
+      <thead><tr><th style="width:10%">位置</th><th style="width:34%">字段</th>
+        <th style="width:14%">差异</th><th style="width:19%">A</th><th style="width:19%">B</th></tr></thead>
+      <tbody>${rows.map(r => `<tr>
+        <td><span class="tag ${r.kind==="请求"?"t-mod":"t-add"}">${esc(r.kind)}</span></td>
+        <td class="fld">${esc(r.path)}</td>
+        <td class="mean">${esc(r.state)}</td>
+        <td class="ty">${esc(r.a)}</td><td class="ty">${esc(r.b)}</td></tr>`).join("")}
+      </tbody></table></div>`
+      : `<div class="note">✅ 两个接口的字段完全一致（${d.same_req.length + d.same_resp.length} 个共同字段，无差异）</div>`}`;
+}
+
+document.querySelectorAll("#seg button").forEach(b => {
+  b.onclick = () => {
+    S.view = b.dataset.v;
+    document.querySelectorAll("#seg button").forEach(x => x.classList.toggle("on", x === b));
+    if(S.view === "diff") renderDiff(); else renderBrowse();
+  };
+});
+$("btnReload").onclick = reload;
+$("btnMd").onclick = async () => {
+  try{
+    const r = await fetch("/api/export"); const j = await r.json();
+    toast(j.ok ? "已导出：" + j.path : "导出失败");
+  }catch(e){ toast("导出失败"); }
+};
+boot();
+</script>
+</body>
+</html>

@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>代码搜索</title>
+<style>
+  :root{
+    --bg:#f4f5f7;--panel:#fff;--panel2:#fafbfc;--line:#e6e8ec;--soft:#f0f1f4;
+    --text:#16181d;--t2:#5b6472;--t3:#98a1ad;
+    --brand:#c2410c;--brand-soft:#fff1e9;--brand-line:#ffd9c4;
+    --ok:#12894f;--ok-soft:#e7f6ee;--warn:#a9670a;--warn-soft:#fdf3e3;--danger:#d23b3b;
+    --sh1:0 1px 2px rgba(16,24,40,.05);--sh2:0 2px 8px rgba(16,24,40,.07);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB",sans-serif;
+  }
+  *{box-sizing:border-box}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:#cfd3da;border:3px solid transparent;
+    background-clip:content-box;border-radius:8px}
+  html,body{height:100%}
+  body{margin:0;font:14px/1.55 var(--sans);background:var(--bg);color:var(--text);
+       display:flex;flex-direction:column;overflow:hidden;-webkit-font-smoothing:antialiased}
+  header{flex:none;background:var(--panel);border-bottom:1px solid var(--line);
+         box-shadow:var(--sh1);z-index:5}
+  .bar{display:flex;align-items:center;gap:8px;padding:0 16px;height:54px;flex-wrap:wrap}
+  .brand{font-weight:650;font-size:15.5px;display:flex;align-items:center;gap:8px;flex:none}
+  .brand i{width:9px;height:9px;border-radius:3px;background:linear-gradient(135deg,#c2410c,#ff8a5c)}
+  .spacer{flex:1}
+  .qwrap{display:flex;align-items:center;gap:8px;flex:1;max-width:560px;
+    background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:3px 4px 3px 12px}
+  .qwrap:focus-within{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft);background:var(--panel)}
+  .qwrap input{flex:1;border:none;background:none;outline:none;font:inherit;font-size:13.5px;
+    padding:5px 0;color:var(--text)}
+  .qwrap button{border:none;background:var(--brand);color:#fff;font-weight:600;border-radius:7px;
+    padding:6px 14px;font-size:13px;cursor:pointer}
+  .qwrap button:disabled{opacity:.5}
+  button{border:1px solid var(--line);background:var(--panel);border-radius:8px;
+    padding:6px 11px;cursor:pointer;font:inherit;font-size:12.5px;color:var(--text);transition:all .13s}
+  button:hover{background:#f7f8fa}
+  select{font:inherit;font-size:12.5px;border:1px solid var(--line);border-radius:8px;
+    padding:6px 9px;background:var(--panel);color:var(--text);outline:none;cursor:pointer}
+  .stat{color:var(--t2);font-size:12.5px;flex:none}
+  .opts{display:flex;align-items:center;gap:9px;padding:8px 16px;background:var(--panel2);
+    border-top:1px solid var(--soft);flex-wrap:wrap}
+  .opts label{font-size:12.5px;color:var(--t2);display:flex;align-items:center;gap:5px;cursor:pointer}
+  .opts input[type=checkbox]{accent-color:var(--brand);margin:0}
+
+  main{flex:1;display:flex;min-height:0;overflow:hidden}
+  #side{width:280px;flex:none;border-right:1px solid var(--line);background:var(--panel);
+    overflow:auto;padding:14px}
+  #side h4{margin:0 0 9px;font-size:12px;color:var(--t3);text-transform:uppercase;
+    letter-spacing:.06em}
+  .root{display:flex;align-items:center;gap:7px;padding:6px 0;border-bottom:1px solid var(--soft);
+    font-size:12.5px}
+  .root .nm{font-weight:600}
+  .root .x{border:none;background:none;color:var(--t3);cursor:pointer;font-size:14px;padding:0 5px}
+  .root .x:hover{color:var(--danger)}
+  #results{flex:1;overflow:auto;padding:18px 22px 60px;min-width:0}
+  .file{background:var(--panel);border:1px solid var(--line);border-radius:11px;
+    margin-bottom:12px;overflow:hidden;box-shadow:var(--sh1)}
+  .fhead{display:flex;align-items:center;gap:9px;padding:9px 13px;background:var(--panel2);
+    border-bottom:1px solid var(--soft);cursor:pointer}
+  .fhead .repo{font-size:11px;background:var(--brand-soft);color:var(--brand);border-radius:5px;
+    padding:1px 8px;font-weight:600}
+  .fhead .fn{font-weight:620;font-size:13.5px}
+  .fhead .cnt{margin-left:auto;color:var(--t3);font-size:12px}
+  .fhead .pa{color:var(--t3);font-size:11.5px;font-family:var(--mono);direction:rtl;
+    max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  pre{margin:0;padding:11px 0;overflow:auto;font-family:var(--mono);font-size:12.5px;
+    line-height:1.65;max-height:46vh;background:var(--panel)}
+  .ln{display:flex;padding:0 13px;white-space:pre}
+  .ln .no{color:#b6bcc6;min-width:52px;text-align:right;padding-right:13px;user-select:none;
+    flex:none;font-variant-numeric:tabular-nums}
+  .ln .tx{flex:1;word-break:break-word}
+  .ln.hit{background:#fff8e6}
+  .ln.hit .tx{font-weight:600}
+  .ln .tx mark{background:#ffe08a;color:inherit;border-radius:2px;padding:0 1px}
+  .empty{text-align:center;padding:70px 20px;color:var(--t2)}
+  .empty .big{font-size:44px;opacity:.4;display:block;margin-bottom:14px}
+  .empty b{color:var(--text);display:block;font-size:15px;margin-bottom:8px}
+  .empty code{background:var(--panel);border:1px solid var(--line);border-radius:6px;
+    padding:2px 8px;font-family:var(--mono);font-size:12.5px}
+  .err{background:#fdecec;border:1px solid #f6c9c9;color:#a02c2c;border-radius:10px;
+    padding:12px 15px;font-size:13px}
+  .hist{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:12px;cursor:pointer;
+    color:var(--t2)}
+  .hist:hover{color:var(--brand)}
+  .hist .n{margin-left:auto;color:var(--t3);font-size:11px}
+  .toast{position:fixed;bottom:24px;left:50%;transform:translate(-50%,10px);
+    background:#1c1f26;color:#fff;padding:10px 20px;border-radius:10px;opacity:0;
+    transition:all .2s;pointer-events:none;font-size:13px;z-index:99}
+  .toast.on{opacity:.97;transform:translate(-50%,0)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="bar">
+    <span class="brand"><i></i>代码搜索</span>
+    <div class="qwrap">
+      <input id="q" placeholder="搜什么？支持普通字符串或正则（⌘/Ctrl+Enter 搜）" autocomplete="off">
+      <button id="btnGo">搜索</button>
+    </div>
+    <select id="preset" title="文件类型"></select>
+    <span class="spacer"></span>
+    <span class="stat" id="stat"></span>
+    <button id="btnMgmt">搜索范围</button>
+  </div>
+  <div class="opts">
+    <label><input type="checkbox" id="regex"> 正则</label>
+    <label><input type="checkbox" id="case"> 区分大小写</label>
+    <label>上下文 <select id="ctx"><option>0</option><option selected>1</option>
+      <option>2</option><option>3</option></select> 行</label>
+    <span style="flex:1"></span>
+    <span style="color:var(--t3);font-size:11.5px" id="skipnote"></span>
+  </div>
+</header>
+
+<main>
+  <aside id="side">
+    <h4>搜索范围</h4>
+    <div id="roots"></div>
+    <h4 style="margin-top:18px">最近搜过</h4>
+    <div id="hist"></div>
+  </aside>
+  <div id="results"></div>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+const S = { roots: [], view: "results" };
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g,
+  c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const api = async p => { const r = await fetch(p); if(!r.ok) throw new Error(r.status); return r.json(); };
+const post = async (p,b) => (await fetch(p,{method:"POST",headers:{"Content-Type":"application/json"},
+  body:JSON.stringify(b||{})})).json();
+function toast(m){ const t=$("toast"); t.textContent=m; t.classList.add("on");
+  setTimeout(()=>t.classList.remove("on"),1800); }
+
+async function boot(){
+  const st = await api("/api/status");
+  S.roots = st.roots || [];
+  $("preset").innerHTML = (st.presets||[]).map(p => `<option>${esc(p)}</option>`).join("");
+  $("skipnote").textContent = "自动跳过：" + (st.skip||[]).slice(0,6).join(" / ");
+  renderRoots(); loadHist();
+}
+
+function renderRoots(){
+  $("roots").innerHTML = S.roots.length ? S.roots.map(p => `<div class="root">
+    <span class="nm">${esc(p.split("/").pop())}</span>
+    <span style="color:var(--t3);font-size:11px;flex:1;direction:rtl;overflow:hidden;
+      text-overflow:ellipsis;white-space:nowrap">${esc(p)}</span>
+    <button class="x" data-del="${esc(p)}" title="移出">✕</button></div>`).join("")
+    : `<div style="color:var(--t3);font-size:12.5px">还没有范围。点右上「搜索范围」加。</div>`;
+  document.querySelectorAll("[data-del]").forEach(b => b.onclick = async () => {
+    S.roots = S.roots.filter(x => x !== b.dataset.del);
+    await post("/api/config", {roots: S.roots});
+    renderRoots(); toast("已移出");
+  });
+}
+
+async function loadHist(){
+  try{
+    const d = await api("/api/history");
+    $("hist").innerHTML = (d.history||[]).map(h => `<div class="hist" data-q="${esc(h.q)}">
+      <span style="font-family:var(--mono)">${esc(h.q)}</span>
+      <span class="n">${h.lines} 行</span></div>`).join("")
+      || `<div style="color:var(--t3);font-size:12px">还没有搜索记录</div>`;
+    document.querySelectorAll(".hist").forEach(el => el.onclick = () => {
+      $("q").value = el.dataset.q; search();
+    });
+  }catch(e){}
+}
+
+function hl(text, q, isRegex, caseSense){
+  if(!q) return esc(text);
+  const t = String(text);
+  try{
+    let re;
+    if(isRegex) re = new RegExp(q, caseSense ? "g" : "gi");
+    else{
+      const esc2 = q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      re = new RegExp(esc2, caseSense ? "g" : "gi");
+    }
+    let out = "", last = 0, m, guard = 0;
+    while((m = re.exec(t)) && guard++ < 200){
+      if(m.index === re.lastIndex) re.lastIndex++;
+      out += esc(t.slice(last, m.index)) + "<mark>" + esc(m[0]) + "</mark>";
+      last = m.index + m[0].length;
+    }
+    return out + esc(t.slice(last));
+  }catch(e){ return esc(t); }
+}
+
+async function search(){
+  const q = $("q").value.trim();
+  if(!q) return toast("搜什么？");
+  $("results").innerHTML = `<div class="empty">搜索中…<br>
+    <span style="font-size:12.5px">跨 ${S.roots.length} 个范围</span></div>`;
+  $("btnGo").disabled = true;
+  try{
+    const d = await post("/api/search", {
+      q, preset: $("preset").value,
+      regex: $("regex").checked, case: $("case").checked,
+      context: +$("ctx").value});
+    if(d.error){
+      $("results").innerHTML = `<div class="err">${esc(d.error)}</div>`;
+    }else{
+      paint(d, q);
+      $("stat").textContent = `${d.lines} 行 · ${d.files} 文件 · ${d.seconds}s`
+        + (d.truncated ? "（已截断）" : "");
+    }
+    loadHist();
+  }catch(e){
+    $("results").innerHTML = `<div class="err">搜索失败：${esc(e.message)}</div>`;
+  }
+  $("btnGo").disabled = false;
+}
+
+function paint(d, q){
+  if(!d.hits.length){
+    $("results").innerHTML = `<div class="empty"><span class="big">🔍</span>
+      <b>没有找到「${esc(q)}」</b>
+      <span style="font-size:12.5px">试试换个说法、关掉「区分大小写」、或把文件类型改成「全部文本」</span></div>`;
+    return;
+  }
+  $("results").innerHTML = d.hits.map(f => `
+    <div class="file">
+      <div class="fhead">
+        ${f.repo ? `<span class="repo">${esc(f.repo)}</span>` : ""}
+        <span class="fn">${esc(f.name)}</span>
+        <span class="pa">${esc(f.dir)}</span>
+        <span class="cnt">${f.lines.length} 行</span>
+        <button data-reveal="${esc(f.dir)}" style="font-size:11px;padding:3px 8px">打开目录</button>
+      </div>
+      <pre>${f.lines.map(l => `<div class="ln${l.hit?" hit":""}">
+        <span class="no">${l.n}</span><span class="tx">${hl(l.text, q, $("regex").checked, $("case").checked)}</span>
+      </div>`).join("")}</pre>
+    </div>`).join("");
+  document.querySelectorAll("[data-reveal]").forEach(b => b.onclick = async e => {
+    e.stopPropagation();
+    await post("/api/reveal", {path: b.dataset.reveal});
+    toast("已在访达打开");
+  });
+}
+
+/* ── 范围管理 ── */
+$("btnMgmt").onclick = async () => {
+  const d = await api("/api/discover");
+  const cur = S.roots;
+  $("results").innerHTML = `
+    <div class="file"><div class="fhead"><span class="fn">搜索范围</span>
+      <span class="cnt">已加入 ${cur.length} 个</span>
+      <button id="btnBack" style="font-size:11.5px">返回结果</button></div>
+      <div style="padding:13px">
+        <div style="display:flex;gap:8px;margin-bottom:14px">
+          <input id="newRoot" placeholder="/Users/you/repo" style="flex:1;font:inherit;
+            font-size:13px;border:1px solid var(--line);border-radius:8px;padding:7px 11px">
+          <button id="btnAdd" style="background:var(--brand);color:#fff;border-color:var(--brand);
+            font-weight:600">添加</button>
+        </div>
+        <div style="font-size:12px;color:var(--t3);margin-bottom:8px">
+          自动发现 ${d.found.length} 个仓库（桌面上的）：</div>
+        ${d.found.map(p => `<div class="root">
+          <span class="nm">${esc(p.split("/").pop())}</span>
+          <span style="color:var(--t3);font-size:11px;flex:1;direction:rtl;overflow:hidden;
+            text-overflow:ellipsis;white-space:nowrap">${esc(p)}</span>
+          ${cur.includes(p)
+            ? `<span style="color:var(--ok);font-size:11.5px">已加入</span>`
+            : `<button data-add="${esc(p)}" style="font-size:11.5px;padding:3px 9px">加入</button>`}
+        </div>`).join("")}
+      </div></div>`;
+  $("btnBack").onclick = () => { $("results").innerHTML = ""; load(); };
+  const save = async list => { S.roots = list; await post("/api/config", {roots: list});
+    renderRoots(); $("btnMgmt").click(); };
+  document.querySelectorAll("[data-add]").forEach(b => b.onclick = () => save([...cur, b.dataset.add]));
+  $("btnAdd").onclick = () => {
+    const v = $("newRoot").value.trim();
+    if(!v) return toast("填个路径");
+    save([...cur, v]);
+  };
+};
+function load(){ $("results").innerHTML = `<div class="empty">
+  <span class="big">🔍</span><b>输入关键词开始搜索</b>
+  <span style="font-size:12.5px">跨 ${S.roots.length} 个范围，自动跳过 Pods / build / DerivedData</span></div>`; }
+
+$("btnGo").onclick = search;
+$("q").addEventListener("keydown", e => {
+  if((e.key === "Enter" && (e.metaKey || e.ctrlKey)) || e.key === "Enter"){ e.preventDefault(); search(); }
+});
+boot().then(load);
+</script>
+</body>
+</html>

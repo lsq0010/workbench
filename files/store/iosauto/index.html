@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>iOS 开发自动化</title>
+<style>
+  :root{
+    --bg:#f4f5f7;--panel:#fff;--panel2:#fafbfc;--line:#e6e8ec;--soft:#f0f1f4;
+    --text:#16181d;--t2:#5b6472;--t3:#98a1ad;
+    --brand:#0f766e;--brand-soft:#e6f5f3;--brand-line:#b8e4df;
+    --ok:#12894f;--ok-soft:#e7f6ee;--warn:#a9670a;--warn-soft:#fdf3e3;--danger:#d23b3b;
+    --sh1:0 1px 2px rgba(16,24,40,.05);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB",sans-serif;
+  }
+  *{box-sizing:border-box}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:#cfd3da;border:3px solid transparent;
+    background-clip:content-box;border-radius:8px}
+  html,body{height:100%}
+  body{margin:0;font:14px/1.55 var(--sans);background:var(--bg);color:var(--text);
+       display:flex;flex-direction:column;overflow:hidden;-webkit-font-smoothing:antialiased}
+  header{flex:none;background:var(--panel);border-bottom:1px solid var(--line);box-shadow:var(--sh1)}
+  .bar{display:flex;align-items:center;gap:9px;padding:0 18px;height:54px;flex-wrap:wrap}
+  .brand{font-weight:650;font-size:15.5px;display:flex;align-items:center;gap:9px;flex:none}
+  .brand .mk{width:24px;height:24px;border-radius:6px;display:flex;align-items:center;
+    justify-content:center;font-size:13px;background:#0f766e;color:#fff}
+  .spacer{flex:1}
+  .stat{color:var(--t3);font-size:12px;font-family:var(--mono)}
+  button.b{border:1px solid var(--line);background:var(--panel);border-radius:8px;
+    padding:7px 13px;cursor:pointer;font:inherit;font-size:13px;color:var(--text)}
+  button.b:hover{background:var(--brand-soft);border-color:var(--brand-line);color:var(--brand)}
+  button.b.pri{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:620}
+  button.b:disabled{opacity:.45;cursor:not-allowed}
+  main{flex:1;display:flex;min-height:0}
+  #side{width:290px;flex:none;border-right:1px solid var(--line);background:var(--panel);
+    overflow:auto;padding:15px}
+  #main{flex:1;overflow:auto;padding:20px 24px 70px;min-width:0}
+  h4{margin:0 0 9px;font-size:11.5px;color:var(--t3);text-transform:uppercase;
+     letter-spacing:.06em;font-weight:700}
+  h4:not(:first-child){margin-top:17px}
+  .proj{padding:9px 11px;border:1px solid var(--line);border-radius:9px;margin-bottom:7px;
+    cursor:pointer;font-size:12.5px;transition:all .12s}
+  .proj:hover{border-color:var(--brand-line);background:var(--brand-soft)}
+  .proj.on{border-color:var(--brand);background:var(--brand-soft)}
+  .proj .n{font-weight:620;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .proj .m{color:var(--t3);font-size:11px;font-family:var(--mono);margin-top:2px}
+  .fld{margin-bottom:11px}
+  .fld label{display:block;font-size:12px;color:var(--t2);margin-bottom:5px}
+  input,select{width:100%;font:inherit;font-size:13px;border:1px solid var(--line);
+    border-radius:8px;padding:8px 11px;background:var(--panel);color:var(--text);outline:none}
+  input:focus,select:focus{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft)}
+  .hero{background:linear-gradient(135deg,#0f766e,#14b8a6);color:#fff;border-radius:14px;
+    padding:20px 24px;margin-bottom:18px}
+  .hero h2{margin:0 0 6px;font-size:18px;font-weight:650}
+  .hero p{margin:0;font-size:13px;opacity:.94;line-height:1.7}
+  .hero .go{margin-top:14px;display:flex;gap:9px;flex-wrap:wrap;align-items:center}
+  .hero button{border:none;background:#fff;color:#0f766e;font-weight:650;border-radius:9px;
+    padding:10px 20px;cursor:pointer;font:inherit;font-size:14px}
+  .hero button:hover{background:#f0fdfa}
+  .hero select{width:auto;min-width:220px;background:rgba(255,255,255,.18);
+    border-color:rgba(255,255,255,.35);color:#fff}
+  .hero select option{color:#111}
+  .steps{display:flex;flex-direction:column;gap:7px;margin:16px 0}
+  .st{display:flex;align-items:center;gap:11px;padding:11px 15px;border-radius:10px;
+    background:var(--panel);border:1px solid var(--line);font-size:13.5px}
+  .st.ok{border-color:#bfe6cf;background:var(--ok-soft)}
+  .st.bad{border-color:#f6c9c9;background:#fdecec}
+  .st .ic{font-size:15px;width:20px;flex:none}
+  .st .nm{font-weight:600;min-width:92px}
+  .st .dt{color:var(--t2);font-size:12px;font-family:var(--mono);flex:1}
+  .st .sec{color:var(--t3);font-size:12px;font-family:var(--mono)}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    padding:16px 18px;margin-bottom:14px;box-shadow:var(--sh1)}
+  .card h3{margin:0 0 12px;font-size:14px;font-weight:650}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .kpis{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:11px 16px;
+    box-shadow:var(--sh1);min-width:112px}
+  .kpi .k{color:var(--t3);font-size:11.5px}
+  .kpi .v{font-size:19px;font-weight:650;font-family:var(--mono);margin-top:3px}
+  pre{background:#0b0d11;color:#a5f3fc;border-radius:9px;padding:12px 15px;overflow:auto;
+    font-family:var(--mono);font-size:12px;margin:9px 0;max-height:320px;white-space:pre-wrap;
+    word-break:break-word}
+  .empty{text-align:center;padding:64px 20px;color:var(--t2);font-size:13px}
+  .empty .big{font-size:44px;opacity:.35;display:block;margin-bottom:13px}
+  .empty b{color:var(--text);display:block;font-size:15px;margin-bottom:7px}
+  .hist{font-size:12px;padding:6px 0;border-bottom:1px solid var(--soft);color:var(--t2)}
+  .spin{display:inline-block;width:13px;height:13px;border:2px solid rgba(255,255,255,.4);
+    border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;
+    vertical-align:-2px;margin-right:7px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .toast{position:fixed;bottom:26px;left:50%;transform:translate(-50%,10px);
+    background:#1c1f26;color:#fff;padding:10px 20px;border-radius:10px;opacity:0;
+    transition:all .2s;pointer-events:none;font-size:13px;z-index:99}
+  .toast.on{opacity:.97;transform:translate(-50%,0)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="bar">
+    <span class="brand"><span class="mk">🛠</span>iOS 开发自动化</span>
+    <span class="spacer"></span>
+    <span class="stat" id="stat"></span>
+    <button class="b" id="btnRefresh">刷新</button>
+  </div>
+</header>
+
+<main>
+  <aside id="side">
+    <h4>工程（自动扫出来的）</h4>
+    <div id="projects"><div style="color:var(--t3);font-size:12px">扫描中…</div></div>
+    <div style="color:var(--t3);font-size:11px;margin-top:10px;line-height:1.7">
+      扫桌面和文稿下两层的 .xcworkspace / .xcodeproj。<br>
+      有 Podfile 的自动用 workspace —— 用错就编不过。
+    </div>
+  </aside>
+  <div id="main"></div>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+const S = { projects: [], proj: null, schemes: [], sims: [], sel: null,
+            running: false, last: null };
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g,
+  c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const api = async p => { const r = await fetch(p); if(!r.ok) throw new Error(r.status); return r.json(); };
+const post = async (p,b,t) => {
+  const r = await fetch(p, {method:"POST", headers:{"Content-Type":"application/json"},
+                            body: JSON.stringify(b||{})});
+  return r.json();
+};
+function toast(m){ const t=$("toast"); t.textContent=m; t.classList.add("on");
+  setTimeout(()=>t.classList.remove("on"),2600); }
+
+async function boot(){
+  await loadProjects();
+  await loadStatus();
+  $("btnRefresh").onclick = async () => { await loadProjects(); await loadStatus(); toast("已刷新"); };
+}
+
+async function loadProjects(){
+  try{
+    const d = await api("/api/projects");
+    S.projects = d.projects || [];
+    paintProjects();
+  }catch(e){
+    $("projects").innerHTML = `<div style="color:var(--danger);font-size:12px">
+      ${esc(e.message)}</div>`;
+  }
+}
+
+async function loadStatus(){
+  try{
+    const d = await api("/api/status");
+    S.sims = d.sims || [];
+    S.runs = d.runs || [];
+    $("stat").textContent = `${d.xcode}　${S.sims.length} 个模拟器`;
+    if(S.runs.length && !S.last) paintHistory();
+  }catch(e){}
+}
+
+function paintProjects(){
+  $("projects").innerHTML = S.projects.length ? S.projects.map(p => `
+    <div class="proj ${S.proj && S.proj.dir===p.dir?"on":""}" data-d="${esc(p.dir)}">
+      <div class="n">${esc(p.name)}</div>
+      <div class="m">${p.kind === "workspace" ? "workspace" : "project"}${
+        p.pods ? " · CocoaPods" : ""}</div>
+    </div>`).join("")
+    : `<div style="color:var(--t3);font-size:12px">没找到 Xcode 工程</div>`;
+  document.querySelectorAll("[data-d]").forEach(el => el.onclick = async () => {
+    S.proj = S.projects.find(x => x.dir === el.dataset.d);
+    paintProjects(); await loadSchemes();
+  });
+}
+
+async function loadSchemes(){
+  const p = S.proj;
+  $("main").innerHTML = `<div class="empty">读 scheme 中…</div>`;
+  try{
+    const d = await api(`/api/schemes?entry=${encodeURIComponent(p.entry)}&kind=${p.kind}`);
+    S.schemes = d.schemes || [];
+    S.appCount = (d.app_schemes || []).length;
+    S.sel = S.schemes[0] || null;      // 默认选中第一个（= 真正的 App）
+    paintMain();
+  }catch(e){
+    $("main").innerHTML = `<div class="empty">读不了 scheme：${esc(e.message)}</div>`;
+  }
+}
+
+function paintMain(){
+  const p = S.proj;
+  if(!p) return;
+  const simOpts = S.sims.slice(0, 30).map(s =>
+    `<option value="${esc(s.udid)}"${s.booted?" selected":""}>
+      ${esc(s.name)} · ${esc(s.runtime)}${s.booted?"（已启动）":""}</option>`).join("");
+  $("main").innerHTML = `
+    <div class="hero">
+      <h2>${esc(p.name)}</h2>
+      <p>编译 → 装到模拟器 → 启动 → 顺手开始抓日志。一次点击走完日常循环，
+        跑完直接去「代码日志」看 App 的日志，或者让 AI 分析。</p>
+      <div class="go">
+        <select id="scheme">${S.schemes.map((s, i) => {
+          const isApp = i < (S.appCount || 0);
+          const firstLib = S.appCount && i === S.appCount;
+          return (firstLib ? `<option disabled>──────── 以下是 Pods 的库 ────────</option>` : "")
+            + `<option${s===S.sel?" selected":""}>${esc(s)}${isApp?"":""}</option>`;
+        }).join("")}</select>
+        <select id="sim">${simOpts}</select>
+        <button id="btnRun">▶︎ 一键跑起来</button>
+      </div>
+    </div>
+    <div class="kpis">
+      <div class="kpi"><div class="k">工程类型</div>
+        <div class="v">${p.kind === "workspace" ? "workspace" : "project"}</div></div>
+      <div class="kpi"><div class="k">你的 App</div>
+        <div class="v">${S.appCount || "?"}</div></div>
+      <div class="kpi"><div class="k">库里 scheme</div>
+        <div class="v" style="color:var(--t3)">${S.schemes.length - (S.appCount||0)}</div></div>
+      <div class="kpi"><div class="k">模拟器</div><div class="v">${S.sims.length}</div></div>
+    </div>
+    <div id="runarea"></div>
+    <div class="card">
+      <h3>自动重编译 <span id="wstate" style="font-weight:400;font-size:12px;
+        color:var(--t3)"></span></h3>
+      <div style="color:var(--t2);font-size:12.5px;line-height:1.8;margin-bottom:12px">
+        盯着工程目录，你改完存盘它自己编 —— 不用再手动点编译。<br>
+        编挂了立刻在这里告诉你，不用等你想起来去点。
+      </div>
+      <div class="row">
+        <button class="b pri" id="btnWatch">开始监听</button>
+        <button class="b" id="btnTest">跑测试</button>
+      </div>
+      <div id="watchout"></div>
+    </div>
+    <div class="card">
+      <h3>单独操作</h3>
+      <div class="row">
+        <button class="b" data-op="build">只编译</button>
+        <button class="b" data-op="archive">归档 Release</button>
+        <button class="b" data-op="screenshot">模拟器截图</button>
+        <button class="b" data-op="pod">pod install</button>
+        <button class="b" data-op="open">打开模拟器窗口</button>
+        <button class="b" data-op="logs">去代码日志</button>
+        <button class="b" data-op="clean">清理构建产物 <span id="ddsize"
+          style="color:var(--t3)"></span></button>
+      </div>
+      <div id="opout"></div>
+    </div>
+    <div class="card" id="junkcard">
+      <h3>各工程的构建产物</h3>
+      <div style="color:var(--t2);font-size:12.5px;line-height:1.8;margin-bottom:12px">
+        编译会在工程目录里留下中间产物（<code>DerivedData/</code>、<code>build/</code>），
+        时间久了能占好几个 G。删掉只影响下次编译速度，不影响代码。
+      </div>
+      <div class="row">
+        <button class="b" id="btnScanJunk">扫一下占了多少</button>
+        <button class="b pri" id="btnCleanJunk" style="display:none">全部清理</button>
+      </div>
+      <div id="junkout"></div>
+    </div>
+    <div id="hist"></div>`;
+  $("btnRun").onclick = runPipeline;
+  document.querySelectorAll("[data-op]").forEach(b => b.onclick = () => doOp(b.dataset.op, b));
+  $("btnWatch").onclick = toggleWatch;
+  $("btnScanJunk").onclick = scanJunk;
+  $("btnCleanJunk").onclick = cleanJunk;
+  $("btnTest").onclick = runTests;
+  paintHistory();
+  refreshWatch();
+  api("/api/status").then(st => {
+    const el = $("ddsize");
+    if(el && st.derived_mb != null) el.textContent = "(" + st.derived_mb + " MB)";
+  }).catch(()=>{});
+}
+
+function paintHistory(){
+  if(!S.runs || !S.runs.length) return;
+  const el = $("hist");
+  if(!el) return;
+  el.innerHTML = `<div class="card"><h3>最近跑过的</h3>
+    ${S.runs.map(r => `<div class="hist">
+      <b>${esc(r.scheme)}</b> → ${esc(r.simulator)}　
+      <span style="color:var(--t3)">${esc(r.ts.slice(5,16))} · ${r.seconds}s</span>
+    </div>`).join("")}</div>`;
+}
+
+async function runPipeline(){
+  const udid = $("sim").value, scheme = $("scheme").value;
+  const area = $("runarea");
+  S.running = true;
+  area.innerHTML = `<div class="card"><h3><span class="spin"></span>正在跑…</h3>
+    <div class="steps" id="steps">
+      ${["编译","找产物","启动模拟器","安装","启动 App","开始抓日志"].map(n =>
+        `<div class="st"><span class="ic">·</span><span class="nm">${n}</span>
+         <span class="dt">等待</span></div>`).join("")}
+    </div></div>`;
+  const t0 = Date.now();
+  try{
+    const r = await post("/api/run", {entry: S.proj.entry, kind: S.proj.kind,
+                                      scheme, udid, capture_logs: true});
+    S.last = r;
+    const steps = r.steps || [];
+    $("steps").innerHTML = steps.map(s => `
+      <div class="st ${s.ok?"ok":"bad"}">
+        <span class="ic">${s.ok?"✅":"❌"}</span>
+        <span class="nm">${esc(s.step)}</span>
+        <span class="dt">${esc((s.error||"").slice(0,120) || (s.ok?"完成":""))}</span>
+        <span class="sec">${s.seconds}s</span>
+      </div>`).join("");
+    if(r.ok){
+      const extra = document.createElement("div");
+      extra.innerHTML = `
+        <div style="margin-top:14px;display:flex;gap:9px;flex-wrap:wrap;align-items:center">
+          <button class="b pri" id="btnLogs">去看日志</button>
+          <button class="b" id="btnShot">截个图</button>
+          <span style="color:var(--t3);font-size:12px">
+            ${esc(r.simulator)} · ${esc(r.bundle||"")} · 共 ${r.seconds}s</span>
+        </div>`;
+      area.querySelector(".card").appendChild(extra);
+      $("btnLogs").onclick = () => window.open("http://127.0.0.1:8918/", "_blank");
+      $("btnShot").onclick = () => doOp("screenshot");
+      toast(`跑起来了（${r.seconds}s）`);
+      loadStatus();
+    }else{
+      const extra = document.createElement("div");
+      extra.innerHTML = `<div style="margin-top:12px;color:var(--danger);font-size:13px">
+        ${esc(r.error||"失败")}</div>
+        <div style="margin-top:12px;display:flex;gap:9px;align-items:center;flex-wrap:wrap">
+          <button class="b pri" id="btnFix">让 AI 试着修</button>
+          <span style="color:var(--t3);font-size:12px">
+            把报错交给 AI，它自己读代码→改→重新编译验证</span>
+        </div>`;
+      area.querySelector(".card").appendChild(extra);
+      $("btnFix").onclick = () => fixWithAI(area);
+    }
+  }catch(e){
+    area.innerHTML = `<div class="card"><div style="color:var(--danger)">
+      失败：${esc(e.message)}</div></div>`;
+  }
+  S.running = false;
+}
+
+let JUNK = null;
+
+async function scanJunk(){
+  const btn = $("btnScanJunk");
+  btn.disabled = true; btn.textContent = "扫描中…（大工程要几秒）";
+  $("junkout").innerHTML = "";
+  try{
+    const d = await api("/api/junk");
+    JUNK = d;
+    if(!d.items.length){
+      $("junkout").innerHTML = `<div style="margin-top:11px;color:var(--ok);font-size:13px">
+        ✅ 很干净，没有超过 5 MB 的构建产物</div>`;
+      $("btnCleanJunk").style.display = "none";
+    }else{
+      $("junkout").innerHTML = `
+        <div style="margin-top:13px;font-size:13px">
+          共 <b style="color:var(--warn)">${(d.total_mb/1024).toFixed(1)} GB</b>，
+          其中可安全清理 <b style="color:var(--ok)">${(d.safe_mb/1024).toFixed(1)} GB</b>
+          <span style="color:var(--t3)">（${esc(d.note)}）</span>
+        </div>
+        <table style="width:100%;margin-top:10px;font-size:12.5px;border-collapse:collapse">
+          <tr style="color:var(--t3);text-align:left">
+            <th style="padding:5px 0">工程</th><th>目录</th>
+            <th style="text-align:right">大小</th><th style="text-align:right">闲置</th><th></th></tr>
+          ${d.items.map((x, i) => `<tr style="border-top:1px solid var(--line)">
+            <td style="padding:6px 0"><b>${esc(x.project)}</b></td>
+            <td><code style="font-size:11.5px">${esc(x.sub)}</code></td>
+            <td style="text-align:right;font-family:var(--mono)">${x.mb >= 1024
+              ? (x.mb/1024).toFixed(2)+" GB" : x.mb.toFixed(0)+" MB"}</td>
+            <td style="text-align:right;color:var(--t3)">${x.days_old >= 0
+              ? x.days_old+" 天" : "-"}</td>
+            <td style="text-align:right">${x.git_ignored
+              ? '<span style="color:var(--ok);font-size:11.5px">git 已忽略</span>'
+              : '<span style="color:var(--warn);font-size:11.5px">git 没忽略</span>'}</td>
+          </tr>`).join("")}
+        </table>`;
+      $("btnCleanJunk").style.display = "";
+    }
+  }catch(e){
+    $("junkout").innerHTML = `<div style="color:var(--danger);margin-top:10px">${esc(e.message)}</div>`;
+  }
+  btn.disabled = false; btn.textContent = "扫一下占了多少";
+}
+
+async function cleanJunk(){
+  if(!JUNK || !JUNK.items.length) return;
+  const safe = JUNK.items.filter(x => x.safe);
+  const mb = safe.reduce((a, x) => a + x.mb, 0);
+  if(!confirm(`清理 ${safe.length} 个目录，释放约 ${(mb/1024).toFixed(1)} GB？\n\n` +
+    `只清 git 已忽略的构建产物，不影响你的代码。\n` +
+    `代价：下次编译会慢一些（要重新生成）。`)) return;
+  const btn = $("btnCleanJunk");
+  btn.disabled = true; btn.textContent = "清理中…";
+  try{
+    const r = await post("/api/junk/clean", {paths: safe.map(x => x.path)});
+    $("junkout").innerHTML = `<div style="margin-top:12px;font-size:13px;color:var(--ok)">
+      ✅ ${esc(r.message)}</div>
+      ${(r.refused||[]).length ? `<div style="color:var(--warn);font-size:12px;margin-top:6px">
+        跳过了：${esc(r.refused.join("；"))}</div>` : ""}`;
+    $("btnCleanJunk").style.display = "none";
+    JUNK = null;
+    toast(r.message);
+  }catch(e){ toast("失败：" + e.message); }
+  btn.disabled = false; btn.textContent = "全部清理";
+}
+
+async function refreshWatch(){
+  try{
+    const st = await api("/api/status");
+    const w = st.watch || {};
+    const on = w.running;
+    $("btnWatch").textContent = on ? "停止监听" : "开始监听";
+    $("btnWatch").className = "b" + (on ? "" : " pri");
+    $("wstate").innerHTML = on
+      ? `<span style="color:var(--ok)">●</span> 监听中 · 已编译 ${w.builds||0} 次 · 检测到改动 ${w.changes||0} 次`
+      : "未开始";
+    if(w.message && on){
+      const el = $("watchout");
+      el.innerHTML = `<pre style="max-height:200px">${esc(w.message)}</pre>`;
+    }
+    if(on) setTimeout(refreshWatch, 4000);
+  }catch(e){}
+}
+
+async function toggleWatch(){
+  const st = await api("/api/status");
+  const on = (st.watch||{}).running;
+  if(on){
+    const r = await post("/api/watch/stop", {});
+    toast(r.message || r.error);
+    $("watchout").innerHTML = "";
+    return refreshWatch();
+  }
+  const r = await post("/api/watch/start", {entry:S.proj.entry, kind:S.proj.kind,
+    scheme:$("scheme").value, udid:$("sim").value});
+  toast(r.message || r.error || "已开始");
+  refreshWatch();
+}
+
+async function runTests(){
+  const btn = $("btnTest");
+  btn.disabled = true; btn.textContent = "跑测试中…";
+  $("watchout").innerHTML = `<pre>正在跑 ${esc($("scheme").value)} 的测试…（可能要几分钟）</pre>`;
+  try{
+    const r = await post("/api/test", {entry:S.proj.entry, kind:S.proj.kind,
+      scheme:$("scheme").value, udid:$("sim").value});
+    if(r.ok){
+      $("watchout").innerHTML = `<pre style="color:#86efac">✅ 测试通过
+共 ${r.total} 个用例（通过 ${r.passed}）· ${r.seconds}s</pre>`;
+      toast("测试全过");
+    }else{
+      $("watchout").innerHTML = `<pre style="color:#fca5a5">❌ 测试没过
+总数 ${r.total} · 通过 ${r.passed} · 失败 ${r.failed} · ${r.seconds}s
+
+${esc((r.failures||[]).join("\n") || r.error || "")}</pre>`;
+      toast(`失败了 ${r.failed} 个`);
+    }
+  }catch(e){
+    $("watchout").innerHTML = `<pre style="color:#fca5a5">❌ ${esc(e.message)}</pre>`;
+  }
+  btn.disabled = false; btn.textContent = "跑测试";
+}
+
+async function fixWithAI(area){
+  const btn = $("btnFix");
+  btn.disabled = true; btn.textContent = "生成任务中…";
+  try{
+    const g = await post("/api/fixgoals", {entry:S.proj.entry, kind:S.proj.kind});
+    if(!g.ok){ toast(g.error || "生成失败"); btn.disabled=false; btn.textContent="让 AI 试着修"; return; }
+    toast("已交给 AI，看工作台的 AI 面板");
+    // 打开工作台的 AI 面板并预填（新窗口，避免跨端口限制）
+    const w = window.open("http://127.0.0.1:8880/?fixgoal=" +
+      encodeURIComponent(g.goal.slice(0, 6000)), "_blank");
+    if(!w) {
+      // 弹不出来就把任务显示出来让用户自己复制
+      $("opout").innerHTML = `<pre>AI 修复任务（复制到工作台的 AI 助手，勾上自主模式）：\n\n${esc(g.goal)}</pre>`;
+    }
+  }catch(e){ toast("失败：" + e.message); }
+  btn.disabled = false; btn.textContent = "让 AI 试着修";
+}
+
+async function doOp(op, btn){
+  const out = $("opout");
+  if(op === "logs") return window.open("http://127.0.0.1:8918/", "_blank");
+  if(op === "open"){
+    const r = await post("/api/sim", {action:"open"});
+    return toast(r.output || "已打开");
+  }
+  if(btn){ btn.disabled = true; }
+  out.innerHTML = `<div style="margin-top:11px;color:var(--t2);font-size:12.5px">
+    <span class="spin" style="border-color:#ccc;border-top-color:var(--brand)"></span>
+    ${esc(op)} 中…（编译可能要一两分钟）</div>`;
+  try{
+    let r;
+    if(op === "build") r = await post("/api/build", {entry:S.proj.entry, kind:S.proj.kind,
+                                                     scheme:$("scheme").value});
+    else if(op === "archive") r = await post("/api/archive", {entry:S.proj.entry,
+                                                              kind:S.proj.kind,
+                                                              scheme:$("scheme").value});
+    else if(op === "screenshot") r = await post("/api/screenshot", {udid:$("sim").value});
+    else if(op === "pod") r = await post("/api/pod", {dir:S.proj.dir});
+    else if(op === "clean") r = await post("/api/clean", {});
+    if(op === "screenshot" && r.ok){
+      out.innerHTML = `<div style="margin-top:11px">
+        <img src="file://${esc(r.path)}" alt="" style="max-width:100%;max-height:340px;
+          border:1px solid var(--line);border-radius:9px;display:block">
+        <div style="margin-top:9px;display:flex;gap:9px;align-items:center;flex-wrap:wrap">
+          <button class="b pri" id="btnSeeIt">让 AI 看看这个界面</button>
+          <span style="color:var(--t3);font-size:12px">${esc(r.path)}</span>
+        </div></div>`;
+      $("btnSeeIt").onclick = () => {
+        const q = prompt("想让 AI 重点看什么？（可留空）",
+                         "这是 App 的界面，看看有没有问题：报错、布局、文案、状态");
+        if(q === null) return;
+        window.open("http://127.0.0.1:8880/?seeimg=" + encodeURIComponent(r.path) +
+                    "&q=" + encodeURIComponent(q), "_blank");
+      };
+      if(btn) btn.disabled = false;
+      return;
+    }
+    if(op === "clean" && r.ok){
+      out.innerHTML = `<pre>✅ ${esc(r.message)}</pre>`;
+      const el = $("ddsize"); if(el) el.textContent = "(0 MB)";
+      if(btn) btn.disabled = false;
+      return;
+    }
+    out.innerHTML = r.ok
+      ? `<pre>✅ 完成（${r.seconds||"?"}s）\n${esc(JSON.stringify(
+          Object.fromEntries(Object.entries(r).filter(([k]) =>
+            !["steps","ok"].includes(k))), null, 2).slice(0,1200))}</pre>`
+      : `<pre style="color:#fca5a5">❌ ${esc(r.error||"失败")}</pre>`;
+    if(r.ok && (op === "screenshot")) toast("截图已保存");
+  }catch(e){
+    out.innerHTML = `<pre style="color:#fca5a5">❌ ${esc(e.message)}</pre>`;
+  }
+  if(btn) btn.disabled = false;
+}
+
+boot();
+</script>
+</body>
+</html>

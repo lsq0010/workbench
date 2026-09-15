@@ -1,0 +1,51 @@
+{
+  "manifest_version": 1,
+  "id": "ioscert",
+  "name": "证书与描述文件",
+  "description": "iOS 签名到期检查：列出钥匙串里的签名证书和所有描述文件，按到期天数排序，快过期的标红。重新打包失败时先看这里。",
+  "version": "0.1.0",
+  "author": "本机",
+  "type": "local",
+
+  "runtime": { "entry": "main.py", "requires": { "python": ">=3.7" }, "dependencies": [] },
+  "ports": { "web": 8903 },
+
+  "platform": {
+    "icon": "🔐",
+    "color": "#0071e3",
+    "open": "http://127.0.0.1:{web}/",
+    "health": "http://127.0.0.1:{web}/api/status",
+    "start": ["python3", "main.py", "start"],
+    "stop": ["python3", "main.py", "stop"],
+    "note": "只用系统自带的 security / openssl 读，不导出私钥、不修改钥匙串。"
+  },
+
+  "permissions": [
+    {
+      "id": "keychain.read",
+      "why": "读取钥匙串里的签名证书名称和有效期（security find-identity / find-certificate）",
+      "risk": "中：会读取证书信息。**不读取私钥**，证书是公开信息",
+      "mitigation": "只执行 find-identity / find-certificate -a -p 这类只读命令；不做任何导入、导出、删除操作"
+    },
+    {
+      "id": "fs.read.profiles",
+      "why": "读取 ~/Library/MobileDevice/Provisioning Profiles 下的描述文件",
+      "risk": "低：这些文件本身是给 Xcode 用的配置，只读",
+      "mitigation": "只读不写；解析失败的文件会标出来而不是跳过"
+    }
+  ],
+
+  "data": { "produces": [], "consumes": [] },
+
+  "exposes": {
+    "base": "http://127.0.0.1:8903",
+    "endpoints": [
+      { "path": "/api/status", "desc": "服务状态", "auth": "local-only" },
+      { "path": "/api/scan", "desc": "扫描证书与描述文件（结果不落盘）", "auth": "local-only" }
+    ],
+    "writes": []
+  },
+
+  "ui": { "entry": "index.html" },
+  "store": { "pricing": "free", "license": "personal" }
+}

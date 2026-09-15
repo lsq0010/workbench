@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JSON 工具箱</title>
+<style>
+  :root{
+    --bg:#f4f5f7;--panel:#fff;--panel2:#fafbfc;--line:#e6e8ec;--soft:#f0f1f4;
+    --text:#16181d;--t2:#5b6472;--t3:#98a1ad;
+    --brand:#b45309;--brand-soft:#fef6e7;--brand-line:#fbe0b0;
+    --ok:#12894f;--ok-soft:#e7f6ee;--warn:#a9670a;--danger:#d23b3b;
+    --sh1:0 1px 2px rgba(16,24,40,.05);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB",sans-serif;
+  }
+  *{box-sizing:border-box}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:#cfd3da;border:3px solid transparent;
+    background-clip:content-box;border-radius:8px}
+  html,body{height:100%}
+  body{margin:0;font:14px/1.55 var(--sans);background:var(--bg);color:var(--text);
+       display:flex;flex-direction:column;overflow:hidden;-webkit-font-smoothing:antialiased}
+  header{flex:none;background:var(--panel);border-bottom:1px solid var(--line);box-shadow:var(--sh1)}
+  .bar{display:flex;align-items:center;gap:10px;padding:0 18px;height:56px;flex-wrap:wrap}
+  .brand{font-weight:650;font-size:15.5px;display:flex;align-items:center;gap:9px;flex:none}
+  .brand .mk{width:24px;height:24px;border-radius:6px;display:flex;align-items:center;
+    justify-content:center;font-size:14px;background:#b45309;color:#fff}
+  .spacer{flex:1}
+  .tabs{display:flex;gap:3px;background:#eceef2;padding:3px;border-radius:10px}
+  .tabs button{border:none;background:transparent;border-radius:7px;padding:6px 14px;
+    font-size:13px;color:var(--t2);font-weight:550;cursor:pointer;font-family:inherit}
+  .tabs button.on{background:var(--panel);color:var(--brand);box-shadow:var(--sh1)}
+  main{flex:1;display:flex;min-height:0;overflow:hidden}
+  .pane{flex:1;display:flex;flex-direction:column;min-height:0;min-width:0;background:var(--panel)}
+  .pane+.pane{border-left:1px solid var(--line)}
+  .ph{display:flex;align-items:center;gap:8px;padding:9px 14px;border-bottom:1px solid var(--soft);
+    background:var(--panel2);flex:none;flex-wrap:wrap}
+  .ph .lbl{font-weight:620;font-size:12.5px;color:var(--t2)}
+  .ph .sp{flex:1}
+  select{font:inherit;font-size:12.5px;border:1px solid var(--line);border-radius:8px;
+    padding:5px 9px;background:var(--panel);color:var(--text);cursor:pointer;outline:none}
+  button.b{border:1px solid var(--line);background:var(--panel);border-radius:8px;
+    padding:5px 11px;cursor:pointer;font:inherit;font-size:12.5px;color:var(--text)}
+  button.b:hover{background:var(--brand-soft);border-color:var(--brand-line);color:var(--brand)}
+  button.b.pri{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:600}
+  button.b:disabled{opacity:.45;cursor:not-allowed}
+  input.i{font:inherit;font-family:var(--mono);font-size:13px;border:1px solid var(--line);
+    border-radius:8px;padding:6px 11px;outline:none;min-width:0}
+  input.i:focus{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft)}
+  textarea{flex:1;border:none;outline:none;resize:none;padding:13px 16px;font-family:var(--mono);
+    font-size:12.5px;line-height:1.65;background:var(--panel);color:var(--text);min-height:0}
+  textarea::placeholder{color:var(--t3)}
+  pre{flex:1;margin:0;overflow:auto;padding:13px 16px;font-family:var(--mono);font-size:12.5px;
+    line-height:1.65;white-space:pre-wrap;word-break:break-word;min-height:0}
+  .err{background:#fdecec;border:1px solid #f6c9c9;color:#a02c2c;border-radius:9px;
+    padding:10px 13px;margin:12px 14px;font-size:12.5px}
+  .ok{color:var(--ok);font-size:12px;font-family:var(--mono)}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th{text-align:left;color:var(--t3);font-weight:600;font-size:11.5px;padding:8px 13px;
+     background:var(--panel2);border-bottom:1px solid var(--line);position:sticky;top:0}
+  td{padding:7px 13px;border-bottom:1px solid var(--soft);vertical-align:top}
+  .mono{font-family:var(--mono);font-size:12px;word-break:break-all}
+  .ty{font-size:11px;border-radius:5px;padding:1px 7px;font-weight:600;
+    background:var(--soft);color:var(--t2);white-space:nowrap}
+  .ty.obj{background:#eef3ff;color:#2f6df6}
+  .ty.arr{background:#f3eeff;color:#7c3aed}
+  .ty.num{background:#e7f6ee;color:#12894f}
+  .ty.str{background:#fdf3e3;color:#a9670a}
+  .empty{text-align:center;padding:60px 20px;color:var(--t2);font-size:13px}
+  .empty .big{font-size:40px;opacity:.35;display:block;margin-bottom:12px}
+  .toast{position:fixed;bottom:26px;left:50%;transform:translate(-50%,10px);
+    background:#1c1f26;color:#fff;padding:10px 20px;border-radius:10px;opacity:0;
+    transition:all .2s;pointer-events:none;font-size:13px;z-index:99}
+  .toast.on{opacity:.97;transform:translate(-50%,0)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="bar">
+    <span class="brand"><span class="mk">{}</span>JSON 工具箱</span>
+    <div class="tabs" id="tabs">
+      <button data-v="conv" class="on">转换</button>
+      <button data-v="query">取值</button>
+      <button data-v="sum">看结构</button>
+      <button data-v="schema">生成 Schema</button>
+    </div>
+    <span class="spacer"></span>
+    <span class="ok" id="stat"></span>
+  </div>
+</header>
+
+<main>
+  <aside class="pane" style="flex:1.15">
+    <div class="ph">
+      <span class="lbl">输入</span>
+      <select id="src"></select>
+      <span class="sp"></span>
+      <button class="b" id="btnSample">样例</button>
+      <button class="b" id="btnPaste">粘贴</button>
+      <button class="b" id="btnClear">清空</button>
+    </div>
+    <textarea id="input" placeholder="把 JSON / YAML / XML / CSV / QueryString 贴进来&#10;&#10;JSON 也行、不是 JSON 也行，左边选对格式就认"></textarea>
+  </aside>
+  <div class="pane">
+    <div class="ph" id="rightbar"></div>
+    <div id="out" style="flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden">
+      <div class="empty"><span class="big">↔</span>左边贴内容，右边出结果</div>
+    </div>
+  </div>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+const S = { view: "conv", formats: [], libs: {} };
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g,
+  c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const api = async p => { const r = await fetch(p); if(!r.ok) throw new Error(r.status); return r.json(); };
+const post = async (p,b) => (await fetch(p,{method:"POST",headers:{"Content-Type":"application/json"},
+  body:JSON.stringify(b||{})})).json();
+function toast(m){ const t=$("toast"); t.textContent=m; t.classList.add("on");
+  setTimeout(()=>t.classList.remove("on"),1800); }
+function copy(t){ navigator.clipboard.writeText(t).then(()=>toast("已复制")); }
+
+const SAMPLE = {
+  orderType: "L", codType: "1", volumeM: 1.2,
+  sender: { name: "张三", site: { code: "NGA00001", areaCode: "234449" } },
+  items: [{ sku: "A1", qty: 2 }, { sku: "B2", qty: 1 }],
+  remark: null
+};
+
+function libOk(f){
+  if(!f.need) return true;
+  return !!S.libs[f.need];
+}
+
+function render(){
+  document.querySelectorAll("#tabs button").forEach(b =>
+    b.classList.toggle("on", b.dataset.v === S.view));
+  const opts = S.formats.map(f =>
+    `<option value="${f.id}"${libOk(f)?"":" disabled"}>${esc(f.name)}${libOk(f)?"":"（缺库）"}</option>`).join("");
+  const srcSel = $("src");
+  if(srcSel) srcSel.innerHTML = opts;
+
+  if(S.view === "conv"){
+    $("rightbar").innerHTML = `
+      <span class="lbl">转成</span><select id="dst">${opts}</select>
+      <span class="sp"></span>
+      <label style="font-size:12px;color:var(--t2);display:flex;align-items:center;gap:5px">
+        <input type="checkbox" id="sort"> 键排序</label>
+      <label style="font-size:12px;color:var(--t2);display:flex;align-items:center;gap:5px">
+        <input type="checkbox" id="ascii"> 转义中文</label>
+      <button class="b" id="btnConv">转换</button>
+      <button class="b" id="btnCopy">复制结果</button>
+      <button class="b" id="btnExcel">导出 Excel</button>`;
+    const dst = $("dst");
+    dst.value = "yaml";
+    $("btnConv").onclick = runConv;
+    dst.onchange = runConv;
+    $("sort").onchange = runConv;
+    $("ascii").onchange = runConv;
+    $("btnCopy").onclick = () => copy(S.last || "");
+    $("btnExcel").onclick = doExcel;
+  }else if(S.view === "query"){
+    $("rightbar").innerHTML = `
+      <span class="lbl">JSONPath</span>
+      <input class="i" id="path" value="$.items[*].sku" style="flex:1;min-width:200px">
+      <button class="b pri" id="btnQ">取值</button>
+      <button class="b" id="btnQCopy">复制结果 JSON</button>`;
+    $("btnQ").onclick = runQuery;
+    $("path").addEventListener("keydown", e => { if(e.key === "Enter") runQuery(); });
+    $("btnQCopy").onclick = () => copy(S.qjson || "");
+  }else if(S.view === "sum"){
+    $("rightbar").innerHTML = `<span class="lbl">结构摘要</span><span class="sp"></span>
+      <button class="b pri" id="btnSum">分析</button>`;
+    $("btnSum").onclick = runSummary;
+  }else{
+    $("rightbar").innerHTML = `<span class="lbl">JSON Schema</span><span class="sp"></span>
+      <button class="b pri" id="btnSchema">生成</button>
+      <button class="b" id="btnSchemaCopy">复制</button>`;
+    $("btnSchema").onclick = runSchema;
+    $("btnSchemaCopy").onclick = () => copy(S.schema || "");
+  }
+  if(S.lastOut) $("out").innerHTML = S.lastOut;
+  else if(S.view === "conv")
+    $("out").innerHTML = `<div class="empty"><span class="big">↔</span>左边贴内容，
+      选好「转成」什么，点转换</div>`;
+}
+
+async function runConv(){
+  const text = $("input").value;
+  if(!text.trim()) return toast("先贴点内容");
+  const d = await post("/api/convert", {text, from: $("src").value, to: $("dst").value,
+    sort_keys: $("sort").checked, ensure_ascii: $("ascii").checked});
+  if(!d.ok){
+    S.lastOut = `<div class="err">${esc(d.error)}</div>`;
+    $("out").innerHTML = S.lastOut; S.last = ""; return;
+  }
+  S.last = d.text;
+  S.lastOut = `<div class="ph" style="borderTop:none">
+      <span class="ok">${d.bytes} 字节 · ${d.seconds}s</span></div>
+    <pre>${esc(d.text)}</pre>`;
+  $("out").innerHTML = S.lastOut;
+}
+
+async function runQuery(){
+  const text = $("input").value;
+  if(!text.trim()) return toast("先贴点内容");
+  const d = await post("/api/query", {text, from: $("src").value, path: $("path").value});
+  if(!d.ok){ $("out").innerHTML = `<div class="err">${esc(d.error)}</div>`; return; }
+  S.qjson = d.as_json;
+  $("out").innerHTML = `
+    <div class="ph" style="border-top:none"><span class="ok">
+      找到 ${d.count} 个${d.truncated ? "（只显示前 300）" : ""} · ${d.seconds}s</span></div>
+    ${d.count ? `<table><thead><tr><th style="width:34%">路径</th>
+      <th style="width:10%">类型</th><th style="width:56%">值</th></tr></thead><tbody>
+      ${d.items.map(x => `<tr><td class="mono" style="color:var(--brand)">${esc(x.path)}</td>
+        <td><span class="ty ${x.type==="对象"?"obj":x.type==="数组"?"arr":
+          x.type==="数字"?"num":"str"}">${esc(x.type)}</span></td>
+        <td class="mono">${esc(x.value)}</td></tr>`).join("")}
+    </tbody></table>` : `<div class="empty">没匹配到。试试 $..key 递归找，
+      或 $.items[*].sku 这种写法</div>`}`;
+}
+
+async function runSummary(){
+  const text = $("input").value;
+  if(!text.trim()) return toast("先贴点内容");
+  const d = await post("/api/summary", {text, from: $("src").value});
+  if(!d.ok){ $("out").innerHTML = `<div class="err">${esc(d.error)}</div>`; return; }
+  $("out").innerHTML = `
+    <div class="ph" style="border-top:none"><span class="ok">${d.count} 个路径</span></div>
+    <table><thead><tr><th style="width:46%">路径</th><th style="width:14%">类型</th>
+      <th style="width:40%">示例</th></tr></thead><tbody>
+      ${d.rows.map(r => `<tr>
+        <td class="mono" style="padding-left:${13 + r.depth * 14}px">${esc(r.path)}</td>
+        <td><span class="ty ${r.type==="对象"?"obj":r.type==="数组"?"arr":
+          r.type==="整数"||r.type==="小数"?"num":"str"}">${esc(r.type)}</span></td>
+        <td class="mono">${esc(r.sample)}</td></tr>`).join("")}
+    </tbody></table>`;
+}
+
+async function runSchema(){
+  const text = $("input").value;
+  if(!text.trim()) return toast("先贴点内容");
+  const d = await post("/api/schema", {text, from: $("src").value});
+  if(!d.ok){ $("out").innerHTML = `<div class="err">${esc(d.error)}</div>`; return; }
+  S.schema = d.schema;
+  $("out").innerHTML = `<pre>${esc(d.schema)}</pre>`;
+}
+
+async function doExcel(){
+  const text = $("input").value;
+  if(!text.trim()) return toast("先贴点内容");
+  const d = await post("/api/excel", {text, from: $("src").value});
+  if(!d.ok) return toast(d.error || "导出失败");
+  toast("已导出：" + d.path.split("/").pop());
+}
+
+$("btnSample").onclick = () => {
+  $("input").value = JSON.stringify(SAMPLE, null, 2);
+  $("src").value = "json";
+  if(S.view === "conv") runConv();
+};
+$("btnPaste").onclick = async () => {
+  try{
+    const t = await navigator.clipboard.readText();
+    $("input").value = t; toast("已粘贴 " + t.length + " 字符");
+    if(S.view === "conv") runConv();
+  }catch(e){ toast("读剪贴板失败，手动 ⌘V 吧"); }
+};
+$("btnClear").onclick = () => {
+  $("input").value = ""; S.last = ""; S.lastOut = ""; render();
+};
+document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => {
+  S.view = b.dataset.v; render();
+});
+$("input").addEventListener("keydown", e => {
+  if((e.metaKey || e.ctrlKey) && e.key === "Enter"){
+    e.preventDefault();
+    ({conv: runConv, query: runQuery, sum: runSummary, schema: runSchema})[S.view]();
+  }
+});
+
+api("/api/status").then(st => {
+  S.formats = st.formats || [];
+  S.libs = st.libs || {};
+  $("stat").textContent = "YAML " + (st.libs.yaml?"✅":"❌") +
+    "  TOML " + (st.libs.toml?"✅":"❌") +
+    "  Excel " + (st.libs.openpyxl?"✅":"❌");
+  render();
+  $("src").innerHTML = S.formats.map(f =>
+    `<option value="${f.id}"${libOk(f)?"":" disabled"}>${esc(f.name)}${libOk(f)?"":"（缺库）"}</option>`).join("");
+});
+</script>
+</body>
+</html>

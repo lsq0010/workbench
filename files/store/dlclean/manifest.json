@@ -1,0 +1,106 @@
+{
+  "manifest_version": 1,
+  "id": "dlclean",
+  "name": "下载夹管家",
+  "description": "找出下载夹里可以清的东西：重复文件（保留最早那份）、装过了的安装包、放了很久没动的 dmg、没下完的残留。按能省多少排序。绝不动手删，删也走废纸篓。",
+  "version": "0.1.0",
+  "author": "本机",
+  "type": "local",
+  "runtime": {
+    "entry": "main.py",
+    "requires": {
+      "python": ">=3.7"
+    },
+    "dependencies": []
+  },
+  "ports": {
+    "web": 8915
+  },
+  "platform": {
+    "icon": "🧹",
+    "color": "#0369a1",
+    "open": "http://127.0.0.1:{web}/",
+    "health": "http://127.0.0.1:{web}/api/status",
+    "start": [
+      "python3",
+      "main.py",
+      "start"
+    ],
+    "stop": [
+      "python3",
+      "main.py",
+      "stop"
+    ],
+    "note": "三条安全规矩：只列不删、删走废纸篓（能放回原处）、受保护的类型一律不碰。"
+  },
+  "permissions": [
+    {
+      "id": "fs.read.downloads",
+      "why": "扫描下载夹，算文件哈希来判断重复",
+      "risk": "中：会读取下载夹里所有文件（只算哈希，不解析内容）",
+      "mitigation": "只扫用户指定的目录；大文件只读头尾各 1MB 算指纹，不整份读"
+    },
+    {
+      "id": "fs.trash",
+      "why": "「移到废纸篓」把选中的文件移到 ~/.Trash",
+      "risk": "**高**：会移动用户的文件",
+      "mitigation": "① 只列不删 —— 必须用户勾选 + 二次确认才动；② 走 Finder 的 delete（进废纸篓，可「放回原处」），不是 rm；③ 密钥/证书/数据库等类型一律拒删；④ 每次操作写审计记录"
+    },
+    {
+      "id": "fs.open",
+      "why": "在访达里打开下载夹",
+      "risk": "低",
+      "mitigation": "只调用系统的 open 命令在访达里定位，不读文件内容、不修改、不删除；路径由用户从界面里选，不接受外部传入的任意路径"
+    }
+  ],
+  "data": {
+    "produces": [
+      {
+        "id": "trashed",
+        "file": "trashed.jsonl",
+        "kind": "append-only",
+        "desc": "清理审计记录（什么时候移了哪些文件，只记文件名）"
+      }
+    ],
+    "consumes": []
+  },
+  "exposes": {
+    "base": "http://127.0.0.1:8915",
+    "endpoints": [
+      {
+        "path": "/api/status",
+        "desc": "服务状态 + 清理历史",
+        "auth": "local-only"
+      },
+      {
+        "path": "/api/scan",
+        "desc": "扫描下载夹 ?folder=",
+        "auth": "local-only"
+      },
+      {
+        "path": "/api/digest",
+        "desc": "下载夹明显失控时提醒平台",
+        "auth": "local-only"
+      }
+    ],
+    "writes": [
+      {
+        "path": "/api/trash",
+        "desc": "把选中的文件移到废纸篓",
+        "auth": "local-only"
+      },
+      {
+        "path": "/api/reveal",
+        "desc": "在访达打开",
+        "auth": "local-only"
+      }
+    ]
+  },
+  "ui": {
+    "entry": "index.html"
+  },
+  "store": {
+    "pricing": "free",
+    "license": "personal"
+  }
+}

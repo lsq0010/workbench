@@ -1,0 +1,39 @@
+{
+  "manifest_version": 1,
+  "id": "textkit",
+  "name": "开发工具箱",
+  "description": "天天要用的零碎转换：Base64 / URL / Hex / HTML 编解码、JSON 格式化与转义、时间戳换算、哈希、字数统计、两段文本对比。全在本地算，不联网。",
+  "version": "0.1.0",
+  "author": "本机",
+  "type": "local",
+
+  "runtime": { "entry": "main.py", "requires": { "python": ">=3.7" }, "dependencies": [] },
+  "ports": { "web": 8899 },
+
+  "platform": {
+    "icon": "🔧",
+    "color": "#0891b2",
+    "open": "http://127.0.0.1:{web}/",
+    "health": "http://127.0.0.1:{web}/api/status",
+    "start": ["python3", "main.py", "start"],
+    "stop": ["python3", "main.py", "stop"],
+    "note": "21 个转换，纯本地计算。时间戳换算会显示本地时间、UTC、星期和相对现在多久。"
+  },
+
+  "permissions": [],
+
+  "data": { "produces": [], "consumes": [] },
+
+  "exposes": {
+    "base": "http://127.0.0.1:8899",
+    "endpoints": [
+      { "path": "/api/status", "desc": "服务状态 + 可用的转换列表", "auth": "local-only" }
+    ],
+    "writes": [
+      { "path": "/api/run", "desc": "执行一个转换（无状态，不落盘、不联网）", "auth": "local-only" }
+    ]
+  },
+
+  "ui": { "entry": "index.html" },
+  "store": { "pricing": "free", "license": "personal" }
+}

@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>签名工具</title>
+<style>
+  :root{
+    --bg:#f4f5f7;--panel:#fff;--panel2:#fafbfc;--line:#e6e8ec;--soft:#f0f1f4;
+    --text:#16181d;--t2:#5b6472;--t3:#98a1ad;
+    --brand:#9333ea;--brand-soft:#f7f0ff;--brand-line:#e2ccff;
+    --ok:#12894f;--ok-soft:#e7f6ee;--warn:#a9670a;--warn-soft:#fdf3e3;--danger:#d23b3b;
+    --sh1:0 1px 2px rgba(16,24,40,.05);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB",sans-serif;
+  }
+  *{box-sizing:border-box}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:#cfd3da;border:3px solid transparent;
+    background-clip:content-box;border-radius:8px}
+  html,body{height:100%}
+  body{margin:0;font:14px/1.55 var(--sans);background:var(--bg);color:var(--text);
+       display:flex;flex-direction:column;overflow:hidden;-webkit-font-smoothing:antialiased}
+  header{flex:none;background:var(--panel);border-bottom:1px solid var(--line);box-shadow:var(--sh1)}
+  .bar{display:flex;align-items:center;gap:10px;padding:0 20px;height:56px}
+  .brand{font-weight:650;font-size:15.5px;display:flex;align-items:center;gap:9px;flex:none}
+  .brand .mk{width:24px;height:24px;border-radius:6px;display:flex;align-items:center;
+    justify-content:center;font-size:13px;background:#9333ea;color:#fff}
+  .spacer{flex:1}
+  .tabs{display:flex;gap:3px;background:#eceef2;padding:3px;border-radius:10px}
+  .tabs button{border:none;background:transparent;border-radius:7px;padding:6px 15px;
+    font-size:13.5px;color:var(--t2);font-weight:550;cursor:pointer;font-family:inherit}
+  .tabs button.on{background:var(--panel);color:var(--brand);box-shadow:var(--sh1)}
+  main{flex:1;overflow:auto;padding:22px 26px 60px}
+  .wrap{max-width:1060px;margin:0 auto}
+  .hero{background:linear-gradient(135deg,#9333ea,#c084fc);color:#fff;border-radius:14px;
+    padding:18px 22px;margin-bottom:20px}
+  .hero h2{margin:0 0 6px;font-size:17px;font-weight:650}
+  .hero p{margin:0;font-size:13px;opacity:.92;line-height:1.7}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;
+    padding:18px 20px;margin-bottom:15px;box-shadow:var(--sh1)}
+  .card h3{margin:0 0 13px;font-size:14.5px;font-weight:650;display:flex;align-items:center;gap:9px}
+  .fld{margin-bottom:12px}
+  .fld label{display:block;font-size:12px;color:var(--t2);margin-bottom:5px}
+  .fld label b{color:var(--text);font-weight:600}
+  input,textarea,select{width:100%;font:inherit;font-size:13px;border:1px solid var(--line);
+    border-radius:9px;padding:9px 12px;background:var(--panel);color:var(--text);outline:none}
+  input:focus,textarea:focus,select:focus{border-color:var(--brand);
+    box-shadow:0 0 0 3px var(--brand-soft)}
+  textarea{font-family:var(--mono);font-size:12.5px;resize:vertical;min-height:88px}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+  .btn{border:1px solid var(--line);background:var(--panel);border-radius:9px;padding:9px 16px;
+    cursor:pointer;font:inherit;font-size:13.5px;color:var(--text);transition:all .13s}
+  .btn:hover{background:#f7f8fa}
+  .btn.pri{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:600}
+  .btn.pri:hover{background:#7e22ce}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .hit{background:var(--ok-soft);border:1px solid #bfe6cf;border-radius:12px;padding:15px 18px;
+    margin-bottom:11px}
+  .hit .top{display:flex;align-items:center;gap:10px;margin-bottom:7px;flex-wrap:wrap}
+  .hit .algo{font-family:var(--mono);font-weight:700;font-size:14px;color:#0d6b3e}
+  .hit .fmt{font-size:11.5px;background:#fff;border:1px solid #bfe6cf;border-radius:999px;
+    padding:2px 10px;color:#0d6b3e}
+  .hit .how{font-size:13px;font-weight:600;color:#0d6b3e;margin-bottom:7px}
+  .hit .src{font-family:var(--mono);font-size:11.5px;background:#fff;border:1px solid #bfe6cf;
+    border-radius:8px;padding:9px 12px;color:var(--t2);word-break:break-all;max-height:130px;
+    overflow:auto}
+  .nohit{background:var(--warn-soft);border:1px solid #fde68a;color:#92400e;border-radius:12px;
+    padding:15px 18px;font-size:13px;line-height:1.8}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th{text-align:left;color:var(--t3);font-weight:600;font-size:11.5px;padding:8px 12px;
+     background:var(--panel2);border-bottom:1px solid var(--line)}
+  td{padding:8px 12px;border-bottom:1px solid var(--soft);font-family:var(--mono);
+    word-break:break-all;font-size:12px}
+  td.k{color:var(--t3);width:110px;font-family:var(--sans)}
+  .cp{cursor:pointer}
+  .cp:hover{color:var(--brand)}
+  .hint{color:var(--t3);font-size:12px;line-height:1.7;margin-top:9px}
+  .found{font-size:11.5px;color:var(--t2);padding:5px 0;border-bottom:1px solid var(--soft)}
+  .toast{position:fixed;bottom:26px;left:50%;transform:translate(-50%,10px);
+    background:#1c1f26;color:#fff;padding:10px 20px;border-radius:10px;opacity:0;
+    transition:all .2s;pointer-events:none;font-size:13px;z-index:99}
+  .toast.on{opacity:.97;transform:translate(-50%,0)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="bar">
+    <span class="brand"><span class="mk">🔏</span>签名工具</span>
+    <div class="tabs" id="tabs">
+      <button data-v="detect" class="on">签名侦探</button>
+      <button data-v="hash">哈希 / HMAC</button>
+    </div>
+    <span class="spacer"></span>
+    <span style="font-size:12px;color:var(--t3)" id="stat"></span>
+  </div>
+</header>
+
+<main><div class="wrap" id="view"></div></main>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+const S = { view: "detect", found: [] };
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g,
+  c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const api = async p => { const r = await fetch(p); if(!r.ok) throw new Error(r.status); return r.json(); };
+const post = async (p,b) => (await fetch(p,{method:"POST",headers:{"Content-Type":"application/json"},
+  body:JSON.stringify(b||{})})).json();
+function toast(m){ const t=$("toast"); t.textContent=m; t.classList.add("on");
+  setTimeout(()=>t.classList.remove("on"),1800); }
+function copy(t){ navigator.clipboard.writeText(String(t)).then(()=>toast("已复制")); }
+
+const SAMPLE_PARAMS = "appId=speedaf&waybillCode=SF12345678901&timestamp=1757850000&nonce=abc123&sign=89abe8877da3e90f8e94efabdbedc6dc";
+
+function render(){
+  document.querySelectorAll("#tabs button").forEach(b =>
+    b.classList.toggle("on", b.dataset.v === S.view));
+  if(S.view === "detect") renderDetect(); else renderHash();
+}
+
+function renderDetect(){
+  $("view").innerHTML = `
+    <div class="hero">
+      <h2>抓到的 sign 是怎么算出来的？</h2>
+      <p>把抓到的参数和那个签名的值贴进来，它会把常见的拼法 × 常见算法<b>全试一遍</b>，
+      直接告诉你哪一种能对上。对上了 = 你复现出了服务端的签名算法。</p>
+    </div>
+    <div class="card">
+      <h3>① 抓到的参数</h3>
+      <div class="fld">
+        <label>QueryString 或 JSON 都行（<b>把 sign 本身也带上</b>，会自动排除它）</label>
+        <textarea id="params" placeholder="appId=speedaf&waybillCode=SF12345678901&timestamp=1757850000&sign=xxxx"></textarea>
+      </div>
+      <div class="row2">
+        <div class="fld"><label>签名参数名</label>
+          <input id="signKey" value="sign" placeholder="sign"></div>
+        <div class="fld"><label>密钥 / secret（不知道就先留空）</label>
+          <input id="secret" placeholder="服务端约定的 appSecret"></div>
+      </div>
+      <div class="fld"><label>② 抓到的签名值</label>
+        <input id="observed" placeholder="报文里 sign 字段的值" style="font-family:var(--mono)">
+      </div>
+      <div style="display:flex;gap:9px;flex-wrap:wrap">
+        <button class="btn pri" id="btnGo">开始反推</button>
+        <button class="btn" id="btnSample">放个样例</button>
+        <button class="btn" id="btnCand">看看有哪些拼法</button>
+      </div>
+      <div class="hint">不确定 secret 时可以先留空 —— 很多接口的签名不带密钥，纯参数拼 MD5。</div>
+    </div>
+    <div id="out"></div>
+    ${S.found.length ? `<div class="card"><h3>以前找到过的</h3>
+      ${S.found.map(f => `<div class="found">
+        <b>${esc(f.algo)}</b> / ${esc(f.format)} · ${esc(f.how)}　
+        <span style="color:var(--t3)">${esc(f.ts)}</span></div>`).join("")}</div>` : ""}`;
+  $("btnGo").onclick = runDetect;
+  $("btnCand").onclick = showCands;
+  $("btnSample").onclick = () => {
+    $("params").value = SAMPLE_PARAMS;
+    $("secret").value = "";
+    $("observed").value = "89abe8877da3e90f8e94efabdbedc6dc";
+    toast("样例：字典序拼 + &key=... 的 MD5。secret 填 s3cr3t-key-2026 再试");
+  };
+  $("params").addEventListener("keydown", e => {
+    if((e.metaKey||e.ctrlKey) && e.key === "Enter") runDetect();
+  });
+}
+
+async function runDetect(){
+  const params = $("params").value.trim();
+  if(!params) return toast("先贴参数");
+  const observed = $("observed").value.trim();
+  if(!observed) return toast("把抓到的签名值填上");
+  $("btnGo").disabled = true; $("btnGo").textContent = "反推中…";
+  try{
+    const d = await post("/api/detect", {params, secret: $("secret").value.trim(),
+      observed, sign_key: $("signKey").value.trim() || "sign"});
+    if(!d.ok){ $("out").innerHTML = `<div class="card"><div class="nohit">${esc(d.error)}</div></div>`; }
+    else if(!d.hits.length){
+      $("out").innerHTML = `<div class="card"><div class="nohit">
+        <b>试了 ${d.tried} 种组合（${d.candidates} 种拼法 × 6 种算法），没对上。</b><br>
+        可能的原因：<br>
+        · <b>secret 不对</b>（不知道的话先留空试试，很多接口签名不带密钥）<br>
+        · 签名原文里还掺了别的东西（固定盐、时间戳单独处理、请求体、Header）<br>
+        · 算法不在常见范围（国密 SM3、自定义、或者先转了大写再算）<br>
+        · 签名的不是参数，而是<b>请求体 body</b> 或整个 URL<br>
+        <br>可以点「看看有哪些拼法」看候选，再手工对一下。</div></div>`;
+    }else{
+      $("out").innerHTML = `<div class="card">
+        <h3>✅ 找到了（${d.hits.length} 种能对上 · 试了 ${d.tried} 种 · ${d.seconds}s）</h3>
+        ${d.hits.map(h => `<div class="hit">
+          <div class="top"><span class="algo">${esc(h.algo)}</span>
+            <span class="fmt">${esc(h.format)}</span></div>
+          <div class="how">${esc(h.how)}</div>
+          <div class="src cp" data-cp="${esc(h.source)}">${esc(h.source)}</div>
+        </div>`).join("")}
+        <div class="hint">多种都能对上是因为有些拼法结果相同（比如值里没有需要转义的字符时，
+          "不编码"和"URL编码"一样）。以能对上的为准。</div></div>`;
+      document.querySelectorAll("[data-cp]").forEach(el => el.onclick = () => copy(el.dataset.cp));
+      loadStatus();
+    }
+  }catch(e){ toast("失败：" + e.message); }
+  $("btnGo").disabled = false; $("btnGo").textContent = "开始反推";
+}
+
+async function showCands(){
+  const params = $("params").value.trim();
+  if(!params) return toast("先贴参数");
+  const d = await post("/api/candidates", {params, secret: $("secret").value.trim(),
+    sign_key: $("signKey").value.trim() || "sign"});
+  if(!d.ok) return toast(d.error);
+  $("out").innerHTML = `<div class="card"><h3>共 ${d.total} 种拼法（列出前 ${d.items.length}）</h3>
+    <table><thead><tr><th style="width:38%">拼法</th><th>待签原文</th></tr></thead><tbody>
+    ${d.items.map(x => `<tr><td style="font-family:var(--sans);color:var(--t2)">${esc(x.how)}</td>
+      <td class="cp" data-cp="${esc(x.text)}">${esc(x.text)}</td></tr>`).join("")}
+    </tbody></table>
+    <div class="hint">每一种都会配 6 种算法（MD5/SHA1/SHA256/SHA384/SHA512/SHA224）
+      × 多种输出格式（hex 大小写 / base64）去比对。</div></div>`;
+  document.querySelectorAll("[data-cp]").forEach(el => el.onclick = () => copy(el.dataset.cp));
+}
+
+function renderHash(){
+  $("view").innerHTML = `
+    <div class="card">
+      <h3>算哈希 / HMAC</h3>
+      <div class="fld"><label>内容</label>
+        <textarea id="htext" placeholder="要算哈希的文本"></textarea></div>
+      <div class="row2">
+        <div class="fld"><label>密钥（填了就按 HMAC 算）</label>
+          <input id="hkey" placeholder="留空 = 普通哈希"></div>
+        <div class="fld"><label> </label>
+          <button class="btn pri" id="btnH" style="width:100%">计算</button></div>
+      </div>
+      <div class="hint">输入即算。点任意一行复制。</div>
+    </div>
+    <div class="card" id="hout"><div class="hint">上面输入内容就会出结果</div></div>`;
+  const run = async () => {
+    const text = $("htext").value;
+    if(!text){ $("hout").innerHTML = `<div class="hint">上面输入内容就会出结果</div>`; return; }
+    const d = await post("/api/hash", {text, key: $("hkey").value || null,
+      mode: $("hkey").value ? "hmac" : "plain"});
+    let h = `<h3>${d.mode === "hmac" ? "HMAC" : "哈希"}结果
+      <span style="font-size:12px;font-weight:400;color:var(--t3)">
+      ${d.bytes} 字节</span></h3><table>`;
+    for(const [algo, fmts] of Object.entries(d.results)){
+      for(const [fname, val] of Object.entries(fmts)){
+        h += `<tr><td class="k">${algo}</td><td class="cp" data-cp="${esc(val)}"
+          title="${esc(fname)}">${esc(val)}</td></tr>`;
+      }
+    }
+    h += `</table><div class="hint">同一个算法给了 hex 和 base64 两种表示 ——
+      接口用哪种就跟哪种对。</div>`;
+    $("hout").innerHTML = h;
+    document.querySelectorAll("[data-cp]").forEach(el => el.onclick = () => copy(el.dataset.cp));
+  };
+  $("htext").oninput = run;
+  $("hkey").oninput = run;
+  $("btnH").onclick = run;
+}
+
+async function loadStatus(){
+  try{
+    const st = await api("/api/status");
+    S.found = st.found || [];
+  }catch(e){}
+}
+
+document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => {
+  S.view = b.dataset.v; render();
+});
+loadStatus().then(render);
+</script>
+</body>
+</html>

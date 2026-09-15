@@ -1,0 +1,52 @@
+{
+  "manifest_version": 1,
+  "id": "appinfo",
+  "name": "App 包检查",
+  "description": "看 .app / .ipa 里到底是什么：版本号、Bundle ID、权限 entitlements、体积构成（哪个框架/字体占的）、支持架构、签名与描述文件到期。发版前核对用。",
+  "version": "0.1.0",
+  "author": "本机",
+  "type": "local",
+
+  "runtime": { "entry": "main.py", "requires": { "python": ">=3.7" }, "dependencies": [] },
+  "ports": { "web": 8907 },
+
+  "platform": {
+    "icon": "📦",
+    "color": "#5856d6",
+    "open": "http://127.0.0.1:{web}/",
+    "health": "http://127.0.0.1:{web}/api/status",
+    "start": ["python3", "main.py", "start"],
+    "stop": ["python3", "main.py", "stop"],
+    "note": "会自动列出桌面和 Xcode Archives 里最近的 .app/.ipa。只读，不改动包。"
+  },
+
+  "permissions": [
+    {
+      "id": "fs.read.bundles",
+      "why": "读取 .app 目录和 .ipa 压缩包内容（Info.plist、二进制、描述文件）",
+      "risk": "中：会读取包里的配置文件",
+      "mitigation": "只读；.ipa 只解出需要的几个文件到临时目录（不整包解压），分析完立刻删临时目录"
+    },
+    {
+      "id": "process.exec.security",
+      "why": "调用系统自带的 codesign / lipo 读签名和架构信息",
+      "risk": "低：这两个命令只读不写",
+      "mitigation": "只用 codesign -d / -dv 和 lipo -archs 这类只读参数；不做签名、不改包"
+    }
+  ],
+
+  "data": { "produces": [], "consumes": [] },
+
+  "exposes": {
+    "base": "http://127.0.0.1:8907",
+    "endpoints": [
+      { "path": "/api/status", "desc": "服务状态 + 最近的 .app/.ipa 列表", "auth": "local-only" },
+      { "path": "/api/inspect", "desc": "分析一个包 ?path=", "auth": "local-only" },
+      { "path": "/api/folder", "desc": "列目录（选包用）?path=", "auth": "local-only" }
+    ],
+    "writes": []
+  },
+
+  "ui": { "entry": "index.html" },
+  "store": { "pricing": "free", "license": "personal" }
+}

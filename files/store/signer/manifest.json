@@ -1,0 +1,55 @@
+{
+  "manifest_version": 1,
+  "id": "signer",
+  "name": "签名工具",
+  "description": "算哈希/HMAC，以及**反推接口签名算法**：把抓到的参数和 sign 值贴进来，它把常见拼法×常见算法全试一遍，直接告诉你是哪种算出来的。",
+  "version": "0.1.0",
+  "author": "本机",
+  "type": "local",
+
+  "runtime": { "entry": "main.py", "requires": { "python": ">=3.7" }, "dependencies": [] },
+  "ports": { "web": 8914 },
+
+  "platform": {
+    "icon": "🔏",
+    "color": "#9333ea",
+    "open": "http://127.0.0.1:{web}/",
+    "health": "http://127.0.0.1:{web}/api/status",
+    "start": ["python3", "main.py", "start"],
+    "stop": ["python3", "main.py", "stop"],
+    "note": "专为抓包对齐接口做的：密钥留在本地，反推过程不联网。"
+  },
+
+  "permissions": [
+    {
+      "id": "fs.write.history",
+      "why": "把「找到的签名算法」记进本功能目录（只追加）",
+      "risk": "低：只记算法名和参数名，**不记密钥、不记参数值**",
+      "mitigation": "历史里只写 algo/format/how/参数名列表；secret 和 observed 一律不落盘"
+    }
+  ],
+
+  "data": {
+    "produces": [
+      { "id": "found", "file": "found.jsonl", "kind": "append-only",
+        "desc": "成功反推出的签名算法（不含密钥和值）" }
+    ],
+    "consumes": []
+  },
+
+  "exposes": {
+    "base": "http://127.0.0.1:8914",
+    "endpoints": [
+      { "path": "/api/status", "desc": "服务状态 + 以前找到过的算法", "auth": "local-only" },
+      { "path": "/api/digest", "desc": "无告警（占位）", "auth": "local-only" }
+    ],
+    "writes": [
+      { "path": "/api/hash", "desc": "算哈希/HMAC", "auth": "local-only" },
+      { "path": "/api/detect", "desc": "反推签名算法", "auth": "local-only" },
+      { "path": "/api/candidates", "desc": "列出候选拼法", "auth": "local-only" }
+    ]
+  },
+
+  "ui": { "entry": "index.html" },
+  "store": { "pricing": "free", "license": "personal" }
+}

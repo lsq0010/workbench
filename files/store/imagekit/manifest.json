@@ -1,0 +1,122 @@
+{
+  "manifest_version": 1,
+  "id": "imagekit",
+  "name": "图片工具箱",
+  "description": "批量处理图片：缩到指定尺寸、转格式、压缩。选个目录一次处理完，并告诉你省了多少空间。默认不动原图，输出到 _processed/。",
+  "version": "0.1.0",
+  "author": "本机",
+  "type": "local",
+  "runtime": {
+    "entry": "main.py",
+    "requires": {
+      "python": ">=3.7"
+    },
+    "dependencies": [
+      "Pillow"
+    ],
+    "optional_dependencies": {
+      "Pillow": "压缩和缩放需要；没装时仍可扫描（只读尺寸和大小）"
+    }
+  },
+  "ports": {
+    "web": 8904
+  },
+  "platform": {
+    "icon": "🖼",
+    "color": "#db2777",
+    "open": "http://127.0.0.1:{web}/",
+    "health": "http://127.0.0.1:{web}/api/status",
+    "start": [
+      "python3",
+      "main.py",
+      "start"
+    ],
+    "stop": [
+      "python3",
+      "main.py",
+      "stop"
+    ],
+    "note": "处理前会先扫描并显示有几张、多大，不会闷头覆盖你的文件。"
+  },
+  "permissions": [
+    {
+      "id": "fs.read.images",
+      "why": "扫描并读取用户指定目录里的图片",
+      "risk": "中：会读取图片内容",
+      "mitigation": "目录由用户显式选择；不联网、不上传任何图片"
+    },
+    {
+      "id": "fs.write.images",
+      "why": "把处理后的图片写出来",
+      "risk": "高：如果用户勾了「覆盖原图」，会直接改写原文件",
+      "mitigation": "**默认不覆盖** —— 输出到 _processed/ 子目录；勾选覆盖时会二次确认；处理历史记录每次都写下来"
+    },
+    {
+      "id": "fs.open",
+      "why": "「打开输出目录」在访达里定位结果",
+      "risk": "低：只调用 open",
+      "mitigation": "只调用系统的 open 命令在访达里定位，不读文件内容、不修改、不删除；路径由用户从界面里选，不接受外部传入的任意路径"
+    }
+  ],
+  "data": {
+    "produces": [
+      {
+        "id": "jobs",
+        "file": "jobs.jsonl",
+        "kind": "append-only",
+        "desc": "处理历史（只追加：时间、目录、张数、前后大小）"
+      },
+      {
+        "id": "output",
+        "file": "_processed/",
+        "kind": "files",
+        "desc": "处理后的图片（在用户选的目录下）"
+      }
+    ],
+    "consumes": []
+  },
+  "exposes": {
+    "base": "http://127.0.0.1:8904",
+    "endpoints": [
+      {
+        "path": "/api/status",
+        "desc": "服务状态 + Pillow 是否可用",
+        "auth": "local-only"
+      },
+      {
+        "path": "/api/scan",
+        "desc": "扫描目录里的图片 ?folder=&recursive=",
+        "auth": "local-only"
+      },
+      {
+        "path": "/api/folder",
+        "desc": "列子目录（目录选择用）?path=",
+        "auth": "local-only"
+      },
+      {
+        "path": "/api/history",
+        "desc": "处理历史",
+        "auth": "local-only"
+      }
+    ],
+    "writes": [
+      {
+        "path": "/api/process",
+        "desc": "执行批量处理",
+        "auth": "local-only"
+      },
+      {
+        "path": "/api/reveal",
+        "desc": "在访达打开目录",
+        "auth": "local-only"
+      }
+    ]
+  },
+  "ui": {
+    "entry": "index.html"
+  },
+  "store": {
+    "pricing": "free",
+    "license": "personal"
+  }
+}

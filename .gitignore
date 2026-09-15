@@ -1,0 +1,13 @@
+# 运行数据 —— 绝不提交
+files/store/*/*.jsonl
+files/store/*/out/
+files/store/*/DerivedData/
+files/store/*/Archives/
+files/store/*/index.json
+files/store/*/dsym_index.json
+files/store/*/*.pid
+files/store/*/*.log
+files/store/*/config.json
+*.pyc
+__pycache__/
+.DS_Store

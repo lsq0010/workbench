@@ -1,0 +1,104 @@
+{
+  "manifest_version": 1,
+  "id": "repostatus",
+  "name": "仓库总览",
+  "description": "一屏看清所有 git 仓库：分支、有没有未提交改动、领先/落后远端、stash、以及合并/变基中断这类卡住的状态。支持批量 fetch 和查看改动明细。",
+  "version": "0.1.0",
+  "author": "本机",
+  "type": "local",
+  "runtime": {
+    "entry": "main.py",
+    "requires": {
+      "python": ">=3.7"
+    },
+    "dependencies": []
+  },
+  "ports": {
+    "web": 8897
+  },
+  "platform": {
+    "icon": "🗂",
+    "color": "#1f9d55",
+    "open": "http://127.0.0.1:{web}/",
+    "health": "http://127.0.0.1:{web}/api/status",
+    "start": [
+      "python3",
+      "main.py",
+      "start"
+    ],
+    "stop": [
+      "python3",
+      "main.py",
+      "stop"
+    ],
+    "note": "首次启动自动发现桌面/文稿下的仓库。会主动提示「变基中/合并中/有冲突」这类容易被忘记的卡住状态。"
+  },
+  "permissions": [
+    {
+      "id": "fs.read.repos",
+      "why": "读取各仓库的状态、分支、提交记录（git status/log/branch/stash）",
+      "risk": "中：会读取仓库元数据；只读，不改工作区",
+      "mitigation": "仓库列表由用户显式管理（自动发现只列候选）；只跑 status/log/branch/stash list 这类只读命令"
+    },
+    {
+      "id": "git.fetch",
+      "why": "「fetch」按钮需要联网更新远端引用，否则看不到领先/落后",
+      "risk": "低：fetch 不修改工作区、不合并、不推送；但它会联网",
+      "mitigation": "只有用户点按钮才执行；「全部 fetch」会先弹确认框"
+    },
+    {
+      "id": "fs.open",
+      "why": "「打开目录」在访达里显示仓库位置",
+      "risk": "低：只调用 open 打开文件夹",
+      "mitigation": "只调用系统的 open 命令在访达里定位，不读文件内容、不修改、不删除；路径由用户从界面里选，不接受外部传入的任意路径"
+    }
+  ],
+  "data": {
+    "produces": [],
+    "consumes": []
+  },
+  "exposes": {
+    "base": "http://127.0.0.1:8897",
+    "endpoints": [
+      {
+        "path": "/api/repos",
+        "desc": "所有仓库的状态",
+        "auth": "local-only"
+      },
+      {
+        "path": "/api/detail",
+        "desc": "单个仓库的改动/提交/分支明细 ?path=",
+        "auth": "local-only"
+      },
+      {
+        "path": "/api/discover",
+        "desc": "自动发现本机仓库",
+        "auth": "local-only"
+      }
+    ],
+    "writes": [
+      {
+        "path": "/api/fetch",
+        "desc": "对某个仓库 git fetch",
+        "auth": "local-only"
+      },
+      {
+        "path": "/api/open",
+        "desc": "在访达里打开仓库目录",
+        "auth": "local-only"
+      },
+      {
+        "path": "/api/config",
+        "desc": "保存要监视的仓库列表",
+        "auth": "local-only"
+      }
+    ]
+  },
+  "ui": {
+    "entry": "index.html"
+  },
+  "store": {
+    "pricing": "free",
+    "license": "personal"
+  }
+}

@@ -1,0 +1,122 @@
+{
+  "manifest_version": 1,
+  "id": "apimon",
+  "name": "接口变更监控",
+  "description": "给接口结构拍基线快照，之后对比就能看出服务端改了哪个字段：新增、消失、还是类型变了。字段类型变化最容易让 App 上线崩溃，这个工具专门盯它。",
+  "version": "0.1.0",
+  "author": "本机",
+  "type": "local",
+  "runtime": {
+    "entry": "main.py",
+    "requires": {
+      "python": ">=3.7"
+    },
+    "dependencies": []
+  },
+  "ports": {
+    "web": 8901
+  },
+  "platform": {
+    "icon": "📌",
+    "color": "#7c3aed",
+    "open": "http://127.0.0.1:{web}/",
+    "health": "http://127.0.0.1:{web}/api/status",
+    "start": [
+      "python3",
+      "main.py",
+      "start"
+    ],
+    "stop": [
+      "python3",
+      "main.py",
+      "stop"
+    ],
+    "note": "跨功能协作的例子：它不自己解析报文，而是消费「接口契约」功能提供的数据。"
+  },
+  "permissions": [
+    {
+      "id": "net.local.read",
+      "why": "从「接口契约」功能读取提取好的字段结构（/api/contracts）",
+      "risk": "低：只读本机 127.0.0.1",
+      "mitigation": "不读 flows.jsonl、不重复实现解析；上游没在跑时会明确提示该启动哪个功能"
+    },
+    {
+      "id": "fs.write",
+      "why": "把快照和变更记录写进本功能目录（只追加）",
+      "scope": "feature-data-dir",
+      "risk": "低：只写本功能自己的目录（快照和变更记录），不碰抓包数据",
+      "mitigation": "写入范围限制在功能目录内；快照和变更历史都是只追加（append-only），历史不会被覆盖；不写用户其他位置"
+    }
+  ],
+  "data": {
+    "produces": [
+      {
+        "id": "snapshots",
+        "file": "snapshots.jsonl",
+        "kind": "append-only",
+        "desc": "接口结构基线快照（只追加，历史不覆盖）"
+      },
+      {
+        "id": "changes",
+        "file": "changes.jsonl",
+        "kind": "append-only",
+        "desc": "检测到的变更记录"
+      }
+    ],
+    "consumes": [
+      {
+        "feature": "apicontract",
+        "via": "http",
+        "endpoints": [
+          "/api/contracts",
+          "/api/status"
+        ],
+        "desc": "接口的字段契约来自「接口契约」功能"
+      }
+    ]
+  },
+  "exposes": {
+    "base": "http://127.0.0.1:8901",
+    "endpoints": [
+      {
+        "path": "/api/status",
+        "desc": "服务状态 + 上游可用性",
+        "auth": "local-only"
+      },
+      {
+        "path": "/api/snapshots",
+        "desc": "快照历史",
+        "auth": "local-only"
+      },
+      {
+        "path": "/api/compare",
+        "desc": "与基线对比 ?idx=",
+        "auth": "local-only"
+      },
+      {
+        "path": "/api/changes",
+        "desc": "变更记录",
+        "auth": "local-only"
+      }
+    ],
+    "writes": [
+      {
+        "path": "/api/snapshot",
+        "desc": "拍一个基线快照",
+        "auth": "local-only"
+      },
+      {
+        "path": "/api/record",
+        "desc": "把对比结果记入历史",
+        "auth": "local-only"
+      }
+    ]
+  },
+  "ui": {
+    "entry": "index.html"
+  },
+  "store": {
+    "pricing": "free",
+    "license": "personal"
+  }
+}

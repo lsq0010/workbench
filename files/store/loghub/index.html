@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>代码日志</title>
+<style>
+  :root{
+    --bg:#0f1116;--panel:#171a21;--panel2:#1c2028;--line:#252a34;--soft:#1e222b;
+    --text:#e6e8ec;--t2:#9aa3b2;--t3:#6b7482;
+    --brand:#22d3ee;--brand-soft:#0e3a44;--brand-line:#155e6b;
+    --ok:#34d399;--warn:#fbbf24;--err:#f87171;--fatal:#e879f9;--dbg:#64748b;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB",sans-serif;
+  }
+  *{box-sizing:border-box}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:#333a46;border:3px solid transparent;
+    background-clip:content-box;border-radius:8px}
+  html,body{height:100%}
+  body{margin:0;font:13.5px/1.55 var(--sans);background:var(--bg);color:var(--text);
+       display:flex;flex-direction:column;overflow:hidden;-webkit-font-smoothing:antialiased}
+  header{flex:none;background:var(--panel);border-bottom:1px solid var(--line)}
+  .bar{display:flex;align-items:center;gap:9px;padding:0 16px;height:52px;flex-wrap:wrap}
+  .brand{font-weight:650;font-size:15px;display:flex;align-items:center;gap:8px;flex:none}
+  .brand .mk{width:22px;height:22px;border-radius:6px;display:flex;align-items:center;
+    justify-content:center;font-size:12px;background:#0891b2;color:#fff}
+  .spacer{flex:1}
+  .live{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--t2);
+    font-family:var(--mono)}
+  .live i{width:8px;height:8px;border-radius:50%;background:var(--t3);font-style:normal}
+  .live.on i{background:var(--ok);box-shadow:0 0 8px var(--ok);animation:p 1.6s infinite}
+  .live.on{color:var(--ok)}
+  @keyframes p{50%{opacity:.4}}
+  button.b{border:1px solid var(--line);background:var(--panel2);border-radius:8px;
+    padding:6px 12px;cursor:pointer;font:inherit;font-size:12.5px;color:var(--text)}
+  button.b:hover{background:#232833}
+  button.b.pri{background:#0891b2;border-color:#0891b2;color:#fff;font-weight:600}
+  button.b.ai{background:linear-gradient(135deg,#7c3aed,#a855f7);border:none;color:#fff;
+    font-weight:600}
+  button.b:disabled{opacity:.45;cursor:not-allowed}
+  input,select,textarea{font:inherit;font-size:12.5px;border:1px solid var(--line);
+    border-radius:8px;padding:6px 10px;background:var(--panel2);color:var(--text);outline:none}
+  input:focus,select:focus,textarea:focus{border-color:var(--brand)}
+  main{flex:1;display:flex;min-height:0}
+  #side{width:250px;flex:none;border-right:1px solid var(--line);background:var(--panel);
+    overflow:auto;padding:14px}
+  #main{flex:1;display:flex;flex-direction:column;min-width:0}
+  h4{margin:0 0 9px;font-size:11.5px;color:var(--t3);text-transform:uppercase;
+     letter-spacing:.06em;font-weight:700}
+  h4:not(:first-child){margin-top:17px}
+  .stat{display:flex;justify-content:space-between;padding:5px 0;font-size:12.5px;
+    border-bottom:1px solid var(--soft)}
+  .stat .k{color:var(--t2)} .stat .v{font-family:var(--mono);font-weight:600}
+  .tagrow{display:flex;align-items:center;gap:7px;padding:5px 7px;border-radius:7px;
+    cursor:pointer;font-size:12.5px}
+  .tagrow:hover{background:var(--soft)}
+  .tagrow.on{background:var(--brand-soft);color:var(--brand)}
+  .tagrow .n{margin-left:auto;font-family:var(--mono);font-size:11.5px;color:var(--t3)}
+  .filters{display:flex;gap:6px;padding:9px 14px;border-bottom:1px solid var(--line);
+    align-items:center;flex-wrap:wrap;background:var(--panel)}
+  .lvl{border:1px solid var(--line);background:transparent;border-radius:999px;
+    padding:3px 11px;font-size:11.5px;cursor:pointer;color:var(--t2);font-family:inherit;
+    font-weight:600}
+  .lvl.on{background:var(--panel2);color:var(--text)}
+  .lvl[data-l=debug].on{border-color:var(--dbg);color:var(--dbg)}
+  .lvl[data-l=info].on{border-color:var(--brand);color:var(--brand)}
+  .lvl[data-l=warn].on{border-color:var(--warn);color:var(--warn)}
+  .lvl[data-l=error].on{border-color:var(--err);color:var(--err)}
+  .lvl[data-l=fatal].on{border-color:var(--fatal);color:var(--fatal)}
+  #stream{flex:1;overflow:auto;padding:8px 0;font-family:var(--mono);font-size:12.5px;
+    background:var(--bg)}
+  .row{display:flex;gap:10px;padding:3px 16px;align-items:flex-start;line-height:1.62;
+    border-left:3px solid transparent}
+  .row:hover{background:rgba(255,255,255,.035)}
+  .row.debug{border-left-color:#334155}
+  .row.info{border-left-color:var(--brand)}
+  .row.warn{border-left-color:var(--warn);background:rgba(251,191,36,.05)}
+  .row.error{border-left-color:var(--err);background:rgba(248,113,113,.07)}
+  .row.fatal{border-left-color:var(--fatal);background:rgba(232,121,249,.1)}
+  .row .ts{color:var(--t3);flex:none;width:88px}
+  .row .lv{flex:none;width:44px;font-weight:700;font-size:11px}
+  .row.debug .lv{color:var(--dbg)} .row.info .lv{color:var(--brand)}
+  .row.warn .lv{color:var(--warn)} .row.error .lv{color:var(--err)}
+  .row.fatal .lv{color:var(--fatal)}
+  .row .tg{flex:none;width:104px;color:var(--t2);overflow:hidden;text-overflow:ellipsis;
+    white-space:nowrap}
+  .row .ms{flex:1;word-break:break-word;white-space:pre-wrap}
+  .row .lo{flex:none;color:var(--t3);font-size:11px;margin-left:8px}
+  .row .ex{margin-top:3px;color:#a5b4fc;font-size:11.5px;white-space:pre-wrap;
+    word-break:break-all}
+  .empty{text-align:center;padding:60px 24px;color:var(--t2);font-family:var(--sans)}
+  .empty .big{font-size:44px;opacity:.3;display:block;margin-bottom:13px}
+  .empty b{color:var(--text);display:block;font-size:15px;margin-bottom:8px}
+  .empty code{background:var(--panel);border:1px solid var(--line);border-radius:5px;
+    padding:2px 8px;font-family:var(--mono);font-size:12px;color:var(--brand)}
+  .sdkbox{background:var(--panel);border:1px solid var(--line);border-radius:11px;
+    padding:14px 16px;margin:12px 14px;font-family:var(--mono);font-size:12px;
+    line-height:1.8;color:var(--t2)}
+  .sdkbox b{color:var(--text);font-family:var(--sans)}
+  .sdkbox pre{background:#0b0d11;border:1px solid var(--line);border-radius:8px;
+    padding:10px 13px;overflow:auto;margin:8px 0;color:#a5f3fc}
+  .sheet{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:60;display:none;
+    align-items:center;justify-content:center;backdrop-filter:blur(3px)}
+  .sheet.on{display:flex}
+  .sheet .box{width:min(780px,94vw);max-height:86vh;background:var(--panel);
+    border:1px solid var(--line);border-radius:14px;display:flex;flex-direction:column;
+    overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,.5)}
+  .sheet .hd{padding:14px 18px;border-bottom:1px solid var(--line);font-weight:650;
+    display:flex;align-items:center;gap:9px;font-size:14.5px}
+  .sheet .bd{padding:18px;overflow:auto;font-size:13px;line-height:1.8}
+  .sheet .ft{padding:13px 18px;border-top:1px solid var(--line);display:flex;gap:9px;
+    justify-content:flex-end}
+  .aiout{white-space:pre-wrap;font-size:13.5px;line-height:1.8}
+  .aiout h1,.aiout h2,.aiout h3{font-size:14px;margin:14px 0 7px;color:var(--brand)}
+  .spin{display:inline-block;width:13px;height:13px;border:2px solid var(--line);
+    border-top-color:var(--brand);border-radius:50%;animation:sp .7s linear infinite;
+    vertical-align:-2px;margin-right:7px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .toast{position:fixed;bottom:24px;left:50%;transform:translate(-50%,10px);
+    background:#1c1f26;color:#fff;padding:10px 20px;border-radius:10px;opacity:0;
+    transition:all .2s;pointer-events:none;font-size:13px;z-index:99;border:1px solid #333}
+  .toast.on{opacity:1;transform:translate(-50%,0)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="bar">
+    <span class="brand"><span class="mk">📜</span>代码日志</span>
+    <span class="live" id="live"><i></i><span id="livetext">连接中…</span></span>
+    <span class="spacer"></span>
+    <button class="b" id="btnSdk">接入 SDK</button>
+    <button class="b" id="btnCapture">抓系统日志</button>
+    <button class="b ai" id="btnAI">✦ 让 AI 分析</button>
+  </div>
+</header>
+
+<main>
+  <aside id="side">
+    <h4>统计</h4>
+    <div id="stats"></div>
+    <h4>按标签</h4>
+    <div id="tags"></div>
+    <h4>操作</h4>
+    <div style="display:flex;flex-direction:column;gap:7px;margin-top:4px">
+      <button class="b" id="btnClear">清空界面</button>
+      <button class="b" id="btnBottom">跳到最新</button>
+      <button class="b" id="btnPause">暂停滚动</button>
+    </div>
+    <div style="color:var(--t3);font-size:11px;margin-top:14px;line-height:1.8"
+      id="fileinfo"></div>
+  </aside>
+
+  <div id="main">
+    <div class="filters">
+      <span style="color:var(--t3);font-size:11.5px">级别</span>
+      <button class="lvl" data-l="debug">DEBUG</button>
+      <button class="lvl" data-l="info">INFO</button>
+      <button class="lvl" data-l="warn">WARN</button>
+      <button class="lvl" data-l="error">ERROR</button>
+      <button class="lvl" data-l="fatal">FATAL</button>
+      <span style="flex:1"></span>
+      <input id="q" placeholder="搜内容 / 文件 / 标签…" style="width:230px">
+      <select id="limit"><option value="200">200 条</option>
+        <option value="500" selected>500 条</option><option value="2000">2000 条</option></select>
+    </div>
+    <div id="stream"></div>
+  </div>
+</main>
+
+<div class="sheet" id="sheet">
+  <div class="box">
+    <div class="hd" id="sheettitle">标题</div>
+    <div class="bd" id="sheetbody"></div>
+    <div class="ft"><button class="b" id="btnSheetClose">关闭</button></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+const S = { logs: [], levels: new Set(), tag: "", q: "", paused: false,
+            es: null, stats: null, port: location.port || "8918" };
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g,
+  c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const api = async p => { const r = await fetch(p); if(!r.ok) throw new Error(r.status); return r.json(); };
+const post = async (p,b) => (await fetch(p,{method:"POST",headers:{"Content-Type":"application/json"},
+  body:JSON.stringify(b||{})})).json();
+function toast(m){ const t=$("toast"); t.textContent=m; t.classList.add("on");
+  setTimeout(()=>t.classList.remove("on"),2400); }
+
+async function boot(){
+  bind();
+  await refresh();
+  connectSSE();
+  setInterval(refreshStats, 8000);
+}
+
+function bind(){
+  document.querySelectorAll(".lvl").forEach(b => b.onclick = () => {
+    const l = b.dataset.l;
+    S.levels.has(l) ? S.levels.delete(l) : S.levels.add(l);
+    b.classList.toggle("on", S.levels.has(l));
+    paint();
+  });
+  $("q").oninput = () => { S.q = $("q").value.trim().toLowerCase(); paint(); };
+  $("limit").onchange = refresh;
+  $("btnClear").onclick = async () => {
+    const r = await post("/api/clear", {});
+    S.logs = []; paint(); toast(r.message);
+  };
+  $("btnBottom").onclick = () => {
+    const el = $("stream"); el.scrollTop = el.scrollHeight;
+  };
+  $("btnPause").onclick = () => {
+    S.paused = !S.paused;
+    $("btnPause").textContent = S.paused ? "继续滚动" : "暂停滚动";
+  };
+  $("btnSdk").onclick = showSdk;
+  $("btnCapture").onclick = showCapture;
+  $("btnAI").onclick = showAI;
+  $("btnSheetClose").onclick = () => $("sheet").classList.remove("on");
+  $("sheet").addEventListener("click", e => {
+    if(e.target === $("sheet")) $("sheet").classList.remove("on"); });
+}
+
+async function refresh(){
+  try{
+    const d = await api("/api/logs?limit=" + ($("limit").value || 500));
+    S.logs = d.logs || [];
+    paint();
+  }catch(e){ toast("读日志失败：" + e.message); }
+}
+
+async function refreshStats(){
+  try{
+    const st = await api("/api/status");
+    S.stats = st.stats;
+    $("stats").innerHTML = `
+      <div class="stat"><span class="k">总数</span><span class="v">${st.stats.total}</span></div>
+      <div class="stat"><span class="k">error</span>
+        <span class="v" style="color:${st.stats.errors?"var(--err)":"var(--t3)"}">${st.stats.errors}</span></div>
+      <div class="stat"><span class="k">warn</span>
+        <span class="v" style="color:${st.stats.warns?"var(--warn)":"var(--t3)"}">${st.stats.warns}</span></div>
+      <div class="stat"><span class="k">抓取</span>
+        <span class="v">${st.capture.running ? "进行中" : "未开"}</span></div>`;
+    $("tags").innerHTML = (st.stats.by_tag || []).map(([t,n]) =>
+      `<div class="tagrow ${S.tag===t?"on":""}" data-t="${esc(t)}">
+        ${esc(t)}<span class="n">${n}</span></div>`).join("")
+      || `<div style="color:var(--t3);font-size:12px">还没有日志</div>`;
+    document.querySelectorAll("[data-t]").forEach(el => el.onclick = () => {
+      S.tag = S.tag === el.dataset.t ? "" : el.dataset.t;
+      refreshStats(); paint();
+    });
+    $("fileinfo").innerHTML = `落盘 ${st.logfile_mb} MB（超 200MB 自动滚动）<br>
+      只收日志，不读设备内容`;
+  }catch(e){}
+}
+
+function connectSSE(){
+  if(S.es) S.es.close();
+  const es = new EventSource("/api/stream");
+  S.es = es;
+  es.onopen = () => { $("live").classList.add("on"); $("livetext").textContent = "实时"; };
+  es.onerror = () => { $("live").classList.remove("on"); $("livetext").textContent = "重连中…"; };
+  es.onmessage = ev => {
+    try{
+      const r = JSON.parse(ev.data);
+      S.logs.push(r);
+      if(S.logs.length > 6000) S.logs = S.logs.slice(-5000);
+      if(match(r)) appendRow(r);
+      if(!S.paused) $("stream").scrollTop = $("stream").scrollHeight;
+    }catch(e){}
+  };
+}
+
+function match(r){
+  if(S.levels.size && !S.levels.has(r.level)) return false;
+  if(S.tag && r.tag !== S.tag) return false;
+  if(S.q){
+    const hay = (r.msg + " " + r.tag + " " + (r.file||"") + " " + (r.func||"")).toLowerCase();
+    if(!hay.includes(S.q)) return false;
+  }
+  return true;
+}
+
+function rowHTML(r){
+  const ex = r.extra ? `<div class="ex">${esc(JSON.stringify(r.extra, null, 0))}</div>` : "";
+  const loc = r.file ? `${esc(r.file)}:${r.line||""}` : "";
+  return `<div class="row ${esc(r.level)}">
+    <span class="ts">${esc(String(r.ts||"").slice(-12))}</span>
+    <span class="lv">${esc((r.level||"").toUpperCase())}</span>
+    <span class="tg">${esc(r.tag||"")}</span>
+    <span class="ms">${esc(r.msg||"")}${ex}</span>
+    ${loc?`<span class="lo">${loc}</span>`:""}
+  </div>`;
+}
+
+function appendRow(r){
+  const el = $("stream");
+  const d = document.createElement("div");
+  d.innerHTML = rowHTML(r);
+  el.appendChild(d.firstElementChild);
+  while(el.children.length > 6000) el.removeChild(el.firstChild);
+}
+
+function paint(){
+  const rows = S.logs.filter(match);
+  if(!rows.length){
+    $("stream").innerHTML = `<div class="empty"><span class="big">📜</span>
+      <b>还没有日志</b>点右上「接入 SDK」看怎么接，
+      或者点「抓系统日志」直接抓模拟器的<span style="font-size:12.5px">
+      　不需要改代码也能先看</span></div>`;
+    return;
+  }
+  $("stream").innerHTML = rows.slice(-3000).map(rowHTML).join("");
+  if(!S.paused) $("stream").scrollTop = $("stream").scrollHeight;
+}
+
+/* ── 接入说明 ── */
+function showSdk(){
+  $("sheettitle").textContent = "接入 SDK";
+  $("sheetbody").innerHTML = `
+    <div style="margin-bottom:14px">这一步就是把 App 的日志接过来。<b>接一次，以后一直能用。</b></div>
+    <h4 style="margin:14px 0 7px">iOS（Swift）</h4>
+    <div>① 下载 SDK，拖进 Xcode 工程（勾上你的 target）：</div>
+    <pre>curl -o DevLog.swift http://127.0.0.1:${esc(S.port)}/api/sdk/swift</pre>
+    <div>文件在 <code style="color:var(--brand)">features/loghub/sdk/DevLog.swift</code>，
+      也可以直接在访达里拖。</div>
+    <div style="margin-top:12px">② 在 AppDelegate 里加一行：</div>
+    <pre>import UIKit
+
+@main
+class AppDelegate: UIResponder, UIApplicationDelegate {
+    func application(_ a: UIApplication,
+        didFinishLaunchingWithOptions o: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+        DevLog.start(host: "${esc(location.hostname)}", port: ${esc(S.port)}, tag: "Driver")
+        return true
+    }
+}</pre>
+    <div style="margin-top:12px">③ 记日志：</div>
+    <pre>DevLog.i("下单页加载完成")
+DevLog.e("提交失败", extra: ["code": 500, "path": "/waybill/create"])
+DevLog.error(error, tag: "Net", context: "提交订单")   // 直接记 Error
+DevLog.measure("查询网点") { try await api.fetchSite() }  // 自动记耗时
+DevLog.fatal("💥 崩溃")   // 立刻上报，不等批量</pre>
+    <div style="margin-top:12px;color:var(--t3);font-size:12px;line-height:1.9">
+      · 崩溃会自动上报（SDK 里装了 NSSetUncaughtExceptionHandler）<br>
+      · <b>只在 DEBUG 生效</b> —— 上线包不会泄露日志，除非你传 alsoInRelease: true<br>
+      · 不阻塞主线程：写日志只是塞队列，发送在后台批量做<br>
+      · 断电/断网不丢：发不出去留在队列里，下次一起发
+    </div>
+    <h4 style="margin:18px 0 7px">uni-app / H5（JS）</h4>
+    <pre>curl -o devlog.js http://127.0.0.1:${esc(S.port)}/api/sdk/js
+
+import DevLog from '@/utils/devlog.js'
+DevLog.start('${esc(location.hostname)}', ${esc(S.port)}, 'SpeedafUniapp')
+DevLog.i('首页加载完成')
+DevLog.e('提交失败', { code: 500 })</pre>
+    <div style="margin-top:12px;color:var(--t3);font-size:12px">
+      手机要能连到这台 Mac：确保同一个 Wi-Fi，用上面这个 IP（${esc(location.hostname)}）。
+    </div>`;
+  $("sheet").classList.add("on");
+}
+
+/* ── 抓系统日志 ── */
+async function showCapture(){
+  const st = await api("/api/status");
+  const sims = (st.simulators || []).filter(x => x.udid);
+  $("sheettitle").textContent = "抓系统日志（不用改代码）";
+  $("sheetbody").innerHTML = `
+    <div style="margin-bottom:14px">不想改代码也想看日志？直接抓模拟器或真机的系统日志。</div>
+    <div class="stat" style="border:none;padding:6px 0">
+      <span class="k">当前状态</span>
+      <span class="v">${st.capture.running ? "正在抓 " + esc(st.capture.kind||"") : "未开始"}</span>
+    </div>
+    <h4 style="margin:14px 0 8px">模拟器（${sims.length} 个在运行）</h4>
+    ${sims.length ? sims.map(s => `<div class="tagrow" data-sim="${esc(s.udid)}">
+        📱 ${esc(s.name)} <span class="n">${esc(s.runtime)}</span></div>`).join("")
+      : `<div style="color:var(--t3);font-size:12.5px">没有正在运行的模拟器 —— 先在 Xcode 里跑起来</div>`}
+    <div style="display:flex;gap:9px;margin-top:14px">
+      <button class="b pri" id="btnCapSim" ${sims.length?"":"disabled"}>抓这个模拟器</button>
+      <button class="b" id="btnCapDev">抓真机（需要 idevicesyslog）</button>
+      <button class="b" id="btnCapStop">停止抓取</button>
+    </div>
+    <div style="color:var(--t3);font-size:12px;margin-top:14px;line-height:1.9">
+      抓的是系统日志（os_log / NSLog），量比较大，建议配合上面的标签和搜索过滤。<br>
+      想在日志里加自己的内容、还想带上下文，用 SDK 那条路更好使。
+    </div>`;
+  $("sheet").classList.add("on");
+  let target = sims.length ? sims[0].udid : null;
+  document.querySelectorAll("[data-sim]").forEach(el => el.onclick = () => {
+    document.querySelectorAll("[data-sim]").forEach(x => x.classList.remove("on"));
+    el.classList.add("on"); target = el.dataset.sim;
+  });
+  $("btnCapSim").onclick = async () => {
+    const r = await post("/api/capture/start", {kind:"simulator", target, level:"info"});
+    toast(r.message); refreshStats();
+  };
+  $("btnCapDev").onclick = async () => {
+    const r = await post("/api/capture/start", {kind:"device"});
+    toast(r.message); refreshStats();
+  };
+  $("btnCapStop").onclick = async () => {
+    const r = await post("/api/capture/stop", {});
+    toast(r.message); refreshStats();
+  };
+}
+
+/* ── AI 分析 ── */
+function showAI(){
+  const n = S.logs.filter(match).length;
+  $("sheettitle").textContent = "让 AI 分析日志";
+  $("sheetbody").innerHTML = `
+    <div style="margin-bottom:12px">
+      会把<b>当前筛选出的 ${n} 条日志</b>发给 AI 分析。
+      日志内容会离开这台电脑（发给 AI 服务商）—— 有敏感信息就先过滤掉。
+    </div>
+    <div style="display:flex;gap:9px;align-items:center;margin-bottom:12px">
+      <input id="aifocus" placeholder="想让它重点看什么？（可留空）" style="flex:1">
+      <button class="b ai" id="btnGoAI">开始分析</button>
+    </div>
+    <div id="aiout" class="aiout"></div>`;
+  $("sheet").classList.add("on");
+  $("btnGoAI").onclick = async () => {
+    $("btnGoAI").disabled = true;
+    $("aiout").innerHTML = `<span class="spin"></span>分析中…（十几秒）`;
+    try{
+      const d = await post("/api/analyze", {
+        question: $("aifocus").value.trim(),
+        level: [...S.levels][0] || "", tag: S.tag, q: S.q, limit: 400});
+      if(!d.ok){ $("aiout").innerHTML = `<span style="color:var(--err)">${esc(d.error)}</span>`; }
+      else{
+        $("aiout").innerHTML = md(d.text) +
+          `<div style="color:var(--t3);font-size:12px;margin-top:16px">
+             分析了 ${d.rows} 条 · 结果已存进 analysis.jsonl</div>`;
+      }
+    }catch(e){ $("aiout").innerHTML = `<span style="color:var(--err)">${esc(e.message)}</span>`; }
+    $("btnGoAI").disabled = false;
+  };
+  setTimeout(()=>$("aifocus") && $("aifocus").focus(), 150);
+}
+
+function md(t){
+  return esc(t)
+    .replace(/^### (.+)$/gm, "<b style='color:var(--brand)'>$1</b>")
+    .replace(/^## (.+)$/gm, "<b style='color:var(--brand);font-size:14.5px'>$1</b>")
+    .replace(/^# (.+)$/gm, "<b style='color:var(--brand);font-size:15px'>$1</b>")
+    .replace(/\*\*([^*]+)\*\*/g, "<b style='color:#fff'>$1</b>")
+    .replace(/`([^`\n]+)`/g,
+      "<code style='background:#0b0d11;border:1px solid var(--line);border-radius:4px;padding:1px 5px;color:#a5f3fc'>$1</code>");
+}
+
+boot();
+</script>
+</body>
+</html>

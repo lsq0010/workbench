@@ -1,0 +1,72 @@
+{
+  "manifest_version": 1,
+  "id": "barcode",
+  "name": "条形码工具",
+  "description": "生成各种一维条码（Code128 / EAN-13 / UPC-A / Code39 / ITF-14 / Codabar），也能扫图解码。编码器是手写的纯 Python，每一项都用 macOS Vision 扫回来验证过。",
+  "version": "0.1.0",
+  "author": "本机",
+  "type": "local",
+
+  "runtime": { "entry": "main.py", "requires": { "python": ">=3.7" }, "dependencies": [] },
+  "ports": { "web": 8925 },
+
+  "platform": {
+    "icon": "▥",
+    "color": "#0f766e",
+    "open": "http://127.0.0.1:{web}/",
+    "health": "http://127.0.0.1:{web}/api/status",
+    "start": ["python3", "main.py", "start"],
+    "stop": ["python3", "main.py", "stop"],
+    "note": "全在本地生成，不联网。编码正确性有 20 项往返验证（生成→Vision 扫回→对比），界面上点「跑一遍验证」可复验。"
+  },
+
+  "permissions": [
+    {
+      "id": "fs.write.output",
+      "why": "把生成的条码图片写到磁盘",
+      "risk": "低：只写本功能自己的 out/ 目录",
+      "mitigation": "写入范围限制在功能目录内；找图接口也只允许读这个目录"
+    },
+    {
+      "id": "process.exec.swift",
+      "why": "调 macOS Vision 扫条码（解码 + 自验证）",
+      "risk": "低：只读图片、不改任何东西",
+      "mitigation": "只调用随功能附带的 decode.swift 脚本，参数只有图片路径"
+    },
+    {
+      "id": "fs.read.image",
+      "why": "「扫图」功能要读你指定的图片",
+      "risk": "低：只读你明确给出的那一个文件",
+      "mitigation": "只在你点「扫这张图」时读；不扫目录、不读其他文件"
+    }
+  ],
+
+  "data": {
+    "produces": [
+      { "id": "makes", "file": "makes.jsonl", "kind": "append-only",
+        "desc": "生成记录（内容/码制/文件名，带 user_id）" },
+      { "id": "out", "file": "out/*.png", "kind": "files",
+        "desc": "生成出来的条码图片和 SVG" }
+    ],
+    "consumes": []
+  },
+
+  "exposes": {
+    "base": "http://127.0.0.1:8925",
+    "endpoints": [
+      { "path": "/api/status", "desc": "支持的码制 + 最近生成", "auth": "local-only" },
+      { "path": "/api/file", "desc": "取生成的图（只限本功能 out/ 目录）", "auth": "local-only" },
+      { "path": "/api/digest", "desc": "无告警（占位）", "auth": "local-only" }
+    ],
+    "writes": [
+      { "path": "/api/build", "desc": "编码并渲染（不落盘）", "auth": "local-only" },
+      { "path": "/api/save", "desc": "生成并保存 PNG/SVG", "auth": "local-only" },
+      { "path": "/api/batch", "desc": "批量生成（一行一个，最多 200）", "auth": "local-only" },
+      { "path": "/api/decode", "desc": "扫图解码", "auth": "local-only" },
+      { "path": "/api/verify", "desc": "跑一遍编码验证", "auth": "local-only" }
+    ]
+  },
+
+  "ui": { "entry": "index.html" },
+  "store": { "pricing": "free", "license": "personal" }
+}

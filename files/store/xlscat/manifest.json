@@ -1,0 +1,74 @@
+{
+  "manifest_version": 1,
+  "id": "xlscat",
+  "name": "多语言对照",
+  "description": "查翻译表里的错：占位符漏了（@SITE@/{0} 少了 App 上会显示断句）、整列错位、漏翻、原文重复。也能翻页看表和对比两个版本。",
+  "version": "0.1.0",
+  "author": "本机",
+  "type": "local",
+
+  "runtime": {
+    "entry": "main.py",
+    "requires": { "python": ">=3.7" },
+    "dependencies": [],
+    "optional_dependencies": { "openpyxl": "读 xlsx 需要（csv 不需要）" }
+  },
+  "ports": { "web": 8917 },
+
+  "platform": {
+    "icon": "🌐",
+    "color": "#16a34a",
+    "open": "http://127.0.0.1:{web}/",
+    "health": "http://127.0.0.1:{web}/api/status",
+    "start": ["python3", "main.py", "start"],
+    "stop": ["python3", "main.py", "stop"],
+    "note": "针对大翻译表（几千行 × 十几种语言）做的，靠人眼翻是翻不完的。"
+  },
+
+  "permissions": [
+    {
+      "id": "fs.read.tables",
+      "why": "读取用户选定的 xlsx/csv 文件做分析",
+      "risk": "中：会读取表格内容",
+      "mitigation": "只读不写；文件由用户在界面里选；不联网、不上传；**不改动原表**（发现问题只报告，不代改）"
+    },
+    {
+      "id": "fs.write.reports",
+      "why": "把每次分析的结论记进本功能目录（只追加）",
+      "risk": "低：只写本功能自己的目录",
+      "mitigation": "只记文件名、行数、问题数，**不记表格内容**；只追加不覆盖"
+    },
+    {
+      "id": "fs.open",
+      "why": "在访达里定位表格文件",
+      "risk": "低：只调用系统的 open 命令在访达里定位，不读文件内容、不修改、不删除；路径由用户从界面里选，不接受外部传入的任意路径",
+      "mitigation": "只调用系统的 open 命令在访达里定位，不读文件内容、不修改、不删除；路径由用户从界面里选，不接受外部传入的任意路径"
+    }
+  ],
+
+  "data": {
+    "produces": [
+      { "id": "reports", "file": "reports.jsonl", "kind": "append-only",
+        "desc": "分析历史（文件名/行数/问题数，带 user_id，不含表格内容）" }
+    ],
+    "consumes": []
+  },
+
+  "exposes": {
+    "base": "http://127.0.0.1:8917",
+    "endpoints": [
+      { "path": "/api/status", "desc": "服务状态 + 建议目录 + 分析历史", "auth": "local-only" },
+      { "path": "/api/list", "desc": "列目录里的表格 ?folder=", "auth": "local-only" },
+      { "path": "/api/sheets", "desc": "列工作表 ?path=", "auth": "local-only" },
+      { "path": "/api/digest", "desc": "无告警（占位）", "auth": "local-only" }
+    ],
+    "writes": [
+      { "path": "/api/analyze", "desc": "查漏查错", "auth": "local-only" },
+      { "path": "/api/page", "desc": "翻页看表", "auth": "local-only" },
+      { "path": "/api/diff", "desc": "对比两个版本", "auth": "local-only" }
+    ]
+  },
+
+  "ui": { "entry": "index.html" },
+  "store": { "pricing": "free", "license": "personal" }
+}

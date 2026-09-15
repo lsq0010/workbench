@@ -1,0 +1,76 @@
+{
+  "manifest_version": 1,
+  "id": "shotkit",
+  "name": "上架截图工坊",
+  "description": "把截图裁成 App Store 要的精确尺寸（6.9/6.7/6.5 寸 + iPad），支持留边或裁满、加标题文字和背景条、批量导出。原图不动。",
+  "version": "0.1.0",
+  "author": "本机",
+  "type": "local",
+
+  "runtime": {
+    "entry": "main.py",
+    "requires": { "python": ">=3.7" },
+    "dependencies": [],
+    "optional_dependencies": { "Pillow": "处理图片必需" }
+  },
+  "ports": { "web": 8916 },
+
+  "platform": {
+    "icon": "📱",
+    "color": "#0ea5e9",
+    "open": "http://127.0.0.1:{web}/",
+    "health": "http://127.0.0.1:{web}/api/status",
+    "start": ["python3", "main.py", "start"],
+    "stop": ["python3", "main.py", "stop"],
+    "note": "内置 App Store Connect 当前各档位的精确像素尺寸，导出不会差一个像素。"
+  },
+
+  "permissions": [
+    {
+      "id": "fs.read.images",
+      "why": "读取用户选定目录里的截图",
+      "risk": "中：会读取图片内容",
+      "mitigation": "目录由用户在界面里选；不联网、不上传；只读原图"
+    },
+    {
+      "id": "fs.write.images",
+      "why": "把处理后的截图写到原目录下的「上架截图-<档位>/」子目录",
+      "risk": "中：会在用户目录下新建文件夹并写文件",
+      "mitigation": "只写到用户选定目录的子目录里，**绝不修改原图**；文件名加序号不覆盖已有文件；每次导出写历史记录"
+    },
+    {
+      "id": "fs.open",
+      "why": "在访达里打开输出目录",
+      "risk": "低：只调用系统的 open 命令在访达里定位，不读文件内容、不修改、不删除；路径由用户从界面里选，不接受外部传入的任意路径",
+      "mitigation": "只调用系统的 open 命令在访达里定位，不读文件内容、不修改、不删除；路径由用户从界面里选，不接受外部传入的任意路径"
+    }
+  ],
+
+  "data": {
+    "produces": [
+      { "id": "jobs", "file": "jobs.jsonl", "kind": "append-only",
+        "desc": "导出历史（时间、目录、档位、张数，带 user_id）" },
+      { "id": "shots", "file": "上架截图-*/", "kind": "files",
+        "desc": "导出的截图（在用户选定目录下）" }
+    ],
+    "consumes": []
+  },
+
+  "exposes": {
+    "base": "http://127.0.0.1:8916",
+    "endpoints": [
+      { "path": "/api/status", "desc": "服务状态 + 尺寸档位 + 导出历史", "auth": "local-only" },
+      { "path": "/api/scan", "desc": "看目录里的图都是什么尺寸 ?folder=", "auth": "local-only" },
+      { "path": "/api/folder", "desc": "列子目录（选目录用）?path=", "auth": "local-only" },
+      { "path": "/api/digest", "desc": "无告警（占位）", "auth": "local-only" }
+    ],
+    "writes": [
+      { "path": "/api/preview", "desc": "预览一张处理效果", "auth": "local-only" },
+      { "path": "/api/batch", "desc": "批量导出", "auth": "local-only" },
+      { "path": "/api/reveal", "desc": "在访达打开目录", "auth": "local-only" }
+    ]
+  },
+
+  "ui": { "entry": "index.html" },
+  "store": { "pricing": "free", "license": "personal" }
+}

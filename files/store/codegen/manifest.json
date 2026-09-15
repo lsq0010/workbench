@@ -1,0 +1,52 @@
+{
+  "manifest_version": 1,
+  "id": "codegen",
+  "name": "模型生成",
+  "description": "从 JSON 报文一键生成 Swift / Kotlin / TypeScript 数据模型。嵌套对象自动拆类型、出现 null 的字段标可选、类型不稳定的字段明确标出而不是硬猜。",
+  "version": "0.1.0",
+  "author": "本机",
+  "type": "local",
+
+  "runtime": { "entry": "main.py", "requires": { "python": ">=3.7" }, "dependencies": [] },
+  "ports": { "web": 8896 },
+
+  "platform": {
+    "icon": "⌨️",
+    "color": "#2f6df6",
+    "open": "http://127.0.0.1:{web}/",
+    "health": "http://127.0.0.1:{web}/api/status",
+    "start": ["python3", "main.py", "start"],
+    "stop": ["python3", "main.py", "stop"],
+    "note": "生成的 Swift 代码已实测可通过 swiftc 编译并成功解码原始报文。"
+  },
+
+  "permissions": [
+    {
+      "id": "net.local.read",
+      "why": "可选地从抓包工作台读一条报文的响应体作为模型来源",
+      "risk": "低：只读本机 127.0.0.1",
+      "mitigation": "不读文件、不改数据；也可以完全手动粘贴 JSON"
+    }
+  ],
+
+  "data": { "produces": [], "consumes": [
+    { "feature": "capture", "via": "http",
+      "endpoints": ["/api/flows", "/api/flow"],
+      "desc": "可选：从真实报文生成模型，比手写样例准" }
+  ] },
+
+  "exposes": {
+    "base": "http://127.0.0.1:8896",
+    "endpoints": [
+      { "path": "/api/status", "desc": "服务状态 + 抓包可用性 + 支持的语言", "auth": "local-only" },
+      { "path": "/api/flows", "desc": "可选报文列表", "auth": "local-only" },
+      { "path": "/api/flow", "desc": "取某条报文的 JSON 体", "auth": "local-only" }
+    ],
+    "writes": [
+      { "path": "/api/generate", "desc": "生成模型代码（无状态）", "auth": "local-only" }
+    ]
+  },
+
+  "ui": { "entry": "index.html" },
+  "store": { "pricing": "free", "license": "personal" }
+}

@@ -1,0 +1,81 @@
+{
+  "manifest_version": 1,
+  "id": "loghub",
+  "name": "代码日志",
+  "description": "App 里接一行 SDK，日志实时流到工作台；也能直接抓模拟器/真机的系统日志。日志落盘可查，还能让 AI 直接读日志做问题分析。",
+  "version": "0.1.0",
+  "author": "本机",
+  "type": "local",
+
+  "runtime": { "entry": "main.py", "requires": { "python": ">=3.7" }, "dependencies": [] },
+  "ports": { "web": 8918 },
+
+  "platform": {
+    "icon": "📜",
+    "color": "#0891b2",
+    "open": "http://127.0.0.1:{web}/",
+    "health": "http://127.0.0.1:{web}/api/status",
+    "start": ["python3", "main.py", "start"],
+    "stop": ["python3", "main.py", "stop"],
+    "note": "监听 0.0.0.0 —— 手机上的 App 要能直接推日志过来。只收日志，不读设备上的任何东西。"
+  },
+
+  "permissions": [
+    {
+      "id": "net.bind.lan",
+      "why": "监听局域网，接收手机/模拟器上 App 推来的日志",
+      "risk": "中：同一局域网内的设备都能往这个端口推日志（可能被灌垃圾数据）",
+      "mitigation": "只接受日志文本、只写本功能目录；不定时重启会被平台拉起；不需要时点「停止」即可关掉；不读设备上任何内容"
+    },
+    {
+      "id": "process.spawn.log",
+      "why": "调用 xcrun simctl / idevicesyslog 抓模拟器和真机的系统日志",
+      "risk": "中：会启动系统命令读取设备日志",
+      "mitigation": "只在用户点「开始抓」时启动；只读日志，不控制设备、不安装/卸载 App；停止时一定杀掉子进程"
+    },
+    {
+      "id": "fs.write",
+      "why": "日志和分析结果落盘",
+      "risk": "低：只写本功能自己的目录",
+      "mitigation": "写入范围限制在功能目录内；日志与分析记录都是**只追加**；日志文件超过 200MB 自动滚动，不会写满磁盘"
+    },
+    {
+      "id": "net.outbound.ai",
+      "why": "把日志发给 AI 做问题分析",
+      "risk": "中：日志内容会离开本机（发给 AI 服务商）",
+      "mitigation": "**只有用户点「让 AI 分析」才会外发**，不自动上传；分析前界面上会说明将要发送多少条"
+    }
+  ],
+
+  "data": {
+    "produces": [
+      { "id": "logs", "file": "logs.jsonl", "kind": "append-only",
+        "desc": "App 日志（带 user_id；超 200MB 自动滚动成 logs-<时间>.jsonl）" },
+      { "id": "analysis", "file": "analysis.jsonl", "kind": "append-only",
+        "desc": "AI 分析结果" }
+    ],
+    "consumes": []
+  },
+
+  "exposes": {
+    "base": "http://127.0.0.1:8918",
+    "endpoints": [
+      { "path": "/api/status", "desc": "服务状态 + 统计 + 抓取状态 + 模拟器列表", "auth": "local-only" },
+      { "path": "/api/logs", "desc": "查日志 ?level=&tag=&q=", "auth": "local-only" },
+      { "path": "/api/stream", "desc": "SSE 实时日志流", "auth": "local-only" },
+      { "path": "/api/sdk/swift", "desc": "下载 Swift SDK", "auth": "local-only" },
+      { "path": "/api/sdk/js", "desc": "下载 JS SDK", "auth": "local-only" },
+      { "path": "/api/digest", "desc": "有 error 时提醒平台", "auth": "local-only" }
+    ],
+    "writes": [
+      { "path": "/api/log", "desc": "上报日志（SDK 调用，接受局域网来源）", "auth": "lan" },
+      { "path": "/api/capture/start", "desc": "开始抓系统日志", "auth": "local-only" },
+      { "path": "/api/capture/stop", "desc": "停止抓取", "auth": "local-only" },
+      { "path": "/api/analyze", "desc": "让 AI 分析日志", "auth": "local-only" },
+      { "path": "/api/clear", "desc": "清空界面缓冲（不动落盘日志）", "auth": "local-only" }
+    ]
+  },
+
+  "ui": { "entry": "index.html" },
+  "store": { "pricing": "free", "license": "personal" }
+}

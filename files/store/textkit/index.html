@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>开发工具箱</title>
+<style>
+  :root{
+    --bg:#f4f5f7;--panel:#fff;--panel2:#fafbfc;--line:#e6e8ec;--soft:#f0f1f4;
+    --text:#16181d;--t2:#5b6472;--t3:#98a1ad;
+    --brand:#0891b2;--brand-soft:#e6f7fb;--brand-line:#bfe8f2;
+    --ok:#12894f;--ok-soft:#e7f6ee;--warn:#a9670a;--danger:#d23b3b;
+    --sh1:0 1px 2px rgba(16,24,40,.05);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB",sans-serif;
+  }
+  *{box-sizing:border-box}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:#cfd3da;border:3px solid transparent;
+    background-clip:content-box;border-radius:8px}
+  html,body{height:100%}
+  body{margin:0;font:14px/1.55 var(--sans);background:var(--bg);color:var(--text);
+       display:flex;flex-direction:column;overflow:hidden;-webkit-font-smoothing:antialiased}
+  header{flex:none;background:var(--panel);border-bottom:1px solid var(--line);box-shadow:var(--sh1)}
+  .bar{display:flex;align-items:center;gap:9px;padding:0 16px;height:52px}
+  .brand{font-weight:650;font-size:15.5px;display:flex;align-items:center;gap:8px}
+  .brand i{width:9px;height:9px;border-radius:3px;background:linear-gradient(135deg,#0891b2,#5fd0e8)}
+  .spacer{flex:1}
+  button{border:1px solid var(--line);background:var(--panel);border-radius:8px;
+    padding:6px 11px;cursor:pointer;font:inherit;font-size:12.5px;color:var(--text);transition:all .13s}
+  button:hover{background:#f7f8fa}
+  button.op.on{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:600}
+  button.op:hover{background:var(--brand-soft);border-color:var(--brand-line);color:var(--brand)}
+  button.op.on:hover{background:#067a96;color:#fff}
+  .groups{padding:9px 16px;background:var(--panel2);border-top:1px solid var(--soft);
+    display:flex;flex-direction:column;gap:7px}
+  .grow{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+  .gname{color:var(--t3);font-size:11.5px;font-weight:700;min-width:62px;letter-spacing:.03em}
+
+  main{flex:1;display:grid;grid-template-columns:1fr 1fr;min-height:0;overflow:hidden}
+  .pane{display:flex;flex-direction:column;min-height:0;background:var(--panel)}
+  .pane+.pane{border-left:1px solid var(--line)}
+  .phead{display:flex;align-items:center;gap:8px;padding:8px 13px;border-bottom:1px solid var(--soft);
+    background:var(--panel2);flex:none}
+  .phead .lbl{font-weight:620;font-size:12.5px;color:var(--t2)}
+  .phead .sp{flex:1}
+  textarea{flex:1;border:none;outline:none;resize:none;padding:13px 15px;font-family:var(--mono);
+    font-size:12.5px;line-height:1.6;background:var(--panel);color:var(--text);min-height:0}
+  textarea::placeholder{color:var(--t3)}
+  pre,#out{flex:1;margin:0;overflow:auto;padding:13px 15px;font-family:var(--mono);font-size:12.5px;
+    line-height:1.65;white-space:pre-wrap;word-break:break-word;min-height:0;background:var(--panel)}
+  .err{color:#a02c2c;background:#fdecec;border-radius:8px;padding:10px 13px;font-size:12.5px;
+    margin:0 0 10px}
+  .hint{color:var(--t3);padding:40px 20px;text-align:center;font-size:13px}
+  .hint .big{font-size:38px;opacity:.4;display:block;margin-bottom:12px}
+  .two{display:none;grid-template-columns:1fr 1fr;gap:0;height:100%}
+  .two.on{display:grid}
+  main.diffmode .one{display:none}
+  main.diffmode .two{display:grid}
+  .toast{position:fixed;bottom:24px;left:50%;transform:translate(-50%,10px);
+    background:#1c1f26;color:#fff;padding:10px 20px;border-radius:10px;opacity:0;
+    transition:all .2s;pointer-events:none;font-size:13px;z-index:99}
+  .toast.on{opacity:.97;transform:translate(-50%,0)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="bar">
+    <span class="brand"><i></i>开发工具箱</span>
+    <span class="spacer"></span>
+    <span id="cur" style="color:var(--t2);font-size:12.5px"></span>
+    <button id="btnSwapIn">结果 → 输入</button>
+    <button id="btnCopy">复制结果</button>
+    <button id="btnClear">清空</button>
+  </div>
+  <div class="groups" id="groups"></div>
+</header>
+
+<main id="main">
+  <div class="one" style="display:contents">
+    <div class="pane">
+      <div class="phead"><span class="lbl">输入</span><span class="sp"></span>
+        <span style="color:var(--t3);font-size:11.5px" id="ininfo"></span></div>
+      <textarea id="ta" placeholder="把内容贴进来，点上面的转换按钮"></textarea>
+    </div>
+    <div class="pane">
+      <div class="phead"><span class="lbl">结果</span><span class="sp"></span>
+        <span style="color:var(--t3);font-size:11.5px" id="outinfo"></span></div>
+      <pre id="out"><div class="hint"><span class="big">🔧</span>选一个转换</div></pre>
+    </div>
+  </div>
+  <div class="two" id="two">
+    <div class="pane">
+      <div class="phead"><span class="lbl" style="color:#d23b3b">旧文本</span>
+        <span class="sp"></span><span style="color:var(--t3);font-size:11.5px">会被删除的行标 -</span></div>
+      <textarea id="taA" placeholder="原始文本"></textarea>
+    </div>
+    <div class="pane">
+      <div class="phead"><span class="lbl" style="color:#12894f">新文本</span>
+        <span class="sp"></span><span style="color:var(--t3);font-size:11.5px">新增的行标 +</span></div>
+      <textarea id="taB" placeholder="改过的文本"></textarea>
+    </div>
+  </div>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+const S = { groups: [], cur: null };
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g,
+  c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const api = async p => { const r = await fetch(p); if(!r.ok) throw new Error(r.status); return r.json(); };
+const post = async (p,b) => {
+  const r = await fetch(p,{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify(b||{})});
+  return r.json();
+};
+function toast(m){ const t=$("toast"); t.textContent=m; t.classList.add("on");
+  setTimeout(()=>t.classList.remove("on"),1800); }
+
+function info(el, txt){
+  const n = txt.length;
+  el.textContent = n ? `${n} 字符 / ${txt.split("\n").length} 行` : "";
+}
+
+async function boot(){
+  const st = await api("/api/status");
+  S.groups = st.groups;
+  $("groups").innerHTML = S.groups.map(g => `<div class="grow">
+    <span class="gname">${esc(g.name)}</span>
+    ${g.ops.map(o => `<button class="op" data-op="${o.id}">${esc(o.name)}</button>`).join("")}
+  </div>`).join("") + `<div class="grow"><span class="gname">对比</span>
+    <button class="op" data-op="text_diff">两段文本对比</button></div>`;
+  document.querySelectorAll("[data-op]").forEach(b => b.onclick = () => run(b.dataset.op, b));
+}
+
+async function run(op, btn){
+  if(op === "text_diff"){
+    $("main").classList.add("diffmode");
+    S.cur = op;
+    document.querySelectorAll(".op").forEach(x => x.classList.toggle("on", x === btn));
+    $("cur").textContent = "文本对比";
+    $("out").innerHTML = `<div class="hint">在左右两边贴入文本，点这里出结果</div>`;
+    doDiff();
+    return;
+  }
+  $("main").classList.remove("diffmode");
+  const text = $("ta").value;
+  if(!text.trim()) return toast("先在左边贴点内容");
+  S.cur = op;
+  document.querySelectorAll(".op").forEach(x => x.classList.toggle("on", x === btn));
+  $("cur").textContent = btn.textContent.trim();
+  try{
+    const d = await post("/api/run", {op, text});
+    if(d.error){
+      $("out").innerHTML = `<div class="err">${esc(d.error)}</div>`;
+      $("outinfo").textContent = "";
+    }else{
+      $("out").textContent = d.out || "(空结果)";
+      info($("outinfo"), d.out || "");
+    }
+  }catch(e){
+    $("out").innerHTML = `<div class="err">失败：${esc(e.message)}</div>`;
+  }
+}
+
+let diffTimer = null;
+async function doDiff(){
+  clearTimeout(diffTimer);
+  diffTimer = setTimeout(async () => {
+    const a = $("taA").value, b = $("taB").value;
+    if(!a && !b){ $("out").innerHTML = `<div class="hint">两边都还是空的</div>`; return; }
+    const d = await post("/api/run", {op:"text_diff", a, b});
+    const lines = String(d.out||"").split("\n");
+    const head = lines.slice(0, 2).join("\n");
+    const body = lines.slice(2).map(l => {
+      const cls = l.startsWith("+ ") ? "color:#12894f;background:#f2fbf6"
+                : l.startsWith("- ") ? "color:#d23b3b;background:#fdf3f3" : "";
+      return cls ? `<span style="display:block;${cls}">${esc(l)}</span>` : esc(l);
+    }).join("\n");
+    $("out").innerHTML = `<span style="color:var(--t3)">${esc(head)}</span>\n` + body;
+  }, 220);
+}
+$("taA").addEventListener("input", doDiff);
+$("taB").addEventListener("input", doDiff);
+
+$("ta").addEventListener("input", () => info($("ininfo"), $("ta").value));
+$("btnSwapIn").onclick = () => {
+  const t = $("out").textContent || "";
+  if(!t) return toast("结果还是空的");
+  $("ta").value = t;
+  info($("ininfo"), t);
+  toast("已放回输入区");
+};
+$("btnCopy").onclick = () => {
+  const t = $("out").textContent || "";
+  if(!t) return toast("结果还是空的");
+  navigator.clipboard.writeText(t).then(()=>toast("已复制"));
+};
+$("btnClear").onclick = () => {
+  $("ta").value = ""; $("taA").value = ""; $("taB").value = "";
+  $("out").innerHTML = `<div class="hint"><span class="big">🔧</span>已清空</div>`;
+  $("ininfo").textContent = ""; $("outinfo").textContent = "";
+  document.querySelectorAll(".op").forEach(x => x.classList.remove("on"));
+  $("cur").textContent = "";
+};
+boot();
+</script>
+</body>
+</html>

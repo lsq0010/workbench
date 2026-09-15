@@ -1,0 +1,54 @@
+{
+  "manifest_version": 1,
+  "id": "netport",
+  "name": "端口与进程",
+  "description": "谁在监听、谁占了我的端口。按端口查、按项目认，能看出是哪个项目在占（读 cwd）。服务起不来、端口冲突、进程没退干净时先看这个。",
+  "version": "0.1.0",
+  "author": "本机",
+  "type": "local",
+
+  "runtime": { "entry": "main.py", "requires": { "python": ">=3.7" }, "dependencies": [] },
+  "ports": { "web": 8905 },
+
+  "platform": {
+    "icon": "🔌",
+    "color": "#0d9488",
+    "open": "http://127.0.0.1:{web}/",
+    "health": "http://127.0.0.1:{web}/api/status",
+    "start": ["python3", "main.py", "start"],
+    "stop": ["python3", "main.py", "stop"],
+    "note": "内置常见开发端口说明；工作平台自己的功能端口也标了名字。"
+  },
+
+  "permissions": [
+    {
+      "id": "process.list",
+      "why": "列出监听端口的进程（lsof / ps）",
+      "risk": "低：只读进程列表",
+      "mitigation": "只执行 lsof -iTCP/-iUDP 和 ps，不读进程内存、不附加调试器"
+    },
+    {
+      "id": "process.kill",
+      "why": "「结束」按钮会向进程发 SIGTERM",
+      "risk": "**高**：可能结束掉你正在用的服务，未保存的工作会丢",
+      "mitigation": "必须点按钮 + 二次确认（弹窗里显示项目名、端口、完整命令）；只发 SIGTERM 不发 SIGKILL，给进程自己收尾的机会；不允许结束本功能自己"
+    }
+  ],
+
+  "data": { "produces": [], "consumes": [] },
+
+  "exposes": {
+    "base": "http://127.0.0.1:8905",
+    "endpoints": [
+      { "path": "/api/status", "desc": "服务状态 + 常见端口说明", "auth": "local-only" },
+      { "path": "/api/scan", "desc": "所有监听进程", "auth": "local-only" },
+      { "path": "/api/check", "desc": "查某个端口是否被占 ?port=", "auth": "local-only" }
+    ],
+    "writes": [
+      { "path": "/api/kill", "desc": "向进程发 SIGTERM", "auth": "local-only" }
+    ]
+  },
+
+  "ui": { "entry": "index.html" },
+  "store": { "pricing": "free", "license": "personal" }
+}

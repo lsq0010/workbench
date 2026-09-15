@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>证书与描述文件</title>
+<style>
+  :root{
+    --bg:#f4f5f7;--panel:#fff;--panel2:#fafbfc;--line:#e6e8ec;--soft:#f0f1f4;
+    --text:#16181d;--t2:#5b6472;--t3:#98a1ad;
+    --brand:#0071e3;--brand-soft:#eaf3ff;--brand-line:#c9e0ff;
+    --ok:#12894f;--ok-soft:#e7f6ee;--warn:#a9670a;--warn-soft:#fdf3e3;
+    --danger:#d23b3b;--danger-soft:#fdecec;
+    --sh1:0 1px 2px rgba(16,24,40,.05);--sh2:0 2px 8px rgba(16,24,40,.07);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB",sans-serif;
+  }
+  *{box-sizing:border-box}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:#cfd3da;border:3px solid transparent;
+    background-clip:content-box;border-radius:8px}
+  html,body{height:100%}
+  body{margin:0;font:14px/1.55 var(--sans);background:var(--bg);color:var(--text);
+       display:flex;flex-direction:column;overflow:hidden;-webkit-font-smoothing:antialiased}
+  header{flex:none;background:var(--panel);border-bottom:1px solid var(--line);box-shadow:var(--sh1)}
+  .bar{display:flex;align-items:center;gap:9px;padding:0 18px;height:54px}
+  .brand{font-weight:650;font-size:15.5px;display:flex;align-items:center;gap:8px}
+  .brand i{width:9px;height:9px;border-radius:3px;background:linear-gradient(135deg,#0071e3,#5aa9ff)}
+  .spacer{flex:1}
+  .stat{color:var(--t2);font-size:12.5px}
+  button{border:1px solid var(--line);background:var(--panel);border-radius:8px;
+    padding:6px 12px;cursor:pointer;font:inherit;font-size:13px;color:var(--text);transition:all .13s}
+  button:hover{background:#f7f8fa}
+  button.pri{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:600}
+  button.pri:hover{background:#0058b8}
+  .seg{display:flex;gap:3px;background:#eceef2;padding:3px;border-radius:9px}
+  .seg button{border:none;background:transparent;border-radius:6px;padding:5px 13px;font-size:12.5px;
+    color:var(--t2);font-weight:500}
+  .seg button.on{background:var(--panel);color:var(--brand);font-weight:600;box-shadow:var(--sh1)}
+
+  main{flex:1;overflow:auto;padding:20px 24px 60px}
+  .wrap{max-width:1180px;margin:0 auto}
+  .issues{background:var(--danger-soft);border:1px solid #f6c9c9;border-radius:12px;
+    padding:14px 17px;margin-bottom:18px}
+  .issues.warnonly{background:var(--warn-soft);border-color:#fde68a;color:#92400e}
+  .issues h3{margin:0 0 9px;font-size:14px;font-weight:650}
+  .issues .it{font-size:13px;padding:3px 0}
+  .cards{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:11px 16px;
+    box-shadow:var(--sh1);min-width:112px;cursor:pointer;transition:all .13s}
+  .kpi:hover{border-color:var(--brand-line)}
+  .kpi.on{border-color:var(--brand);background:var(--brand-soft)}
+  .kpi .k{color:var(--t3);font-size:11.5px}
+  .kpi .v{font-size:21px;font-weight:650;font-family:var(--mono);margin-top:3px}
+  h2{margin:22px 0 11px;font-size:15px;font-weight:650}
+  table{width:100%;border-collapse:collapse;font-size:12.5px;background:var(--panel);
+    border:1px solid var(--line);border-radius:12px;overflow:hidden;box-shadow:var(--sh1)}
+  th{text-align:left;color:var(--t3);font-weight:600;font-size:11.5px;padding:9px 13px;
+     background:var(--panel2);border-bottom:1px solid var(--line);position:sticky;top:0}
+  td{padding:9px 13px;border-bottom:1px solid var(--soft);vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  tr.expired{background:#fffafa}
+  tr.critical{background:#fffafa}
+  tr.warn{background:#fffdf7}
+  .nm{font-weight:600}
+  .mono{font-family:var(--mono);font-size:11.5px;color:var(--t2);word-break:break-all}
+  .tag{font-size:10.5px;border-radius:5px;padding:2px 8px;font-weight:600;white-space:nowrap}
+  .t-ok{background:var(--ok-soft);color:var(--ok)}
+  .t-warn{background:var(--warn-soft);color:var(--warn)}
+  .t-bad{background:var(--danger-soft);color:var(--danger)}
+  .t-gray{background:#f1f3f6;color:var(--t3)}
+  .t-type{background:var(--brand-soft);color:var(--brand)}
+  .empty{text-align:center;padding:60px 20px;color:var(--t2)}
+  .empty .big{font-size:44px;opacity:.4;display:block;margin-bottom:13px}
+  .empty b{color:var(--text);display:block;font-size:15px;margin-bottom:7px}
+  .empty code{background:var(--panel);border:1px solid var(--line);border-radius:6px;
+    padding:2px 8px;font-family:var(--mono);font-size:12.5px}
+  .toast{position:fixed;bottom:24px;left:50%;transform:translate(-50%,10px);
+    background:#1c1f26;color:#fff;padding:10px 20px;border-radius:10px;opacity:0;
+    transition:all .2s;pointer-events:none;font-size:13px;z-index:99}
+  .toast.on{opacity:.97;transform:translate(-50%,0)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="bar">
+    <span class="brand"><i></i>证书与描述文件</span>
+    <div class="seg" id="seg">
+      <button data-v="all" class="on">全部</button>
+      <button data-v="risk">只看要处理的</button>
+    </div>
+    <span class="spacer"></span>
+    <span class="stat" id="stat"></span>
+    <button class="pri" id="btnScan">重新扫描</button>
+  </div>
+</header>
+
+<main><div class="wrap" id="view"></div></main>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+const S = { data: null, view: "all", filter: "all" };
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g,
+  c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const api = async p => { const r = await fetch(p); if(!r.ok) throw new Error(r.status); return r.json(); };
+function toast(m){ const t=$("toast"); t.textContent=m; t.classList.add("on");
+  setTimeout(()=>t.classList.remove("on"),1800); }
+
+function daysTag(d){
+  if(d === null || d === undefined) return `<span class="tag t-gray">?</span>`;
+  if(d < 0) return `<span class="tag t-bad">已过期 ${Math.abs(d)} 天</span>`;
+  if(d <= 7) return `<span class="tag t-bad">还有 ${d} 天</span>`;
+  if(d <= 30) return `<span class="tag t-warn">还有 ${d} 天</span>`;
+  return `<span class="tag t-ok">还有 ${d} 天</span>`;
+}
+
+async function scan(){
+  $("view").innerHTML = `<div class="empty">扫描中…</div>`;
+  $("btnScan").disabled = true;
+  try{
+    const d = await api("/api/scan");
+    S.data = d;
+    render();
+    $("stat").textContent = `${d.certs.length} 张证书 · ${d.profiles.length} 个描述文件 · ${d.seconds}s`;
+  }catch(e){
+    $("view").innerHTML = `<div class="empty">扫描失败：${esc(e.message)}</div>`;
+  }
+  $("btnScan").disabled = false;
+}
+
+function render(){
+  const d = S.data;
+  if(!d) return;
+  const bad = d.certs.filter(c => c.days !== null && c.days < 0)
+              .concat(d.profiles.filter(p => p.days !== null && p.days < 0));
+  const soon = d.certs.filter(c => c.days !== null && c.days >= 0 && c.days <= 30)
+               .concat(d.profiles.filter(p => p.days !== null && p.days >= 0 && p.days <= 30));
+
+  let h = "";
+  if(d.issues.length){
+    const critical = d.issues.some(i => i.level === "critical");
+    h += `<div class="issues ${critical?"":"warnonly"}">
+      <h3>${critical ? "❌" : "⚠️"} ${d.issues.length} 项需要处理</h3>
+      ${d.issues.map(i => `<div class="it">${i.level==="critical"?"❌":"⚠️"} ${esc(i.what)}
+        ${i.detail ? `<span style="color:var(--t3)">　${esc(i.detail)}</span>` : ""}</div>`).join("")}
+      ${bad.length ? `<div class="it" style="margin-top:9px;font-size:12.5px;color:var(--t2)">
+        已过期的描述文件不会影响已在架上的 App，但<b>重新打包会失败</b> ——
+        到 developer.apple.com 重新生成，或让 Xcode 自动管理签名。</div>` : ""}
+    </div>`;
+  }else{
+    h += `<div class="issues" style="background:var(--ok-soft);border-color:#bfe6cf;color:#0d6b3e">
+      <h3>✅ 没有过期或快到期的东西</h3></div>`;
+  }
+
+  h += `<div class="cards">
+    <div class="kpi ${S.filter==="all"?"on":""}" data-f="all">
+      <div class="k">证书 / 描述文件</div><div class="v">${d.certs.length} / ${d.profiles.length}</div></div>
+    <div class="kpi ${S.filter==="expired"?"on":""}" data-f="expired">
+      <div class="k">已过期</div><div class="v" style="color:${bad.length?"var(--danger)":"var(--t3)"}">${bad.length}</div></div>
+    <div class="kpi ${S.filter==="soon"?"on":""}" data-f="soon">
+      <div class="k">30 天内到期</div><div class="v" style="color:${soon.length?"var(--warn)":"var(--t3)"}">${soon.length}</div></div>
+  </div>`;
+
+  const keep = x => {
+    if(S.filter === "all") return true;
+    if(S.filter === "expired") return x.days !== null && x.days < 0;
+    if(S.filter === "soon") return x.days !== null && x.days >= 0 && x.days <= 30;
+    return true;
+  };
+  const cls = x => x.days === null ? "" : (x.days < 0 ? "expired" :
+                    (x.days <= 7 ? "critical" : x.days <= 30 ? "warn" : ""));
+
+  const certs = d.certs.filter(keep);
+  if(S.view === "all" || certs.length){
+    h += `<h2>签名证书（${certs.length}）</h2>`;
+    h += certs.length ? `<table><thead><tr>
+      <th style="width:38%">名称</th><th style="width:11%">类型</th>
+      <th style="width:13%">到期</th><th style="width:14%">剩余</th>
+      <th style="width:24%">Team</th></tr></thead><tbody>
+      ${certs.map(c => `<tr class="${cls(c)}">
+        <td class="nm">${esc(c.name)}</td>
+        <td><span class="tag t-type">${esc(c.kind)}</span></td>
+        <td class="mono">${esc(c.expires || "?")}</td>
+        <td>${daysTag(c.days)}</td>
+        <td class="mono">${esc(c.team || "—")}</td></tr>`).join("")}
+      </tbody></table>` : `<div class="empty" style="padding:26px">没有符合条件的证书</div>`;
+  }
+
+  const profs = d.profiles.filter(keep);
+  if(S.view === "all" || profs.length){
+    h += `<h2>描述文件（${profs.length}）</h2>`;
+    h += profs.length ? `<table><thead><tr>
+      <th style="width:26%">名称</th><th style="width:22%">Bundle ID</th>
+      <th style="width:10%">设备</th><th style="width:12%">到期</th>
+      <th style="width:13%">剩余</th><th style="width:17%">Team</th></tr></thead><tbody>
+      ${profs.map(p => p.broken ? `<tr>
+        <td class="nm">${esc(p.file)}</td><td colspan="5"
+          style="color:var(--danger)">${esc(p.broken)}</td></tr>` : `<tr class="${cls(p)}">
+        <td class="nm">${esc(p.name || p.file)}
+          ${p.aps ? `<span class="tag t-type" title="含推送权限">推送</span>` : ""}</td>
+        <td class="mono">${esc(p.bundle)}</td>
+        <td class="mono">${p.devices || "—"}</td>
+        <td class="mono">${esc(p.expires)}</td>
+        <td>${daysTag(p.days)}</td>
+        <td class="mono">${esc((p.team || "").slice(0, 22))}</td></tr>`).join("")}
+      </tbody></table>` : `<div class="empty" style="padding:26px">没有符合条件的描述文件</div>`;
+  }
+
+  if(!d.profile_dir_exists && !d.certs.length){
+    h += `<div class="empty"><span class="big">🔐</span><b>没找到证书或描述文件</b>
+      <span style="font-size:12.5px">这台机器上可能还没配过 iOS 开发签名</span></div>`;
+  }
+  $("view").innerHTML = h;
+  document.querySelectorAll("[data-f]").forEach(el => el.onclick = () => {
+    S.filter = el.dataset.f; render();
+  });
+}
+
+document.querySelectorAll("#seg button").forEach(b => b.onclick = () => {
+  S.view = b.dataset.v;
+  document.querySelectorAll("#seg button").forEach(x => x.classList.toggle("on", x === b));
+  render();
+});
+$("btnScan").onclick = scan;
+scan();
+</script>
+</body>
+</html>

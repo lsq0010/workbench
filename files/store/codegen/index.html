@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>模型生成</title>
+<style>
+  :root{
+    --bg:#f4f5f7;--panel:#fff;--panel2:#fafbfc;--line:#e6e8ec;--soft:#f0f1f4;
+    --text:#16181d;--t2:#5b6472;--t3:#98a1ad;
+    --brand:#2f6df6;--brand-soft:#eef3ff;--brand-line:#cfdffd;
+    --ok:#12894f;--ok-soft:#e7f6ee;--warn:#a9670a;--warn-soft:#fdf3e3;--danger:#d23b3b;
+    --sh1:0 1px 2px rgba(16,24,40,.05);--sh2:0 2px 8px rgba(16,24,40,.07);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB",sans-serif;
+  }
+  *{box-sizing:border-box}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:#cfd3da;border:3px solid transparent;
+    background-clip:content-box;border-radius:8px}
+  html,body{height:100%}
+  body{margin:0;font:14px/1.55 var(--sans);background:var(--bg);color:var(--text);
+       display:flex;flex-direction:column;overflow:hidden;-webkit-font-smoothing:antialiased}
+  header{flex:none;background:var(--panel);border-bottom:1px solid var(--line);
+         box-shadow:var(--sh1);z-index:5}
+  .bar{display:flex;align-items:center;gap:9px;padding:0 18px;height:54px}
+  .brand{font-weight:650;font-size:15.5px;display:flex;align-items:center;gap:8px}
+  .brand i{width:9px;height:9px;border-radius:3px;background:linear-gradient(135deg,#2f6df6,#7aa5ff)}
+  .spacer{flex:1}
+  .stat{color:var(--t2);font-size:12.5px}
+  button{border:1px solid var(--line);background:var(--panel);border-radius:8px;
+    padding:6px 12px;cursor:pointer;font:inherit;font-size:13px;color:var(--text);transition:all .13s}
+  button:hover{background:#f7f8fa}
+  button.pri{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:600}
+  button.pri:hover{background:#245ad9}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  select,input{font:inherit;font-size:13px;border:1px solid var(--line);border-radius:8px;
+    padding:6px 10px;background:var(--panel);color:var(--text);outline:none}
+  select:focus,input:focus{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft)}
+
+  main{flex:1;display:flex;min-height:0;overflow:hidden}
+  #left{width:44%;min-width:330px;display:flex;flex-direction:column;
+        background:var(--panel);border-right:1px solid var(--line);min-height:0}
+  .lhead{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--soft);
+    background:var(--panel2);flex:none;flex-wrap:wrap}
+  .lhead .lbl{font-weight:620;font-size:13px;color:var(--t2)}
+  textarea{flex:1;border:none;outline:none;resize:none;padding:13px 15px;font-family:var(--mono);
+    font-size:12.5px;line-height:1.6;background:var(--panel);color:var(--text);min-height:0}
+  textarea::placeholder{color:var(--t3)}
+  #right{flex:1;display:flex;flex-direction:column;min-height:0;min-width:0}
+  .rhead{display:flex;align-items:center;gap:9px;padding:10px 16px;border-bottom:1px solid var(--soft);
+    background:var(--panel2);flex:none;flex-wrap:wrap}
+  pre{flex:1;margin:0;overflow:auto;padding:16px 18px;font-family:var(--mono);font-size:12.5px;
+    line-height:1.65;white-space:pre;background:#1c1f26;color:#e6e9ef;min-height:0}
+  .chips{display:flex;gap:7px;flex-wrap:wrap;padding:10px 16px;background:var(--panel);
+    border-bottom:1px solid var(--soft);flex:none}
+  .chip{background:var(--panel2);border:1px solid var(--line);border-radius:999px;
+    padding:3px 11px;font-size:12px;color:var(--t2)}
+  .chip b{color:var(--text);font-weight:650}
+  .err{background:#fdecec;border:1px solid #f6c9c9;color:#a02c2c;border-radius:9px;
+    padding:10px 13px;font-size:12.5px;margin:12px 16px;font-family:var(--mono)}
+  .warnbox{background:var(--warn-soft);border-bottom:1px solid #fde68a;color:#92400e;
+    padding:9px 16px;font-size:12.5px;flex:none}
+  .empty{color:var(--t3);padding:60px 24px;text-align:center;font-size:13.5px}
+  .empty .big{font-size:40px;opacity:.4;display:block;margin-bottom:12px}
+  .picker{position:absolute;z-index:20;background:var(--panel);border:1px solid var(--line);
+    border-radius:11px;box-shadow:var(--sh2);width:min(620px,90vw);max-height:420px;overflow:auto;display:none}
+  .picker .it{padding:8px 13px;border-bottom:1px solid var(--soft);cursor:pointer;font-size:12.5px}
+  .picker .it:hover{background:#f8fafc}
+  .picker .it .m{font-family:var(--mono);font-size:10.5px;font-weight:700;border-radius:4px;
+    padding:1px 6px;background:#f1f3f6;margin-right:7px}
+  .toast{position:fixed;bottom:24px;left:50%;transform:translate(-50%,10px);
+    background:#1c1f26;color:#fff;padding:10px 20px;border-radius:10px;opacity:0;
+    transition:all .2s;pointer-events:none;font-size:13px;z-index:99}
+  .toast.on{opacity:.97;transform:translate(-50%,0)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="bar">
+    <span class="brand"><i></i>模型生成</span>
+    <span class="stat">JSON → 数据模型代码</span>
+    <span class="spacer"></span>
+    <span class="stat" id="stat"></span>
+    <button id="btnPick">从抓包选</button>
+    <button id="btnSample">放个样例</button>
+    <button id="btnClear">清空</button>
+  </div>
+</header>
+
+<main>
+  <div id="left">
+    <div class="lhead">
+      <span class="lbl">JSON 报文</span>
+      <span class="spacer" style="flex:1"></span>
+      <select id="lang" title="生成哪种语言">
+        <option value="swift">Swift (Codable)</option>
+        <option value="kotlin">Kotlin (Gson)</option>
+        <option value="typescript">TypeScript</option>
+      </select>
+      <input id="root" value="ApiResponse" title="根类型名" style="width:150px">
+      <button class="pri" id="btnGen">生成代码</button>
+    </div>
+    <textarea id="ta" placeholder="把接口响应的 JSON 贴进来，点「生成代码」"></textarea>
+  </div>
+  <div id="right">
+    <div class="rhead">
+      <span style="font-weight:620;font-size:13px;color:var(--t2)">生成的代码</span>
+      <span class="spacer" style="flex:1"></span>
+      <button id="btnCopy">复制代码</button>
+    </div>
+    <div class="chips" id="chips"></div>
+    <div id="warn"></div>
+    <pre id="code"><div class="empty"><span class="big">⌨️</span>
+      左边贴 JSON，这里出代码<br>
+      <span style="font-size:12.5px">嵌套对象会拆成独立模型；出现 null 的字段会标成可选；
+      类型不稳定的字段会标出来而不是硬猜</span></div></pre>
+  </div>
+</main>
+
+<div class="picker" id="picker"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+const S = { src:{ok:false}, code:"" };
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g,
+  c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const api = async p => { const r = await fetch(p); if(!r.ok) throw new Error(r.status); return r.json(); };
+const post = async (p,b) => {
+  const r = await fetch(p,{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify(b||{})});
+  const j = await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(j.error || ("HTTP "+r.status));
+  return j;
+};
+function toast(m){ const t=$("toast"); t.textContent=m; t.classList.add("on");
+  setTimeout(()=>t.classList.remove("on"),1900); }
+
+const SAMPLE = JSON.stringify({
+  code:0, message:"success",
+  data:{ total:2, pageNum:1, list:[
+    { waybillCode:"SF123456", orderType:"L", volumeM:1.2, codType:"1", codFee:0,
+      destinationSite:"234449", createTime:"2026-09-14 10:00:00",
+      receiver:{ name:"张三", phone:"08012345678", address:{ city:"Lagos", detail:"Ikeja" } },
+      items:[{ name:"配件", qty:2, weight:1.5 }], signed:false, signTime:null } ] }
+}, null, 2);
+
+async function boot(){
+  try{
+    const st = await api("/api/status");
+    S.src = st.source || {};
+    $("stat").innerHTML = S.src.ok
+      ? `<span style="color:var(--ok)">●</span> 可读抓包（${S.src.total} 条）`
+      : `<span style="color:var(--t3)">●</span> 抓包未启动（仍可粘贴）`;
+  }catch(e){}
+}
+
+async function gen(){
+  const raw = $("ta").value.trim();
+  if(!raw) return toast("先贴一段 JSON");
+  try{
+    const d = await post("/api/generate", {json: raw, lang: $("lang").value,
+                                          root: $("root").value.trim() || "Root"});
+    S.code = d.code;
+    $("code").textContent = d.code;
+    $("chips").innerHTML = `
+      <span class="chip">模型 <b>${d.models}</b> 个</span>
+      <span class="chip">字段 <b>${d.fields}</b> 个</span>
+      ${d.is_list ? `<span class="chip">顶层是数组</span>` : ""}
+      <span class="chip">${esc(d.lang)}</span>
+      ${d.unstable ? `<span class="chip" style="color:var(--warn)">类型不稳定 <b>${d.unstable}</b> 个</span>` : ""}`;
+    $("warn").innerHTML = d.unstable
+      ? `<div class="warnbox"><b>有 ${d.unstable} 个字段的报文类型不稳定</b>
+         （同一个字段出现过多种类型，比如一会儿是字符串一会儿是数字）。
+         这些字段生成成了 <code style="font-family:var(--mono)">AnyCodable</code> / <code style="font-family:var(--mono)">Any</code>，
+         代码里已用注释标出 —— 建议回去核对接口契约。</div>` : "";
+  }catch(e){
+    $("code").innerHTML = `<div class="err">${esc(e.message)}</div>`;
+  }
+}
+
+$("btnGen").onclick = gen;
+$("lang").onchange = () => { if(S.code) gen(); };
+$("btnSample").onclick = () => { $("ta").value = SAMPLE; gen(); };
+$("btnClear").onclick = () => {
+  $("ta").value = ""; S.code = "";
+  $("code").innerHTML = `<div class="empty"><span class="big">⌨️</span>已清空</div>`;
+  $("chips").innerHTML = ""; $("warn").innerHTML = "";
+};
+$("btnCopy").onclick = () => {
+  if(!S.code) return toast("还没有代码");
+  navigator.clipboard.writeText(S.code).then(()=>toast("已复制 "+S.code.length+" 字符"));
+};
+document.addEventListener("keydown", e => {
+  if((e.metaKey || e.ctrlKey) && e.key === "Enter"){ e.preventDefault(); gen(); }
+});
+
+/* 从抓包挑 */
+$("btnPick").onclick = async e => {
+  e.stopPropagation();
+  const p = $("picker");
+  p.style.display = "block"; p.style.left = "360px"; p.style.top = "100px";
+  p.innerHTML = `<div class="it" style="color:var(--t3)">加载中…</div>`;
+  try{
+    const d = await api("/api/flows");
+    if(!d.flows.length){
+      p.innerHTML = `<div class="it" style="color:var(--t3)">没有可选的报文</div>`; return;
+    }
+    p.innerHTML = `<div class="it" style="background:var(--panel2);color:var(--t3);
+      position:sticky;top:0">选一条 → 用它作为模型来源（优先响应体）</div>` +
+      d.flows.map(f => `<div class="it" data-id="${f.id}">
+        <span class="m">${esc(f.method)}</span>${esc(f.host)}${esc(f.path)}
+        <div style="color:var(--t3);font-size:11.5px;margin-top:2px">
+          id ${f.id} · ${esc(f.ts||"")} · ${f.has_resp?"有响应体":"无响应体"}</div>
+      </div>`).join("");
+    p.querySelectorAll("[data-id]").forEach(el => el.onclick = async () => {
+      try{
+        const f = await api("/api/flow?id=" + el.dataset.id);
+        if(!f.body){ toast("这条报文没有可用的 JSON 体"); return; }
+        try{ $("ta").value = JSON.stringify(JSON.parse(f.body), null, 2); }
+        catch(e){ $("ta").value = f.body; toast("这条报文不是 JSON，原样放进去了"); }
+        p.style.display = "none";
+        gen();
+      }catch(err){ toast("取报文失败：" + err.message); }
+    });
+  }catch(err){
+    p.innerHTML = `<div class="it" style="color:var(--danger)">读抓包失败：${esc(err.message)}</div>`;
+  }
+};
+document.addEventListener("click", e => {
+  const p = $("picker");
+  if(p.style.display === "block" && !p.contains(e.target) && e.target.id !== "btnPick")
+    p.style.display = "none";
+});
+
+boot();
+</script>
+</body>
+</html>

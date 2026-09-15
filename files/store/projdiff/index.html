@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>工程对比</title>
+<style>
+  :root{--bg:#f6f7f9;--panel:#fff;--line:#e5e7eb;--soft:#f1f2f5;--text:#17191e;
+    --t2:#5a6472;--t3:#98a1ad;--brand:#0891b2;--brand-soft:#eff9fc;--brand-line:#c9e8f2;
+    --ok:#15803d;--ok-soft:#eafaf0;--warn:#a16207;--warn-soft:#fef9e7;--danger:#b91c1c;
+    --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif}
+  *{box-sizing:border-box}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:#cfd3da;border:3px solid transparent;
+    background-clip:content-box;border-radius:8px}
+  body{margin:0;font:14px/1.6 var(--sans);background:var(--bg);color:var(--text)}
+  header{background:var(--panel);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:10}
+  .bar{display:flex;align-items:center;gap:10px;padding:0 20px;height:56px;
+    max-width:1200px;margin:0 auto;flex-wrap:wrap}
+  .brand{font-weight:650;font-size:15.5px;display:flex;align-items:center;gap:9px}
+  .brand .mk{width:25px;height:25px;border-radius:6px;display:flex;align-items:center;
+    justify-content:center;font-size:13px;background:var(--brand);color:#fff}
+  .spacer{flex:1}
+  .stat{color:var(--t3);font-size:12.5px;font-family:var(--mono)}
+  button.b{border:1px solid var(--line);background:var(--panel);border-radius:8px;
+    padding:7px 14px;cursor:pointer;font:inherit;font-size:13px;color:var(--text)}
+  button.b:hover{background:var(--brand-soft);border-color:var(--brand-line);color:var(--brand)}
+  button.b.pri{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:620}
+  button.b:disabled{opacity:.45}
+  main{max-width:1200px;margin:22px auto 80px;padding:0 20px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:13px;
+    padding:18px 20px;margin-bottom:16px}
+  .card h3{margin:0 0 12px;font-size:14.5px;font-weight:650}
+  .sum{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:11px;
+    padding:11px 16px;min-width:118px}
+  .kpi .k{color:var(--t3);font-size:11.5px}
+  .kpi .v{font-size:19px;font-weight:650;font-family:var(--mono);margin-top:3px}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th{text-align:left;color:var(--t3);font-weight:600;font-size:11px;padding:7px 8px;
+    text-transform:uppercase;letter-spacing:.05em}
+  td{padding:8px;border-top:1px solid var(--soft);vertical-align:top}
+  tr.clk{cursor:pointer}
+  tr.clk:hover{background:var(--brand-soft)}
+  td.f{font-family:var(--mono);font-size:11.5px;word-break:break-all}
+  td.sz{font-family:var(--mono);font-size:11.5px;color:var(--t2);white-space:nowrap}
+  .gen{color:var(--t3);font-size:11px}
+  .sus{background:var(--warn-soft)}
+  pre.diff{background:#0b0d11;color:#cbd5e1;border-radius:9px;padding:12px 15px;
+    overflow:auto;font-family:var(--mono);font-size:11.5px;line-height:1.65;
+    max-height:560px;white-space:pre;margin:0}
+  pre.diff .add{color:#86efac}
+  pre.diff .del{color:#fca5a5}
+  pre.diff .hdr{color:#7dd3fc}
+  .hint{color:var(--t3);font-size:12.5px;line-height:1.8}
+  .spin{display:inline-block;width:13px;height:13px;border:2px solid var(--line);
+    border-top-color:var(--brand);border-radius:50%;animation:sp .7s linear infinite;
+    vertical-align:-2px;margin-right:7px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .toast{position:fixed;bottom:26px;left:50%;transform:translate(-50%,10px);
+    background:#1c1f26;color:#fff;padding:10px 20px;border-radius:10px;opacity:0;
+    transition:all .2s;pointer-events:none;font-size:13px;z-index:99}
+  .toast.on{opacity:.97;transform:translate(-50%,0)}
+  code{font-family:var(--mono);font-size:11.5px;background:var(--soft);
+    padding:1px 5px;border-radius:4px}
+</style>
+</head>
+<body>
+<header><div class="bar">
+  <span class="brand"><span class="mk">🆚</span>工程对比</span>
+  <span class="stat" id="stat"></span>
+  <span class="spacer"></span>
+  <button class="b" id="btnRefresh">重新扫</button>
+</div></header>
+<main><div id="out"><div class="card"><span class="spin"></span>扫描中…（第一次要几秒）</div></div></main>
+<div class="toast" id="toast"></div>
+<script>
+"use strict";
+const S = { data: null };
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g,
+  c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const api = async p => { const r = await fetch(p); if(!r.ok) throw new Error(r.status); return r.json(); };
+function toast(m){ const t=$("toast"); t.textContent=m; t.classList.add("on");
+  setTimeout(()=>t.classList.remove("on"),2600); }
+
+async function load(refresh){
+  $("out").innerHTML = `<div class="card"><span class="spin"></span>${refresh?"重新扫描":"扫描"}中…</div>`;
+  try{
+    const d = await api("/api/compare" + (refresh ? "?refresh=1" : ""));
+    if(!d.ok){ $("out").innerHTML = `<div class="card" style="color:var(--danger)">${esc(d.error)}</div>`; return; }
+    S.data = d; paint(d);
+  }catch(e){
+    $("out").innerHTML = `<div class="card" style="color:var(--danger)">${esc(e.message)}</div>`;
+  }
+}
+
+function paint(d){
+  const projs = Object.keys(d.projects);
+  $("stat").textContent = `${projs.length} 个工程`;
+  const rows = d.diff_files.map((x, i) => `<tr class="clk ${x.suspicious?"sus":""}" data-i="${i}">
+    <td class="f">${esc(x.file)} ${x.generated?'<span class="gen">（生成文件）</span>':""}</td>
+    <td class="sz">${Object.entries(x.projects).map(([k,v]) =>
+      `${esc(k.slice(0,9))}:${v<1024?(v+"B"):Math.round(v/1024)+"KB"}`).join("  ")}</td>
+    <td class="sz">${x.groups} 组</td>
+  </tr>`).join("");
+  $("out").innerHTML = `
+    <div class="sum">
+      <div class="kpi"><div class="k">共用文件</div><div class="v">${d.shared_same + d.shared_diff}</div></div>
+      <div class="kpi"><div class="k">一致</div>
+        <div class="v" style="color:var(--ok)">${d.shared_same}</div></div>
+      <div class="kpi"><div class="k">**不一致**</div>
+        <div class="v" style="color:var(--warn)">${d.shared_diff}</div></div>
+      <div class="kpi"><div class="k">独有</div><div class="v" style="color:var(--t3)">${d.unique}</div></div>
+    </div>
+    <div class="card">
+      <h3>${esc(d.verdict)}</h3>
+      <div class="hint">${esc(d.why)}<br>
+        点任意一行看**逐行对比**。带黄底的是可疑的（某个工程里几乎是空文件）。</div>
+    </div>
+    ${d.suspicious.length ? `<div class="card">
+      <h3>⚠️ 可疑（某个工程里几乎是空的）</h3>
+      <table><tr><th>文件</th><th>各工程大小</th><th></th></tr>
+      ${d.suspicious.map(x => `<tr><td class="f">${esc(x.file)}</td>
+        <td class="sz">${Object.entries(x.projects).map(([k,v]) =>
+          `${esc(k.slice(0,9))}:${v<1024?(v+"B"):Math.round(v/1024)+"KB"}`).join("  ")}</td>
+        <td></td></tr>`).join("")}
+      </table></div>` : ""}
+    <div class="card">
+      <h3>内容不一致的文件（前 ${d.diff_files.length} 个）</h3>
+      <table><tr><th>文件</th><th>各工程大小</th><th>分几组</th></tr>${rows}</table>
+    </div>`;
+  document.querySelectorAll("[data-i]").forEach(el => el.onclick = () => showDiff(d.diff_files[+el.dataset.i]));
+}
+
+async function showDiff(x){
+  const projs = Object.keys(x.projects);
+  if(projs.length < 2) return;
+  // 挑两个大小差最大的工程
+  const sorted = projs.slice().sort((a,b) => x.projects[b] - x.projects[a]);
+  const a = sorted[sorted.length-1], b = sorted[0];
+  $("out").insertAdjacentHTML("afterbegin",
+    `<div class="card" id="diffcard"><h3>${esc(a)} ↔ ${esc(b)}　<span class="hint">${esc(x.file)}</span></h3>
+      <div id="diffbody"><span class="spin"></span>读取中…</div></div>`);
+  try{
+    const r = await api(`/api/diff?a=${encodeURIComponent(a)}&b=${encodeURIComponent(b)}&file=${encodeURIComponent(x.file)}`);
+    const body = $("diffbody");
+    if(!r.ok){ body.innerHTML = `<span style="color:var(--danger)">${esc(r.error)}</span>`; return; }
+    const html = esc(r.diff).split("\\n").map(l => {
+      if(l.startsWith("+++") || l.startsWith("---") || l.startsWith("@@"))
+        return `<span class="hdr">${l}</span>`;
+      if(l.startsWith("+")) return `<span class="add">${l}</span>`;
+      if(l.startsWith("-")) return `<span class="del">${l}</span>`;
+      return l;
+    }).join("\\n");
+    body.innerHTML = `<div class="hint" style="margin-bottom:9px">
+      ${a} ${r.a_lines} 行 → ${b} ${r.b_lines} 行　
+      <span style="color:var(--ok)">+${r.added}</span>
+      <span style="color:var(--danger)">-${r.removed}</span>
+      ${r.truncated ? "（太长，只显示前 1200 行）" : ""}</div>
+      <pre class="diff">${html}</pre>`;
+    $("diffcard").scrollIntoView({behavior:"smooth", block:"start"});
+  }catch(e){ $("diffbody").innerHTML = `<span style="color:var(--danger)">${esc(e.message)}</span>`; }
+}
+
+$("btnRefresh").onclick = () => load(true);
+load(false);
+</script>
+</body>
+</html>

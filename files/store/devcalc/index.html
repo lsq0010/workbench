@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>程序员计算器</title>
+<style>
+  :root{
+    --bg:#f4f5f7;--panel:#fff;--panel2:#fafbfc;--line:#e6e8ec;--soft:#f0f1f4;
+    --text:#16181d;--t2:#5b6472;--t3:#98a1ad;
+    --brand:#0f766e;--brand-soft:#e6f5f3;--brand-line:#b8e4df;
+    --ok:#12894f;--warn:#a9670a;--danger:#d23b3b;
+    --sh1:0 1px 2px rgba(16,24,40,.05);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB",sans-serif;
+  }
+  *{box-sizing:border-box}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:#cfd3da;border:3px solid transparent;
+    background-clip:content-box;border-radius:8px}
+  html,body{height:100%}
+  body{margin:0;font:14px/1.55 var(--sans);background:var(--bg);color:var(--text);
+       display:flex;flex-direction:column;overflow:hidden;-webkit-font-smoothing:antialiased}
+  header{flex:none;background:var(--panel);border-bottom:1px solid var(--line);box-shadow:var(--sh1)}
+  .bar{display:flex;align-items:center;gap:10px;padding:0 20px;height:56px;flex-wrap:wrap}
+  .brand{font-weight:650;font-size:15.5px;display:flex;align-items:center;gap:9px;flex:none}
+  .brand .mk{width:24px;height:24px;border-radius:6px;display:flex;align-items:center;
+    justify-content:center;font-size:13px;background:#0f766e;color:#fff}
+  .spacer{flex:1}
+  .tabs{display:flex;gap:3px;background:#eceef2;padding:3px;border-radius:10px;flex-wrap:wrap}
+  .tabs button{border:none;background:transparent;border-radius:7px;padding:6px 14px;
+    font-size:13px;color:var(--t2);font-weight:550;cursor:pointer;font-family:inherit;
+    transition:all .14s}
+  .tabs button.on{background:var(--panel);color:var(--brand);box-shadow:var(--sh1)}
+  .now{font-family:var(--mono);font-size:12px;color:var(--t3);cursor:pointer}
+  .now:hover{color:var(--brand)}
+
+  main{flex:1;overflow:auto;padding:22px 26px 60px}
+  .wrap{max-width:1000px;margin:0 auto}
+  .q{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px;
+    box-shadow:var(--sh1);margin-bottom:16px}
+  .q label{display:block;font-size:12px;color:var(--t2);margin-bottom:6px}
+  .q input,.q select{width:100%;font:inherit;font-family:var(--mono);font-size:17px;
+    border:1px solid var(--line);border-radius:10px;padding:11px 14px;background:var(--panel);
+    color:var(--text);outline:none}
+  .q input:focus,.q select:focus{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft)}
+  .qa{display:flex;gap:8px;margin-top:11px;flex-wrap:wrap;align-items:center}
+  .qa button{border:1px solid var(--line);background:var(--panel);border-radius:8px;
+    padding:6px 12px;cursor:pointer;font:inherit;font-size:12.5px;color:var(--t2)}
+  .qa button:hover{background:var(--brand-soft);border-color:var(--brand-line);color:var(--brand)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:11px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:13px 16px;
+    box-shadow:var(--sh1);position:relative}
+  .card .k{font-size:11.5px;color:var(--t3);margin-bottom:5px;display:flex;align-items:center;gap:6px}
+  .card .v{font-family:var(--mono);font-size:16px;font-weight:600;word-break:break-all;
+    line-height:1.4;cursor:pointer}
+  .card .v:hover{color:var(--brand)}
+  .card .v.small{font-size:13px;font-weight:500}
+  .card .cp{position:absolute;right:10px;top:10px;opacity:0;border:none;background:none;
+    cursor:pointer;font-size:12px;color:var(--t3);padding:3px 6px;border-radius:5px}
+  .card:hover .cp{opacity:1}
+  .card .cp:hover{background:var(--soft);color:var(--brand)}
+  h3{margin:22px 0 11px;font-size:13px;text-transform:uppercase;letter-spacing:.06em;
+     color:var(--t3);font-weight:700}
+  .bits{display:flex;flex-wrap:wrap;gap:2px;margin-top:6px}
+  .bit{width:19px;height:24px;border-radius:4px;display:flex;align-items:center;justify-content:center;
+    font-family:var(--mono);font-size:11.5px;background:var(--soft);color:var(--t3);
+    cursor:default;position:relative}
+  .bit.on{background:var(--brand);color:#fff;font-weight:700}
+  .bit .i{position:absolute;top:-14px;font-size:9px;color:var(--t3)}
+  .err{background:#fdecec;border:1px solid #f6c9c9;color:#a02c2c;border-radius:10px;
+    padding:11px 14px;font-size:12.5px}
+  .hint{color:var(--t3);font-size:12px;margin-top:9px;line-height:1.7}
+  .swatch{height:64px;border-radius:10px;border:1px solid var(--line);margin-bottom:12px;
+    display:flex;align-items:center;justify-content:center;font-family:var(--mono);
+    font-size:14px;font-weight:600}
+  .row{display:grid;grid-template-columns:1fr auto 1fr;gap:11px;align-items:end}
+  .row .arrow{font-size:19px;color:var(--t3);padding-bottom:12px}
+  .res{background:var(--brand-soft);border:1px solid var(--brand-line);border-radius:12px;
+    padding:15px 18px;margin-top:14px}
+  .res .v{font-family:var(--mono);font-size:22px;font-weight:650;color:var(--brand);
+    word-break:break-all}
+  .toast{position:fixed;bottom:26px;left:50%;transform:translate(-50%,10px);
+    background:#1c1f26;color:#fff;padding:10px 20px;border-radius:10px;opacity:0;
+    transition:all .2s;pointer-events:none;font-size:13px;z-index:99}
+  .toast.on{opacity:.97;transform:translate(-50%,0)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="bar">
+    <span class="brand"><span class="mk">#</span>程序员计算器</span>
+    <div class="tabs" id="tabs">
+      <button data-v="num" class="on">进制</button>
+      <button data-v="bits">位运算</button>
+      <button data-v="color">颜色</button>
+      <button data-v="calc">算式</button>
+      <button data-v="time">时间戳</button>
+      <button data-v="unit">单位</button>
+    </div>
+    <span class="spacer"></span>
+    <span class="now" id="now" title="点一下复制当前时间戳"></span>
+  </div>
+</header>
+
+<main><div class="wrap" id="view"></div></main>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+const S = { view: "num", units: {}, now: {} };
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g,
+  c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const api = async p => { const r = await fetch(p); if(!r.ok) throw new Error(r.status); return r.json(); };
+const post = async (p,b) => (await fetch(p,{method:"POST",headers:{"Content-Type":"application/json"},
+  body:JSON.stringify(b||{})})).json();
+function toast(m){ const t=$("toast"); t.textContent=m; t.classList.add("on");
+  setTimeout(()=>t.classList.remove("on"),1600); }
+function copy(t){ navigator.clipboard.writeText(String(t)).then(()=>toast("已复制 " + String(t).slice(0,40))); }
+
+function card(k, v, small){
+  return `<div class="card"><div class="k">${esc(k)}</div>
+    <div class="v ${small?"small":""}" data-cp="${esc(v)}">${esc(v)}</div>
+    <button class="cp" data-cp2="${esc(v)}">复制</button></div>`;
+}
+function bindCopy(){
+  document.querySelectorAll("[data-cp]").forEach(el => el.onclick = () => copy(el.dataset.cp));
+  document.querySelectorAll("[data-cp2]").forEach(el => el.onclick = e => {
+    e.stopPropagation(); copy(el.dataset.cp2);
+  });
+}
+
+/* ══ 进制 ══ */
+function viewNum(){
+  $("view").innerHTML = `
+    <div class="q">
+      <label>输入任意进制的数（认 0x / 0b / 0o 前缀，也可以直接敲十六进制）</label>
+      <input id="nv" placeholder="0x2F6DF6　或　255　或　0b11111111" autocomplete="off">
+      <div class="qa">
+        <button data-ex="0x2F6DF6">0x2F6DF6</button>
+        <button data-ex="255">255</button>
+        <button data-ex="0b11111111">0b11111111</button>
+        <button data-ex="0o755">0o755</button>
+        <button data-ex="1757850000">1757850000</button>
+      </div>
+    </div>
+    <div id="nout"><div class="hint">输入即算。点任意结果复制。</div></div>`;
+  $("nv").oninput = async () => {
+    const v = $("nv").value.trim();
+    if(!v){ $("nout").innerHTML = `<div class="hint">输入即算。点任意结果复制。</div>`; return; }
+    const d = await post("/api/number", {value: v});
+    if(!d.ok){ $("nout").innerHTML = `<div class="err">${esc(d.error)}</div>`; return; }
+    let h = `<h3>各种进制</h3><div class="grid">`;
+    for(const [k, val] of Object.entries(d.bases)) h += card(k, val, k.includes("字节"));
+    h += `</div>`;
+    if(d.bits && d.bits.length){
+      h += `<h3>32 位（点亮的位 = 1）</h3><div class="bits">` +
+        d.bits.map(b => `<div class="bit ${b.on?"on":""}" title="bit ${b.bit}　值 ${1<<b.bit}">
+          ${b.on?1:0}</div>`).join("") + `</div>
+        <div class="hint">鼠标悬停看是第几位。看权限位/标志位时用这个。</div>`;
+    }
+    $("nout").innerHTML = h;
+    bindCopy();
+  };
+  document.querySelectorAll("[data-ex]").forEach(b => b.onclick = () => {
+    $("nv").value = b.dataset.ex; $("nv").oninput();
+  });
+  $("nv").focus();
+}
+
+/* ══ 位运算 ══ */
+function viewBits(){
+  $("view").innerHTML = `
+    <div class="q">
+      <div class="row">
+        <div><label>A</label><input id="ba" value="0b1101" autocomplete="off"></div>
+        <div class="arrow">⇄</div>
+        <div><label>B</label><input id="bb" value="0b1011" autocomplete="off"></div>
+      </div>
+      <div class="qa"><button id="btnSwap">交换 A B</button>
+        <span class="hint" style="margin:0">支持 0x / 0b / 0o 前缀</span></div>
+    </div>
+    <div id="bout"></div>`;
+  const run = async () => {
+    const d = await post("/api/bitops", {a: $("ba").value, b: $("bb").value});
+    if(!d.ok){ $("bout").innerHTML = `<div class="err">${esc(d.error)}</div>`; return; }
+    let h = `<h3>运算结果</h3><div class="grid">`;
+    for(const [k,v] of Object.entries(d.ops)) h += card(k, v);
+    h += `</div><h3>差异</h3><div class="grid">`;
+    for(const [k,v] of Object.entries(d.hamming)) h += card(k, v);
+    h += `</div><h3>A 的 32 位</h3><div class="bits">` +
+      d.a_bits.map(b => `<div class="bit ${b.on?"on":""}" title="bit ${b.bit}">
+        ${b.on?1:0}</div>`).join("") + `</div>
+      <h3>B 的 32 位</h3><div class="bits">` +
+      d.b_bits.map(b => `<div class="bit ${b.on?"on":""}" title="bit ${b.bit}">
+        ${b.on?1:0}</div>`).join("") + `</div>`;
+    $("bout").innerHTML = h; bindCopy();
+  };
+  $("ba").oninput = run; $("bb").oninput = run;
+  $("btnSwap").onclick = () => { const t=$("ba").value; $("ba").value=$("bb").value;
+    $("bb").value=t; run(); };
+  run();
+}
+
+/* ══ 颜色 ══ */
+function viewColor(){
+  $("view").innerHTML = `
+    <div class="q">
+      <label>输入颜色（#RGB / #RRGGBB / #AARRGGBB / rgb() / rgba()）</label>
+      <input id="cv" value="#2f6df6" autocomplete="off">
+      <div class="qa">
+        <input type="color" id="cpick" value="#2f6df6"
+          style="width:60px;height:34px;padding:2px;cursor:pointer">
+        <button data-ex="#0f766e">#0f766e</button>
+        <button data-ex="#d23b3b">#d23b3b</button>
+        <button data-ex="rgba(47,109,246,0.5)">rgba(...,0.5)</button>
+      </div>
+    </div>
+    <div id="cout"></div>`;
+  const run = async () => {
+    const d = await post("/api/color", {value: $("cv").value});
+    if(!d.ok){ $("cout").innerHTML = `<div class="err">${esc(d.error)}</div>`; return; }
+    const c = d.rgb;
+    const txt = (0.299*c.r + 0.587*c.g + 0.114*c.b)/255 > 0.55 ? "#000" : "#fff";
+    let h = `<div class="swatch" style="background:${esc($("cv").value)};color:${txt}">
+      ${esc(d.info.HEX)}</div><div class="grid">`;
+    for(const [k,v] of Object.entries(d.info)) h += card(k, v, k.length > 6);
+    h += `</div><div class="hint">颜色就直接复制走 —— iOS / Android / SwiftUI 三种写法都给了。</div>`;
+    $("cout").innerHTML = h; bindCopy();
+  };
+  $("cv").oninput = run;
+  $("cpick").oninput = () => { $("cv").value = $("cpick").value; run(); };
+  document.querySelectorAll("[data-ex]").forEach(b => b.onclick = () => {
+    $("cv").value = b.dataset.ex; run();
+  });
+  run();
+}
+
+/* ══ 算式 ══ */
+function viewCalc(){
+  $("view").innerHTML = `
+    <div class="q">
+      <label>算式（支持 0x / 0b / 0o，运算符 + - * / % ( ) & | ^ ~ &lt;&lt; &gt;&gt;）</label>
+      <input id="ev" value="0x2F6DF6 | 0xFF00" autocomplete="off">
+      <div class="qa">
+        <button data-ex="0x2F6DF6 | 0xFF00">按位或</button>
+        <button data-ex="(1 << 8) - 1">(1&lt;&lt;8)-1</button>
+        <button data-ex="0xFF &amp; 0x0F">按位与</button>
+        <button data-ex="1024 * 1024 * 5">算大小</button>
+        <button data-ex="0b1101 ^ 0b1011">异或</button>
+      </div>
+      <div class="hint">回车即算。十六进制和十进制可以混着写。</div>
+    </div>
+    <div id="eout"></div>`;
+  const run = async () => {
+    const v = $("ev").value.trim();
+    if(!v){ $("eout").innerHTML = ""; return; }
+    const d = await post("/api/calc", {expr: v});
+    if(!d.ok){ $("eout").innerHTML = `<div class="err">${esc(d.error)}</div>`; return; }
+    let h = `<div class="res"><div class="k" style="font-size:11.5px;color:var(--t2);
+      margin-bottom:5px">结果</div><div class="v">${esc(d.display)}</div></div>`;
+    if(d.bases && Object.keys(d.bases).length){
+      h += `<h3>其他进制</h3><div class="grid">`;
+      for(const [k,val] of Object.entries(d.bases)) h += card(k, val, true);
+      h += `</div>`;
+    }
+    $("eout").innerHTML = h; bindCopy();
+  };
+  $("ev").oninput = run;
+  $("ev").addEventListener("keydown", e => { if(e.key === "Enter") run(); });
+  document.querySelectorAll("[data-ex]").forEach(b => b.onclick = () => {
+    $("ev").value = b.dataset.ex; run();
+  });
+  run();
+}
+
+/* ══ 时间戳 ══ */
+function viewTime(){
+  $("view").innerHTML = `
+    <div class="q">
+      <label>时间戳（秒 / 毫秒 / 微秒 —— 自动认）</label>
+      <input id="tv" placeholder="1757850000" autocomplete="off">
+      <div class="qa">
+        <button id="btnNow">用当前时间</button>
+        <button id="btnToday">今天 0 点</button>
+        <button id="btnWeek">本周一 0 点</button>
+      </div>
+    </div>
+    <div id="tout"></div>`;
+  const run = async () => {
+    const v = $("tv").value.trim();
+    if(!v){ $("tout").innerHTML = ""; return; }
+    const d = await post("/api/time", {value: v});
+    if(!d.ok){ $("tout").innerHTML = `<div class="err">${esc(d.error)}</div>`; return; }
+    let h = `<div class="grid">`;
+    for(const [k,val] of Object.entries(d.info)) h += card(k, val, k.includes("ISO")||k.includes("时间"));
+    h += `</div><div class="hint">反向也支持：把「现在(毫秒)」复制去别处用。</div>`;
+    $("tout").innerHTML = h; bindCopy();
+  };
+  $("tv").oninput = run;
+  $("btnNow").onclick = () => { $("tv").value = S.now["现在(秒)"] || String(Math.floor(Date.now()/1000)); run(); };
+  $("btnToday").onclick = () => { $("tv").value = S.now["今天 0 点"]; run(); };
+  $("btnWeek").onclick = () => { $("tv").value = S.now["本周一 0 点"]; run(); };
+}
+
+/* ══ 单位 ══ */
+function viewUnit(){
+  const cats = Object.keys(S.units);
+  $("view").innerHTML = `
+    <div class="q">
+      <div class="row">
+        <div><label>数值</label><input id="uv" value="1" autocomplete="off"></div>
+        <div class="arrow">→</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
+          <div><label>从</label><select id="uf"></select></div>
+          <div><label>到</label><select id="ut"></select></div>
+        </div>
+      </div>
+      <div class="qa" style="margin-top:12px">
+        <label style="margin:0;align-self:center">类别</label>
+        <select id="ucat" style="width:auto;font-size:13px;font-family:inherit;padding:6px 11px">
+          ${cats.map(c => `<option>${esc(c)}</option>`).join("")}
+        </select>
+      </div>
+    </div>
+    <div id="uout"></div>`;
+  const fillUnits = () => {
+    const list = S.units[$("ucat").value] || [];
+    $("uf").innerHTML = list.map(u => `<option>${esc(u)}</option>`).join("");
+    $("ut").innerHTML = list.map((u,i) => `<option${i===1?" selected":""}>${esc(u)}</option>`).join("");
+  };
+  const run = async () => {
+    const d = await post("/api/unit", {cat: $("ucat").value, value: $("uv").value,
+      from: $("uf").value, to: $("ut").value});
+    if(!d.ok){ $("uout").innerHTML = `<div class="err">${esc(d.error)}</div>`; return; }
+    $("uout").innerHTML = `<div class="res">
+      <div style="font-size:12px;color:var(--t2);margin-bottom:6px">
+        ${esc($("uv").value)} ${esc($("uf").value)} =</div>
+      <div class="v">${esc(d.raw)} ${esc($("ut").value)}</div>
+      <button class="cp" style="opacity:1;position:static;margin-top:9px;border:1px solid var(--line);
+        padding:4px 11px;font-size:12px" data-cp2="${esc(d.raw)}">复制结果</button>
+    </div>`;
+    bindCopy();
+  };
+  $("ucat").onchange = () => { fillUnits(); run(); };
+  ["uv","uf","ut"].forEach(id => { $(id).oninput = run; $(id).onchange = run; });
+  fillUnits(); run();
+}
+
+/* ══ 切换 ══ */
+const VIEWS = {num: viewNum, bits: viewBits, color: viewColor,
+               calc: viewCalc, time: viewTime, unit: viewUnit};
+document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => {
+  S.view = b.dataset.v;
+  document.querySelectorAll("#tabs button").forEach(x => x.classList.toggle("on", x === b));
+  VIEWS[S.view]();
+});
+$("now").onclick = () => copy(S.now["现在(秒)"] || "");
+
+api("/api/status").then(st => {
+  S.units = st.units || {};
+  S.now = st.now || {};
+  $("now").textContent = "现在 " + (S.now["现在(秒)"] || "");
+  VIEWS[S.view]();
+}).catch(() => VIEWS[S.view]());
+</script>
+</body>
+</html>

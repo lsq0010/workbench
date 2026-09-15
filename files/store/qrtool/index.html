@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>二维码工具</title>
+<style>
+  :root{
+    --bg:#f4f5f7;--panel:#fff;--panel2:#fafbfc;--line:#e6e8ec;--soft:#f0f1f4;
+    --text:#16181d;--t2:#5b6472;--t3:#98a1ad;
+    --brand:#111827;--brand-soft:#f3f4f6;--brand-line:#d1d5db;
+    --ok:#12894f;--ok-soft:#e7f6ee;--warn:#a9670a;--warn-soft:#fdf3e3;--danger:#d23b3b;
+    --sh1:0 1px 2px rgba(16,24,40,.05);--sh2:0 2px 8px rgba(16,24,40,.07);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB",sans-serif;
+  }
+  *{box-sizing:border-box}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:#cfd3da;border:3px solid transparent;
+    background-clip:content-box;border-radius:8px}
+  html,body{height:100%}
+  body{margin:0;font:14px/1.55 var(--sans);background:var(--bg);color:var(--text);
+       display:flex;flex-direction:column;overflow:hidden;-webkit-font-smoothing:antialiased}
+  header{flex:none;background:var(--panel);border-bottom:1px solid var(--line);box-shadow:var(--sh1)}
+  .bar{display:flex;align-items:center;gap:10px;padding:0 20px;height:56px}
+  .brand{font-weight:650;font-size:15.5px;display:flex;align-items:center;gap:9px;flex:none}
+  .brand .mk{width:24px;height:24px;border-radius:6px;display:flex;align-items:center;
+    justify-content:center;font-size:13px;background:#111827;color:#fff}
+  .spacer{flex:1}
+  .tabs{display:flex;gap:3px;background:#eceef2;padding:3px;border-radius:10px}
+  .tabs button{border:none;background:transparent;border-radius:7px;padding:6px 15px;
+    font-size:13.5px;color:var(--t2);font-weight:550;cursor:pointer;font-family:inherit;
+    transition:all .14s}
+  .tabs button.on{background:var(--panel);color:var(--text);box-shadow:var(--sh1)}
+  .stat{color:var(--t3);font-size:12px;font-family:var(--mono)}
+
+  main{flex:1;display:flex;min-height:0;overflow:hidden}
+  #left{width:400px;flex:none;border-right:1px solid var(--line);background:var(--panel);
+    overflow:auto;padding:18px}
+  #right{flex:1;display:flex;flex-direction:column;min-width:0;background:var(--panel2);
+    overflow:auto;padding:24px}
+  h4{margin:0 0 10px;font-size:12px;color:var(--t3);text-transform:uppercase;
+     letter-spacing:.06em;font-weight:700}
+  h4:not(:first-child){margin-top:20px}
+  .kinds{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:4px}
+  .kinds button{border:1px solid var(--line);background:var(--panel);border-radius:9px;
+    padding:9px 4px;cursor:pointer;font-family:inherit;font-size:11.5px;color:var(--t2);
+    display:flex;flex-direction:column;align-items:center;gap:3px;transition:all .12s}
+  .kinds button .e{font-size:17px}
+  .kinds button:hover{border-color:var(--brand-line);background:var(--brand-soft)}
+  .kinds button.on{border-color:var(--brand);background:var(--brand-soft);color:var(--text);
+    font-weight:600;box-shadow:0 0 0 2px rgba(17,24,39,.06)}
+  .fld{margin-bottom:11px}
+  .fld label{display:block;font-size:12px;color:var(--t2);margin-bottom:4px}
+  input,select,textarea{width:100%;font:inherit;font-size:13px;border:1px solid var(--line);
+    border-radius:8px;padding:7px 11px;background:var(--panel);color:var(--text);outline:none}
+  input:focus,select:focus,textarea:focus{border-color:var(--brand);
+    box-shadow:0 0 0 3px rgba(17,24,39,.07)}
+  textarea{resize:vertical;min-height:74px;font-family:var(--mono);font-size:12.5px}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+  .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px}
+  .chk{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--t2);
+    margin-bottom:8px;cursor:pointer}
+  .chk input{width:auto;accent-color:#111827}
+  .colors{display:flex;gap:9px;align-items:center}
+  .colors input[type=color]{width:46px;height:34px;padding:2px;cursor:pointer}
+  button.act{border:1px solid var(--line);background:var(--panel);border-radius:8px;
+    padding:8px 14px;cursor:pointer;font:inherit;font-size:13px;color:var(--text);
+    transition:all .13s}
+  button.act:hover{background:#f7f8fa}
+  button.act.pri{background:#111827;border-color:#111827;color:#fff;font-weight:600}
+  button.act.pri:hover{background:#000}
+  button.act:disabled{opacity:.45;cursor:not-allowed}
+  .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+  .note{color:var(--t3);font-size:11.5px;margin-top:7px;line-height:1.6}
+  .preview{background:var(--panel);border:1px solid var(--line);border-radius:14px;
+    padding:24px;display:flex;align-items:center;justify-content:center;min-height:300px;
+    box-shadow:var(--sh1);flex:none}
+  .preview img{max-width:100%;max-height:420px;display:block;
+    image-rendering:pixelated;border-radius:6px}
+  .empty{text-align:center;color:var(--t3);font-size:13px;line-height:1.9}
+  .empty .big{font-size:40px;opacity:.35;display:block;margin-bottom:10px}
+  .info{margin-top:14px;display:flex;gap:8px;flex-wrap:wrap}
+  .chip{background:var(--panel);border:1px solid var(--line);border-radius:999px;
+    padding:4px 12px;font-size:12px;color:var(--t2);font-family:var(--mono)}
+  .chip b{color:var(--text)}
+  .content{background:var(--panel);border:1px solid var(--line);border-radius:11px;
+    padding:11px 14px;margin-top:12px;font-family:var(--mono);font-size:12px;
+    white-space:pre-wrap;word-break:break-all;max-height:150px;overflow:auto;color:var(--t2)}
+  .drop{border:2px dashed var(--line);border-radius:14px;padding:34px;text-align:center;
+    color:var(--t3);cursor:pointer;transition:all .15s;background:var(--panel)}
+  .drop:hover,.drop.over{border-color:var(--brand);background:var(--brand-soft);color:var(--text)}
+  .drop .big{font-size:38px;display:block;margin-bottom:10px;opacity:.5}
+  .dq{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:14px 16px;
+    margin-bottom:10px;box-shadow:var(--sh1)}
+  .dq .h{font-size:11.5px;color:var(--t3);margin-bottom:6px;display:flex;align-items:center;gap:8px}
+  .dq .t{font-family:var(--mono);font-size:13px;white-space:pre-wrap;word-break:break-all}
+  .err{background:#fdecec;border:1px solid #f6c9c9;color:#a02c2c;border-radius:10px;
+    padding:11px 14px;font-size:12.5px;margin-bottom:10px}
+  .okbox{background:var(--ok-soft);border:1px solid #bfe6cf;color:#0d6b3e;border-radius:10px;
+    padding:11px 14px;font-size:12.5px;margin-bottom:10px}
+  .batch{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:12px;
+    margin-top:14px}
+  .bitem{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:10px;
+    text-align:center;box-shadow:var(--sh1)}
+  .bitem img{width:100%;image-rendering:pixelated;border-radius:4px}
+  .bitem .t{font-size:11px;color:var(--t2);font-family:var(--mono);margin-top:7px;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .toast{position:fixed;bottom:26px;left:50%;transform:translate(-50%,10px);
+    background:#1c1f26;color:#fff;padding:10px 20px;border-radius:10px;opacity:0;
+    transition:all .2s;pointer-events:none;font-size:13px;z-index:99;max-width:70vw;
+    text-align:center;box-shadow:var(--sh2)}
+  .toast.on{opacity:.97;transform:translate(-50%,0)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="bar">
+    <span class="brand"><span class="mk">▦</span>二维码工具</span>
+    <div class="tabs" id="tabs">
+      <button data-v="make" class="on">生成</button>
+      <button data-v="read">识别</button>
+      <button data-v="batch">批量</button>
+    </div>
+    <span class="spacer"></span>
+    <span class="stat" id="stat"></span>
+  </div>
+</header>
+
+<main>
+  <aside id="left"></aside>
+  <div id="right"></div>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+const S = { view: "make", kind: "url", info: null, png: null, svg: null,
+            logo: null, decoders: [] };
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g,
+  c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const api = async p => { const r = await fetch(p); if(!r.ok) throw new Error(r.status); return r.json(); };
+const post = async (p,b) => {
+  const r = await fetch(p,{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify(b||{})});
+  const j = await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(j.error || ("HTTP "+r.status));
+  return j;
+};
+function toast(m){ const t=$("toast"); t.textContent=m; t.classList.add("on");
+  setTimeout(()=>t.classList.remove("on"),2200); }
+
+const KINDS = [
+  {id:"url",  e:"🔗", n:"网址"},
+  {id:"text", e:"📝", n:"文本"},
+  {id:"wifi", e:"📶", n:"WiFi"},
+  {id:"vcard",e:"👤", n:"名片"},
+  {id:"tel",  e:"📞", n:"电话"},
+  {id:"sms",  e:"💬", n:"短信"},
+  {id:"email",e:"✉️", n:"邮件"},
+  {id:"geo",  e:"📍", n:"位置"},
+];
+
+const FORMS = {
+  url:   [["url","网址","text","https://www.speedaf.com/track?no=SF12345678901"]],
+  text:  [["text","内容","area","任何文字都行。中文、emoji、换行都可以。"]],
+  wifi:  [["wifi_ssid","网络名（SSID）","text","Office-5G"],
+          ["wifi_enc","加密方式","select",[["WPA","WPA/WPA2/WPA3"],["WEP","WEP"],["nopass","不加密"]]],
+          ["wifi_pass","密码","text",""],
+          ["wifi_hidden","隐藏网络","check",null]],
+  vcard: [["vc_name","姓名","text","张三"],
+          ["vc_tel","手机","text","13812345678"],
+          ["vc_org","公司","text","Speedaf"],
+          ["vc_title","职位","text",""],
+          ["vc_email","邮箱","text",""],
+          ["vc_url","网址","text",""],
+          ["vc_note","备注","text",""]],
+  tel:   [["tel","电话号码","text","13812345678"]],
+  sms:   [["sms_to","发给","text","13812345678"],
+          ["sms_body","内容","text",""]],
+  email: [["em_to","收件人","text","example@example.com"],
+          ["em_subject","主题","text",""],
+          ["em_body","正文","text",""]],
+  geo:   [["geo_lat","纬度","text","22.5431"],
+          ["geo_lng","经度","text","114.0579"]],
+};
+
+async function boot(){
+  try{
+    const st = await api("/api/status");
+    S.decoders = st.decoders || [];
+    $("stat").textContent = S.decoders.length
+      ? `识别解码器 ${S.decoders.join(" / ")}` : "没有识别解码器";
+  }catch(e){}
+  render();
+}
+
+function render(){
+  document.querySelectorAll("#tabs button").forEach(b =>
+    b.classList.toggle("on", b.dataset.v === S.view));
+  if(S.view === "make") renderMake();
+  else if(S.view === "read") renderRead();
+  else renderBatch();
+}
+
+/* ══════ 生成 ══════ */
+function renderMake(){
+  $("left").innerHTML = `
+    <h4>① 要做什么码</h4>
+    <div class="kinds" id="kinds">
+      ${KINDS.map(k => `<button data-k="${k.id}" class="${S.kind===k.id?"on":""}">
+        <span class="e">${k.e}</span>${k.n}</button>`).join("")}
+    </div>
+    <h4>② 内容</h4>
+    <div id="form"></div>
+    <h4>③ 样式</h4>
+    <div class="row2">
+      <div class="fld"><label>尺寸 <span id="szv">10</span> px/格</label>
+        <input id="scale" type="range" min="3" max="30" value="10"></div>
+      <div class="fld"><label>留白 <span id="bdv">4</span> 格</label>
+        <input id="border" type="range" min="0" max="10" value="4"></div>
+    </div>
+    <div class="fld"><label>容错级别</label><select id="ecc"></select></div>
+    <div class="fld"><label>颜色</label>
+      <div class="colors">
+        <input type="color" id="dark" value="#000000" title="前景">
+        <input type="color" id="light" value="#ffffff" title="背景">
+        <button class="act" id="btnSwap" style="padding:4px 10px;font-size:12px">互换</button>
+        <button class="act" id="btnGray" style="padding:4px 10px;font-size:12px">黑白</button>
+      </div>
+    </div>
+    <div class="fld"><label>中间放 logo（会自动把容错提到 H）</label>
+      <input type="file" id="logo" accept="image/*" style="font-size:12px;padding:5px">
+    </div>
+    <div class="actions">
+      <button class="act pri" id="btnGen">生成</button>
+      <button class="act" id="btnSave" disabled>存到桌面</button>
+      <button class="act" id="btnPng" disabled>下载 PNG</button>
+      <button class="act" id="btnSvg" disabled>下载 SVG</button>
+    </div>
+    <div class="note">SVG 是矢量图，放大印刷不糊，做物料用这个。</div>`;
+  renderForm();
+  const st = S.eccLevels || [];
+  $("ecc").innerHTML = (st.length ? st : [
+      {id:"L",name:"L 低（7%）"},{id:"M",name:"M 中（15%）"},
+      {id:"Q",name:"Q 较高（25%）"},{id:"H",name:"H 最高（30%）"}])
+    .map(x => `<option value="${x.id}"${x.id==="M"?" selected":""}>${esc(x.name)}</option>`).join("");
+  $("scale").oninput = () => { $("szv").textContent = $("scale").value; };
+  $("border").oninput = () => { $("bdv").textContent = $("border").value; };
+  $("btnSwap").onclick = () => { const d=$("dark").value; $("dark").value=$("light").value;
+    $("light").value=d; };
+  $("btnGray").onclick = () => { $("dark").value="#000000"; $("light").value="#ffffff"; };
+  $("logo").onchange = e => {
+    const f = e.target.files[0];
+    if(!f) { S.logo = null; return; }
+    const r = new FileReader();
+    r.onload = () => { S.logo = r.result; toast("logo 已选，生成时会贴到中心"); };
+    r.readAsDataURL(f);
+  };
+  $("btnGen").onclick = generate;
+  $("btnSave").onclick = save;
+  $("btnPng").onclick = () => download("qrcode.png", S.png);
+  $("btnSvg").onclick = () => download("qrcode.svg", S.svg, "image/svg+xml");
+  document.querySelectorAll("#kinds button").forEach(b => b.onclick = () => {
+    S.kind = b.dataset.k; renderMake();
+  });
+  $("right").innerHTML = rightPlaceholder();
+}
+
+function rightPlaceholder(){
+  return `<div class="preview" style="flex:1"><div class="empty">
+    <span class="big">▦</span>左边填内容，点「生成」<br>
+    <span style="font-size:12px">全在本地算，内容不会出这台电脑</span></div></div>`;
+}
+
+function renderForm(){
+  const fields = FORMS[S.kind] || FORMS.text;
+  $("form").innerHTML = fields.map(([id, label, type, extra]) => {
+    if(type === "select")
+      return `<div class="fld"><label>${esc(label)}</label><select id="${id}">
+        ${extra.map(([v,n]) => `<option value="${v}">${esc(n)}</option>`).join("")}</select></div>`;
+    if(type === "check")
+      return `<label class="chk"><input type="checkbox" id="${id}">${esc(label)}</label>`;
+    if(type === "area")
+      return `<div class="fld"><label>${esc(label)}</label>
+        <textarea id="${id}" placeholder="${esc(extra||"")}"></textarea></div>`;
+    return `<div class="fld"><label>${esc(label)}</label>
+      <input id="${id}" placeholder="${esc(extra||"")}"></div>`;
+  }).join("");
+  // 填默认值
+  fields.forEach(([id, , type, extra]) => {
+    const el = $(id); if(!el) return;
+    if(type === "text" && extra && !el.value) el.value = "";
+  });
+}
+
+function collect(){
+  const fields = FORMS[S.kind] || FORMS.text;
+  const out = {};
+  fields.forEach(([id, , type]) => {
+    const el = $(id); if(!el) return;
+    out[id] = type === "check" ? el.checked : el.value;
+  });
+  return out;
+}
+
+async function generate(){
+  $("btnGen").disabled = true; $("btnGen").textContent = "生成中…";
+  try{
+    const r = await post("/api/generate", {
+      kind: S.kind, fields: collect(),
+      ecc: $("ecc").value, scale: +$("scale").value, border: +$("border").value,
+      dark: $("dark").value, light: $("light").value, logo: S.logo});
+    if(!r.ok){
+      $("right").innerHTML = `<div class="err">${esc(r.error)}</div>`;
+    }else{
+      S.info = r.info; S.png = r.png; S.svg = r.svg;
+      paint();
+      ["btnSave","btnPng","btnSvg"].forEach(b => {
+        const el = $(b); if(el) el.disabled = (b === "btnSave" ? !r.png : (b==="btnPng" ? !r.png : !r.svg));
+      });
+    }
+  }catch(e){
+    $("right").innerHTML = `<div class="err">生成失败：${esc(e.message)}</div>`;
+  }
+  $("btnGen").disabled = false; $("btnGen").textContent = "生成";
+}
+
+function paint(){
+  const i = S.info;
+  const segs = (i.segments || []);
+  const SEGN = {1:"数字", 2:"字母数字", 4:"字节"};
+  const segTxt = segs.length > 1
+    ? segs.map(s => `${SEGN[s.mode]||"?"}(${s.len})`).join(" + ")
+    : (i.mode || "");
+  $("right").innerHTML = `
+    <div class="preview">${S.png
+      ? `<img src="${S.png}" alt="二维码">`
+      : `<div class="empty">没装 Pillow，只能导出 SVG<br>
+         <span style="font-size:12px">装：python3 -m pip install --user Pillow</span></div>`}</div>
+    <div class="info">
+      <span class="chip">版本 <b>v${i.version}</b></span>
+      <span class="chip"><b>${i.size}×${i.size}</b> 模块</span>
+      <span class="chip">容错 <b>${i.ecc}</b></span>
+      <span class="chip">掩码 <b>${i.mask}</b></span>
+      <span class="chip">编码 <b>${esc(segTxt)}</b></span>
+      <span class="chip">${i.bytes} 字节</span>
+      ${i.png_bytes ? `<span class="chip">PNG ${(i.png_bytes/1024).toFixed(1)}KB</span>` : ""}
+      <span class="chip">${i.seconds}s</span>
+    </div>
+    ${i.logo ? `<div class="note">中心放了 logo —— 容错已自动提到 H（30%），
+      但建议生成后**用手机实际扫一下**确认。</div>` : ""}
+    ${segs.length > 1 ? `<div class="note">用了混合分段：数字段用数字模式比整串省位，
+      所以版本更小、更好扫。</div>` : ""}
+    <div class="content">${esc(i.content)}</div>`;
+}
+
+function download(name, data, mime){
+  if(!data) return toast("还没有可下载的内容");
+  let href = data;
+  if(!data.startsWith("data:")){
+    href = "data:" + (mime || "image/png") + ";charset=utf-8," + encodeURIComponent(data);
+  }
+  const a = document.createElement("a");
+  a.href = href; a.download = name; a.click();
+  toast("已下载 " + name);
+}
+
+async function save(){
+  if(!S.png) return toast("没有 PNG 可存（可能没装 Pillow）");
+  const name = "二维码-" + new Date().toISOString().slice(0,10) + "-" +
+               Math.random().toString(36).slice(2, 6);
+  try{
+    const r = await post("/api/save", {png: S.png, name});
+    toast("已存到桌面：" + r.path.split("/").pop());
+  }catch(e){ toast("保存失败：" + e.message); }
+}
+
+/* ══════ 识别 ══════ */
+function renderRead(){
+  $("left").innerHTML = `
+    <h4>识别二维码</h4>
+    <div class="drop" id="drop">
+      <span class="big">🖼</span>
+      把图片拖进来，或点这里选文件<br>
+      <span style="font-size:11.5px">支持 PNG / JPG / 截图，也能直接 ⌘V 粘贴</span>
+    </div>
+    <input type="file" id="pick" accept="image/*" style="display:none">
+    <div class="note">
+      解码器：${S.decoders.length ? S.decoders.join("、") : "本机没有（装 opencv-python 或 pyzbar）"}<br>
+      两个都试，谁先出结果用谁。图片不会离开这台电脑。
+    </div>`;
+  const drop = $("drop");
+  drop.onclick = () => $("pick").click();
+  $("pick").onchange = e => { const f = e.target.files[0]; if(f) readFile(f); };
+  drop.ondragover = e => { e.preventDefault(); drop.classList.add("over"); };
+  drop.ondragleave = () => drop.classList.remove("over");
+  drop.ondrop = e => {
+    e.preventDefault(); drop.classList.remove("over");
+    const f = e.dataTransfer.files[0]; if(f) readFile(f);
+  };
+  document.onpaste = e => {
+    const it = [...(e.clipboardData?.items || [])].find(x => x.type.startsWith("image/"));
+    if(it) readFile(it.getAsFile());
+  };
+  $("right").innerHTML = `<div class="preview" style="flex:1"><div class="empty">
+    <span class="big">🔍</span>拖张图进来<br>
+    <span style="font-size:12px">可以是你刚生成的码，也可以是别人发来的截图</span></div></div>`;
+}
+
+function readFile(file){
+  const r = new FileReader();
+  r.onload = async () => {
+    $("right").innerHTML = `<div class="preview" style="flex:1">
+      <div class="empty">识别中…</div></div>`;
+    try{
+      const d = await post("/api/decode", {image: r.result});
+      if(!d.ok){
+        $("right").innerHTML = `<div class="err">${esc(d.error)}</div>
+          <div class="preview"><img src="${r.result}" style="max-height:300px"></div>`;
+        return;
+      }
+      $("right").innerHTML = `
+        <div class="okbox">✅ 识别出 ${d.results.length} 个二维码（${d.seconds}s）</div>
+        ${d.results.map((x, i) => `<div class="dq">
+          <div class="h">#${i+1} · 由 ${esc(x.by)} 识别${x.type ? " · " + esc(x.type) : ""}
+            <span style="flex:1"></span>
+            <button class="act" data-cp="${i}" style="padding:2px 10px;font-size:11.5px">复制</button>
+            ${/^https?:/.test(x.text) ? `<button class="act" data-op="${i}"
+              style="padding:2px 10px;font-size:11.5px">打开</button>` : ""}</div>
+          <div class="t">${esc(x.text)}</div>
+        </div>`).join("")}
+        <div class="preview" style="margin-top:14px"><img src="${r.result}"
+          style="max-height:260px"></div>`;
+      document.querySelectorAll("[data-cp]").forEach(b => b.onclick = () => {
+        navigator.clipboard.writeText(d.results[+b.dataset.cp].text).then(()=>toast("已复制"));
+      });
+      document.querySelectorAll("[data-op]").forEach(b => b.onclick = () => {
+        window.open(d.results[+b.dataset.op].text, "_blank");
+      });
+    }catch(e){
+      $("right").innerHTML = `<div class="err">识别失败：${esc(e.message)}</div>`;
+    }
+  };
+  r.readAsDataURL(file);
+}
+
+/* ══════ 批量 ══════ */
+function renderBatch(){
+  $("left").innerHTML = `
+    <h4>批量生成</h4>
+    <div class="fld"><label>一行一个（最多 60 个）</label>
+      <textarea id="lines" style="min-height:180px"
+        placeholder="SF12345678901&#10;SF12345678902&#10;https://speedaf.com/track?no=SF12345678903"></textarea></div>
+    <div class="row2">
+      <div class="fld"><label>容错</label><select id="becc">
+        <option value="L">L 低</option><option value="M" selected>M 中</option>
+        <option value="Q">Q 较高</option><option value="H">H 最高</option></select></div>
+      <div class="fld"><label>尺寸 px/格</label>
+        <input id="bscale" type="number" value="6" min="3" max="20"></div>
+    </div>
+    <div class="actions"><button class="act pri" id="btnBatch">生成</button></div>
+    <div class="note">运单号批量做码时用这个 —— 数字模式会自动生效，比整串当文本省位。</div>`;
+  $("btnBatch").onclick = async () => {
+    const lines = $("lines").value;
+    if(!lines.trim()) return toast("先贴点内容");
+    $("btnBatch").disabled = true; $("btnBatch").textContent = "生成中…";
+    try{
+      const d = await post("/api/batch", {lines, ecc: $("becc").value,
+        scale: +$("bscale").value});
+      const ok = d.items.filter(x => x.ok);
+      $("right").innerHTML = `<div class="okbox">✅ 生成 ${ok.length}/${d.items.length} 个</div>
+        <div class="batch">${d.items.map(x => `<div class="bitem">
+          ${x.ok && x.png ? `<img src="${x.png}">` : `<div style="color:var(--danger);font-size:12px">${esc(x.error)}</div>`}
+          <div class="t" title="${esc(x.text)}">${esc(x.text)}</div>
+          ${x.ok ? `<div style="font-size:10.5px;color:var(--t3)">v${x.info.version}</div>` : ""}
+        </div>`).join("")}</div>`;
+    }catch(e){ toast("失败：" + e.message); }
+    $("btnBatch").disabled = false; $("btnBatch").textContent = "生成";
+  };
+  $("right").innerHTML = `<div class="preview" style="flex:1"><div class="empty">
+    <span class="big">▦▦</span>左边贴内容（一行一个）<br>
+    <span style="font-size:12px">适合一次做一批运单号/设备码</span></div></div>`;
+}
+
+document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => {
+  S.view = b.dataset.v; document.onpaste = null; render();
+});
+document.addEventListener("keydown", e => {
+  if((e.metaKey || e.ctrlKey) && e.key === "Enter" && S.view === "make"){
+    e.preventDefault(); generate();
+  }
+});
+boot();
+</script>
+</body>
+</html>

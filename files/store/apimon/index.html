@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>接口变更监控</title>
+<style>
+  :root{
+    --bg:#f4f5f7;--panel:#fff;--panel2:#fafbfc;--line:#e6e8ec;--soft:#f0f1f4;
+    --text:#16181d;--t2:#5b6472;--t3:#98a1ad;
+    --brand:#7c3aed;--brand-soft:#f3eeff;--brand-line:#ddd0ff;
+    --ok:#12894f;--ok-soft:#e7f6ee;--warn:#a9670a;--warn-soft:#fdf3e3;
+    --danger:#d23b3b;--danger-soft:#fdecec;
+    --sh1:0 1px 2px rgba(16,24,40,.05);--sh2:0 2px 8px rgba(16,24,40,.07);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB",sans-serif;
+  }
+  *{box-sizing:border-box}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:#cfd3da;border:3px solid transparent;
+    background-clip:content-box;border-radius:8px}
+  html,body{height:100%}
+  body{margin:0;font:14px/1.55 var(--sans);background:var(--bg);color:var(--text);
+       display:flex;flex-direction:column;overflow:hidden;-webkit-font-smoothing:antialiased}
+  header{flex:none;background:var(--panel);border-bottom:1px solid var(--line);box-shadow:var(--sh1)}
+  .bar{display:flex;align-items:center;gap:9px;padding:0 18px;height:54px}
+  .brand{font-weight:650;font-size:15.5px;display:flex;align-items:center;gap:8px}
+  .brand i{width:9px;height:9px;border-radius:3px;background:linear-gradient(135deg,#7c3aed,#b39dff)}
+  .spacer{flex:1}
+  .stat{color:var(--t2);font-size:12.5px}
+  button{border:1px solid var(--line);background:var(--panel);border-radius:8px;
+    padding:6px 12px;cursor:pointer;font:inherit;font-size:13px;color:var(--text);transition:all .13s}
+  button:hover{background:#f7f8fa}
+  button.pri{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:600}
+  button.pri:hover{background:#6b2fd6}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  input{font:inherit;font-size:13px;border:1px solid var(--line);border-radius:8px;
+    padding:7px 11px;background:var(--panel);outline:none}
+  input:focus{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft)}
+  select{font:inherit;font-size:12.5px;border:1px solid var(--line);border-radius:8px;
+    padding:6px 9px;background:var(--panel);cursor:pointer}
+
+  main{flex:1;display:flex;min-height:0;overflow:hidden}
+  #side{width:300px;flex:none;border-right:1px solid var(--line);background:var(--panel);
+    overflow:auto;padding:15px}
+  #side h4{margin:0 0 10px;font-size:12px;color:var(--t3);text-transform:uppercase;
+    letter-spacing:.06em}
+  .snap{background:var(--panel2);border:1px solid var(--line);border-radius:9px;
+    padding:9px 11px;margin-bottom:8px;cursor:pointer;transition:all .12s}
+  .snap:hover{border-color:var(--brand-line);background:var(--brand-soft)}
+  .snap.on{border-color:var(--brand);background:var(--brand-soft)}
+  .snap .t{font-family:var(--mono);font-size:12px;font-weight:600}
+  .snap .n{color:var(--t3);font-size:11.5px;margin-top:2px}
+  #main{flex:1;overflow:auto;padding:20px 24px 60px;min-width:0}
+  h2{margin:0 0 6px;font-size:17px;font-weight:650}
+  .sub{color:var(--t2);font-size:12.5px;margin-bottom:15px}
+  .cards{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:11px;
+    padding:11px 15px;box-shadow:var(--sh1);min-width:110px}
+  .kpi .k{color:var(--t3);font-size:11.5px}
+  .kpi .v{font-size:20px;font-weight:650;font-family:var(--mono);margin-top:3px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    margin-bottom:14px;overflow:hidden;box-shadow:var(--sh1)}
+  .card>summary{padding:11px 15px;cursor:pointer;font-weight:620;font-size:13.5px;
+    background:var(--panel2);list-style:none;display:flex;align-items:center;gap:8px}
+  .card>summary::-webkit-details-marker{display:none}
+  .card>summary::before{content:"▸";color:var(--t3);font-size:11px;transition:transform .15s}
+  .card[open]>summary::before{transform:rotate(90deg)}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th{text-align:left;color:var(--t3);font-weight:600;font-size:11.5px;padding:8px 12px;
+     background:var(--panel2);border-bottom:1px solid var(--line)}
+  td{padding:8px 12px;border-bottom:1px solid var(--soft);vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  .fld{font-family:var(--mono);font-size:12px;color:#5b21b6;word-break:break-all}
+  .ty{font-family:var(--mono);font-size:11.5px;color:var(--t2)}
+  .tag{font-size:10.5px;border-radius:5px;padding:2px 8px;font-weight:600;white-space:nowrap}
+  .t-new{background:var(--ok-soft);color:var(--ok)}
+  .t-gone{background:var(--danger-soft);color:var(--danger)}
+  .t-type{background:var(--warn-soft);color:var(--warn)}
+  .t-api{background:var(--brand-soft);color:var(--brand)}
+  .ok{background:var(--ok-soft);border:1px solid #bfe6cf;color:#0d6b3e;border-radius:11px;
+    padding:14px 17px;font-size:13.5px}
+  .warnbox{background:var(--warn-soft);border:1px solid #fde68a;color:#92400e;
+    border-radius:10px;padding:11px 14px;font-size:12.5px;margin-bottom:15px}
+  .err{background:var(--danger-soft);border:1px solid #f6c9c9;color:#a02c2c;border-radius:10px;
+    padding:12px 15px;font-size:13px}
+  .empty{text-align:center;padding:70px 20px;color:var(--t2)}
+  .empty .big{font-size:44px;opacity:.4;display:block;margin-bottom:14px}
+  .empty b{color:var(--text);display:block;font-size:15px;margin-bottom:8px}
+  .flow{display:flex;align-items:center;gap:10px;color:var(--t3);font-size:12.5px;
+    margin-bottom:16px;flex-wrap:wrap}
+  .flow .step{background:var(--panel);border:1px solid var(--line);border-radius:999px;
+    padding:3px 12px;color:var(--t2);box-shadow:var(--sh1)}
+  .flow .step.on{border-color:var(--brand);color:var(--brand);background:var(--brand-soft);
+    font-weight:600}
+  .toast{position:fixed;bottom:24px;left:50%;transform:translate(-50%,10px);
+    background:#1c1f26;color:#fff;padding:10px 20px;border-radius:10px;opacity:0;
+    transition:all .2s;pointer-events:none;font-size:13px;z-index:99}
+  .toast.on{opacity:.97;transform:translate(-50%,0)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="bar">
+    <span class="brand"><i></i>接口变更监控</span>
+    <span class="spacer"></span>
+    <span class="stat" id="stat"></span>
+    <input id="note" placeholder="快照备注（可留空）" style="width:180px">
+    <button class="pri" id="btnSnap">拍个快照</button>
+    <button id="btnCmp">对比基线</button>
+  </div>
+</header>
+
+<main>
+  <aside id="side">
+    <h4>快照历史</h4>
+    <div id="snaps"></div>
+    <h4 style="margin-top:18px">变更记录</h4>
+    <div id="changes"></div>
+  </aside>
+  <div id="main"></div>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+const S = { snaps: [], baseIdx: -1 };
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g,
+  c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const api = async p => { const r = await fetch(p); if(!r.ok) throw new Error(r.status); return r.json(); };
+const post = async (p,b) => (await fetch(p,{method:"POST",headers:{"Content-Type":"application/json"},
+  body:JSON.stringify(b||{})})).json();
+function toast(m){ const t=$("toast"); t.textContent=m; t.classList.add("on");
+  setTimeout(()=>t.classList.remove("on"),2000); }
+
+async function boot(){
+  try{
+    const st = await api("/api/status");
+    const up = st.upstream || {};
+    $("stat").innerHTML = up.ok
+      ? `<span style="color:var(--ok)">●</span> 已连上「接口契约」`
+      : `<span style="color:var(--danger)">●</span> 连不上「接口契约」`;
+    if(!up.ok){
+      $("main").innerHTML = `<div class="warnbox"><b>读不到接口契约</b><br>
+        这个功能不自己解析报文，它消费「<b>接口契约</b>」的数据。<br>
+        请依次确认：<br>
+        1. 「抓包工作台」在跑且抓到过业务报文<br>
+        2. 「接口契约」在跑（${esc(up.url)}）<br>
+        <span style="font-family:var(--mono);font-size:11.5px">${esc(up.error||"")}</span></div>`;
+      return;
+    }
+  }catch(e){}
+  await loadSnaps();
+  welcome();
+}
+
+function welcome(){
+  $("main").innerHTML = `<h2>接口有没有被偷偷改过？</h2>
+    <div class="sub">拍一个基线快照，之后服务端一改你就能看出来</div>
+    <div class="flow">
+      <span class="step on">① 抓包工作台 抓报文</span><span>→</span>
+      <span class="step on">② 接口契约 提取字段</span><span>→</span>
+      <span class="step">③ 这里 存基线 / 比差异</span>
+    </div>
+    <div class="empty"><span class="big">📌</span>
+      <b>还没有基线快照</b>
+      <span style="font-size:12.5px">点右上「拍个快照」把当前接口的字段结构存下来</span></div>`;
+}
+
+async function loadSnaps(){
+  const d = await api("/api/snapshots");
+  S.snaps = d.snapshots || [];
+  $("snaps").innerHTML = S.snaps.length ? S.snaps.map((s, i) => `
+    <div class="snap" data-i="${i}">
+      <div class="t">${esc(s.ts)}</div>
+      <div class="n">${s.apis} 个接口${s.note ? " · " + esc(s.note) : ""}</div>
+    </div>`).join("") : `<div style="color:var(--t3);font-size:12.5px">还没有快照</div>`;
+  document.querySelectorAll(".snap").forEach(el => el.onclick = () => {
+    S.baseIdx = +el.dataset.i;
+    document.querySelectorAll(".snap").forEach(x => x.classList.toggle("on", x === el));
+    compare();
+  });
+  try{
+    const c = await api("/api/changes");
+    $("changes").innerHTML = (c.changes||[]).length
+      ? c.changes.map(x => `<div style="font-size:11.5px;color:var(--t2);padding:4px 0;
+          border-bottom:1px solid var(--soft)">
+          <span style="font-family:var(--mono)">${esc((x.ts||"").slice(5,16))}</span>
+          · ${x.count} 处</div>`).join("")
+      : `<div style="color:var(--t3);font-size:12.5px">还没有记录</div>`;
+  }catch(e){}
+}
+
+$("btnSnap").onclick = async () => {
+  $("btnSnap").disabled = true; $("btnSnap").textContent = "拍摄中…";
+  const r = await post("/api/snapshot", {note: $("note").value.trim()});
+  $("btnSnap").disabled = false; $("btnSnap").textContent = "拍个快照";
+  if(!r.ok){ toast(r.error || "拍摄失败"); return; }
+  toast(`已存基线：${r.apis} 个接口`);
+  $("note").value = "";
+  await loadSnaps();
+};
+
+$("btnCmp").onclick = () => {
+  if(!S.snaps.length) return toast("先拍一个基线快照");
+  compare(S.baseIdx);
+};
+
+async function compare(idx){
+  $("main").innerHTML = `<div class="empty">对比中…</div>`;
+  const q = (idx !== undefined && idx >= 0) ? "?idx=" + idx : "";
+  try{
+    const d = await api("/api/compare" + q);
+    if(d.error){ $("main").innerHTML = `<div class="err">${esc(d.error)}</div>`; return; }
+    paint(d);
+  }catch(e){
+    $("main").innerHTML = `<div class="err">对比失败：${esc(e.message)}</div>`;
+  }
+}
+
+function paint(d){
+  const ch = d.changes || [];
+  const nNew = ch.filter(c => c.state === "新字段" || c.state === "新增").length;
+  const nGone = ch.filter(c => c.state === "字段没了" || c.state === "消失了").length;
+  const nType = ch.filter(c => c.state === "类型变了").length;
+
+  let h = `<h2>对比结果</h2>
+    <div class="sub">基线 <b>${esc(d.baseline.ts)}</b>${d.baseline.note ? "（"+esc(d.baseline.note)+"）" : ""}
+      　→　现在 ${d.current_apis} 个接口</div>
+    <div class="cards">
+      <div class="kpi"><div class="k">新字段</div><div class="v" style="color:var(--ok)">${nNew}</div></div>
+      <div class="kpi"><div class="k">字段消失</div><div class="v" style="color:${nGone?"var(--danger)":"var(--t3)"}">${nGone}</div></div>
+      <div class="kpi"><div class="k">类型变了</div><div class="v" style="color:${nType?"var(--warn)":"var(--t3)"}">${nType}</div></div>
+    </div>`;
+
+  if(!ch.length){
+    h += `<div class="ok">✅ 接口结构和基线完全一致 —— 服务端没动过字段</div>`;
+  }else{
+    const need = ch.filter(c => c.state === "字段没了" || c.state === "类型变了");
+    if(need.length){
+      h += `<div class="warnbox"><b>有 ${need.length} 处需要立刻检查</b><br>
+        字段消失或类型变化会让客户端解析失败（尤其是类型从 string 变成 int 这类）。<br>
+        建议用「报文对比」拿新报文和旧报文再核一遍。</div>`;
+    }
+    // 按接口分组
+    const by = {};
+    ch.forEach(c => (by[c.endpoint] = by[c.endpoint] || []).push(c));
+    h += Object.entries(by).map(([ep, items]) => `<details class="card" open>
+      <summary>${esc(ep)} <span style="color:var(--t3);font-weight:400">${items.length} 处</span></summary>
+      <table><thead><tr><th style="width:12%">位置</th><th style="width:14%">变化</th>
+        <th style="width:34%">字段</th><th style="width:20%">原来</th><th style="width:20%">现在</th>
+      </tr></thead><tbody>${items.map(c => {
+        const cls = c.state === "类型变了" ? "t-type"
+          : (c.state === "新字段" || c.state === "新增") ? "t-new" : "t-gone";
+        return `<tr>
+          <td><span class="tag ${c.level==="接口"?"t-api":"t-new"}">${esc(c.level)}</span></td>
+          <td><span class="tag ${cls}">${esc(c.state)}</span></td>
+          <td class="fld">${esc(c.field || c.endpoint)}</td>
+          <td class="ty">${esc(c.was ?? c.detail ?? "—")}</td>
+          <td class="ty">${esc(c.now ?? "—")}</td></tr>`;
+      }).join("")}</tbody></table></details>`).join("");
+    h += `<button id="btnRec" style="margin-top:6px">把这次结果记入变更历史</button>`;
+  }
+  $("main").innerHTML = h;
+  if($("btnRec")) $("btnRec").onclick = async () => {
+    await post("/api/record", {changes: ch, baseline: d.baseline});
+    toast("已记入历史"); loadSnaps();
+  };
+}
+
+boot();
+</script>
+</body>
+</html>

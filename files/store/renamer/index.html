@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>批量重命名</title>
+<style>
+  :root{
+    --bg:#f4f5f7;--panel:#fff;--panel2:#fafbfc;--line:#e6e8ec;--soft:#f0f1f4;
+    --text:#16181d;--t2:#5b6472;--t3:#98a1ad;
+    --brand:#c2410c;--brand-soft:#fff1e9;--brand-line:#ffd9c4;
+    --ok:#12894f;--ok-soft:#e7f6ee;--warn:#a9670a;--warn-soft:#fdf3e3;--danger:#d23b3b;
+    --sh1:0 1px 2px rgba(16,24,40,.05);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB",sans-serif;
+  }
+  *{box-sizing:border-box}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:#cfd3da;border:3px solid transparent;
+    background-clip:content-box;border-radius:8px}
+  html,body{height:100%}
+  body{margin:0;font:14px/1.55 var(--sans);background:var(--bg);color:var(--text);
+       display:flex;flex-direction:column;overflow:hidden;-webkit-font-smoothing:antialiased}
+  header{flex:none;background:var(--panel);border-bottom:1px solid var(--line);box-shadow:var(--sh1)}
+  .bar{display:flex;align-items:center;gap:9px;padding:0 18px;height:54px}
+  .brand{font-weight:650;font-size:15.5px;display:flex;align-items:center;gap:8px;flex:none}
+  .brand i{width:9px;height:9px;border-radius:3px;background:linear-gradient(135deg,#c2410c,#fb923c)}
+  .spacer{flex:1}
+  .stat{color:var(--t2);font-size:12.5px}
+  button{border:1px solid var(--line);background:var(--panel);border-radius:8px;
+    padding:6px 12px;cursor:pointer;font:inherit;font-size:13px;color:var(--text);transition:all .13s}
+  button:hover{background:#f7f8fa}
+  button.pri{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:600}
+  button.pri:hover{background:#9a3412}
+  button.danger{background:var(--danger);border-color:var(--danger);color:#fff;font-weight:600}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  input,select{font:inherit;font-size:13px;border:1px solid var(--line);border-radius:8px;
+    padding:6px 10px;background:var(--panel);color:var(--text);outline:none;min-width:0}
+  input:focus,select:focus{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft)}
+  main{flex:1;display:flex;min-height:0;overflow:hidden}
+  #side{width:330px;flex:none;border-right:1px solid var(--line);background:var(--panel);
+    overflow:auto;padding:16px}
+  #side h4{margin:0 0 9px;font-size:12px;color:var(--t3);text-transform:uppercase;letter-spacing:.06em}
+  .fld{margin-bottom:12px}
+  .fld label{display:block;font-size:12px;color:var(--t2);margin-bottom:4px}
+  .fld input,.fld select{width:100%}
+  .modes{display:flex;gap:3px;background:#eceef2;padding:3px;border-radius:9px;margin-bottom:13px;
+    flex-wrap:wrap}
+  .modes button{border:none;background:transparent;border-radius:6px;padding:5px 0;font-size:12px;
+    color:var(--t2);font-weight:500;flex:1;min-width:62px}
+  .modes button.on{background:var(--panel);color:var(--brand);font-weight:600;box-shadow:var(--sh1)}
+  .chk{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--t2);margin-bottom:8px;
+    cursor:pointer}
+  .chk input{accent-color:var(--brand);width:auto;min-width:auto}
+  #main{flex:1;display:flex;flex-direction:column;min-height:0;min-width:0}
+  .mhead{display:flex;align-items:center;gap:10px;padding:11px 18px;border-bottom:1px solid var(--soft);
+    background:var(--panel2);flex:none;flex-wrap:wrap}
+  #list{flex:1;overflow:auto;padding:14px 18px 60px}
+  .row{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:9px 14px;
+    margin-bottom:7px;box-shadow:var(--sh1);display:grid;grid-template-columns:1fr 22px 1fr;
+    gap:10px;align-items:center;font-family:var(--mono);font-size:12.5px}
+  .row.same{opacity:.5}
+  .row.conflict{border-color:#f6c9c9;background:#fffafa}
+  .row .old{word-break:break-all;color:var(--t2)}
+  .row .ar{text-align:center;color:var(--t3)}
+  .row .new{word-break:break-all;color:var(--brand);font-weight:600}
+  .row .warn{grid-column:1/-1;font-size:11.5px;color:var(--danger);font-family:var(--sans)}
+  .kpis{display:flex;gap:10px;flex-wrap:wrap}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:6px 13px}
+  .kpi .k{color:var(--t3);font-size:11px}
+  .kpi .v{font-size:15px;font-weight:650;font-family:var(--mono)}
+  .empty{text-align:center;padding:70px 20px;color:var(--t2)}
+  .empty .big{font-size:44px;opacity:.4;display:block;margin-bottom:13px}
+  .empty b{color:var(--text);display:block;font-size:15px;margin-bottom:7px}
+  .browser{position:fixed;z-index:30;background:var(--panel);border:1px solid var(--line);
+    border-radius:12px;box-shadow:0 10px 32px rgba(16,24,40,.12);width:min(560px,92vw);
+    max-height:440px;overflow:auto;display:none}
+  .browser .hd{padding:10px 14px;background:var(--panel2);border-bottom:1px solid var(--soft);
+    font-family:var(--mono);font-size:12px;position:sticky;top:0;display:flex;gap:8px;align-items:center}
+  .browser .it{padding:8px 14px;border-bottom:1px solid var(--soft);cursor:pointer;font-size:13px}
+  .browser .it:hover{background:var(--brand-soft)}
+  .toast{position:fixed;bottom:24px;left:50%;transform:translate(-50%,10px);
+    background:#1c1f26;color:#fff;padding:10px 20px;border-radius:10px;opacity:0;
+    transition:all .2s;pointer-events:none;font-size:13px;z-index:99}
+  .toast.on{opacity:.97;transform:translate(-50%,0)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="bar">
+    <span class="brand"><i></i>批量重命名</span>
+    <span class="spacer"></span>
+    <span class="stat" id="stat"></span>
+    <button id="btnUndo">↩︎ 撤销上一次</button>
+  </div>
+</header>
+
+<main>
+  <aside id="side">
+    <h4>① 选目录</h4>
+    <div class="fld">
+      <input id="folder" placeholder="/Users/you/Downloads">
+      <div style="display:flex;gap:6px;margin-top:6px">
+        <button id="btnBrowse" style="flex:1">浏览…</button>
+        <button id="btnPlan" style="flex:1">预览</button>
+      </div>
+    </div>
+    <label class="chk"><input type="checkbox" id="recursive"> 包含子目录</label>
+    <div class="fld"><label>只处理这些扩展名（逗号分隔，留空=全部）</label>
+      <input id="exts" placeholder=".png,.jpg"></div>
+
+    <h4 style="margin-top:18px">② 改法</h4>
+    <div class="modes" id="modes">
+      <button data-m="replace" class="on">查找替换</button>
+      <button data-m="affix">加前后缀</button>
+      <button data-m="number">编号</button>
+      <button data-m="case">改大小写</button>
+    </div>
+    <div id="rule"></div>
+
+    <button class="pri" id="btnRun" style="width:100%;margin-top:14px" disabled>执行改名</button>
+    <div style="color:var(--t3);font-size:11.5px;margin-top:9px;line-height:1.6">
+      必须先「预览」确认，才能执行。执行后可以一键撤销。
+    </div>
+    <div id="hist" style="margin-top:16px"></div>
+  </aside>
+  <div id="main">
+    <div class="mhead" id="mhead" style="display:none"></div>
+    <div id="list">
+      <div class="empty"><span class="big">✏️</span><b>选目录 → 设改法 → 预览</b>
+        <span style="font-size:12.5px">预览会列出「旧名 → 新名」，确认没问题再执行</span></div>
+    </div>
+  </div>
+</main>
+<div class="browser" id="browser"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+const S = { mode: "replace", plan: null, folder: "" };
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g,
+  c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const api = async p => { const r = await fetch(p); if(!r.ok) throw new Error(r.status); return r.json(); };
+const post = async (p,b) => {
+  const r = await fetch(p,{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify(b||{})});
+  const j = await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(j.error || ("HTTP "+r.status));
+  return j;
+};
+function toast(m){ const t=$("toast"); t.textContent=m; t.classList.add("on");
+  setTimeout(()=>t.classList.remove("on"),2200); }
+
+const RULES = {
+  replace: `<div class="fld"><label>查找</label><input id="find" placeholder="要替换掉的文字"></div>
+    <div class="fld"><label>替换成（留空=删掉）</label><input id="to" placeholder=""></div>
+    <label class="chk"><input type="checkbox" id="regex"> 用正则</label>
+    <label class="chk"><input type="checkbox" id="icase"> 忽略大小写</label>`,
+  affix: `<div class="fld"><label>加在前面</label><input id="prefix" placeholder="例如 2026-09- "></div>
+    <div class="fld"><label>加在后面（扩展名前）</label><input id="suffix" placeholder="例如 _final"></div>`,
+  number: `<div class="fld"><label>命名模板</label>
+      <input id="template" value="{name}_{n}" placeholder="{name}_{n}"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px">
+      <div class="fld"><label>起始</label><input id="start" type="number" value="1"></div>
+      <div class="fld"><label>步长</label><input id="step" type="number" value="1"></div>
+      <div class="fld"><label>补零</label><input id="pad" type="number" value="2"></div>
+    </div>
+    <div style="color:var(--t3);font-size:11.5px;margin-bottom:11px">
+      <code style="font-family:var(--mono)">{n}</code>=编号
+      <code style="font-family:var(--mono)">{name}</code>=原名</div>`,
+  case: `<div class="fld"><label>改成</label><select id="how">
+      <option value="lower">全小写</option><option value="upper">全大写</option>
+      <option value="title">首字母大写</option>
+      <option value="snake">驼峰转下划线 destinationSite → destination_site</option>
+      <option value="kebab">驼峰转连字符 destinationSite → destination-site</option>
+    </select></div>`,
+  ext: `<div class="fld"><label>新扩展名</label><input id="new_ext" placeholder=".jpeg"></div>
+    <label class="chk"><input type="checkbox" id="drop_ext"> 去掉扩展名</label>`,
+};
+
+function renderRule(){
+  $("rule").innerHTML = RULES[S.mode] + `<div class="fld" style="margin-top:11px">
+    <label>顺便改扩展名（可选）</label><input id="new_ext2" placeholder=".jpeg">
+    <label class="chk" style="margin-top:6px"><input type="checkbox" id="drop_ext2"> 去掉扩展名</label>
+    </div>`;
+  ["find","to","prefix","suffix","template","start","step","pad","how","regex","icase",
+   "new_ext2","drop_ext2"].forEach(id => {
+    const el = $(id);
+    if(el) el.addEventListener("input", () => { S.plan = null; $("btnRun").disabled = true; });
+  });
+}
+function collectRule(){
+  const r = {mode: S.mode};
+  const g = id => $(id) ? $(id).value : "";
+  const c = id => $(id) ? $(id).checked : false;
+  if(S.mode === "replace"){ r.find = g("find"); r.to = g("to");
+    r.regex = c("regex"); r.ignore_case = c("icase"); }
+  else if(S.mode === "affix"){ r.prefix = g("prefix"); r.suffix = g("suffix"); }
+  else if(S.mode === "number"){ r.template = g("template"); r.start = g("start");
+    r.step = g("step"); r.pad = g("pad"); }
+  else if(S.mode === "case"){ r.how = g("how"); }
+  if(g("new_ext2")) r.new_ext = g("new_ext2");
+  if(c("drop_ext2")) r.drop_ext = true;
+  return r;
+}
+
+async function plan(){
+  const folder = $("folder").value.trim();
+  if(!folder) return toast("先选个目录");
+  if(!$("plan").disabled === false) {}
+  const rule = collectRule();
+  if(rule.mode === "replace" && !rule.find) return toast("填「查找」内容");
+  $("list").innerHTML = `<div class="empty">计算中…</div>`;
+  try{
+    const d = await post("/api/plan", {
+      folder, rule, recursive: $("recursive").checked,
+      exts: $("exts").value.split(",").map(s => s.trim()).filter(Boolean)});
+    S.plan = d; S.folder = folder;
+    paint(d);
+  }catch(e){
+    $("list").innerHTML = `<div class="empty">${esc(e.message)}</div>`;
+    $("btnRun").disabled = true;
+  }
+}
+
+function paint(d){
+  $("mhead").style.display = "";
+  $("mhead").innerHTML = `
+    <div class="kpis">
+      <div class="kpi"><div class="k">文件总数</div><div class="v">${d.total}</div></div>
+      <div class="kpi"><div class="k">会改名</div>
+        <div class="v" style="color:${d.changed?"var(--brand)":"var(--t3)"}">${d.changed}</div></div>
+      <div class="kpi"><div class="k">冲突</div>
+        <div class="v" style="color:${d.conflicts?"var(--danger)":"var(--t3)"}">${d.conflicts}</div></div>
+      ${d.errors ? `<div class="kpi"><div class="k">错误</div>
+        <div class="v" style="color:var(--danger)">${d.errors}</div></div>` : ""}
+    </div>
+    <span class="spacer" style="flex:1"></span>
+    <span style="color:var(--t3);font-size:12px">${esc(d.folder)}</span>`;
+  $("btnRun").disabled = d.changed === 0;
+  $("btnRun").textContent = d.changed ? `执行改名（${d.changed} 个）` : "没有要改的";
+
+  if(!d.items.length){
+    $("list").innerHTML = `<div class="empty"><span class="big">📂</span><b>这个目录里没有文件</b></div>`;
+    return;
+  }
+  $("list").innerHTML = d.items.map(it => {
+    const cls = it.get("conflict") ? "conflict" : (it.changed ? "" : "same");
+    return `<div class="row ${cls}">
+      <span class="old">${esc(it.old)}</span>
+      <span class="ar">${it.changed ? "→" : "="}</span>
+      <span class="new">${it.changed ? esc(it.new) : '<span style="color:var(--t3)">不变</span>'}</span>
+      ${it.get("conflict") ? `<div class="warn">⚠️ ${esc(it.conflict)} —— 会跳过</div>` : ""}
+      ${it.get("error") ? `<div class="warn">❌ ${esc(it.error)}</div>` : ""}
+    </div>`;
+  }).join("") + (d.truncated ? `<div style="color:var(--t3);font-size:12px;text-align:center;
+    padding:12px">只显示前 600 个</div>` : "");
+}
+
+$("btnRun").onclick = async () => {
+  if(!S.plan) return toast("先预览");
+  const n = S.plan.changed;
+  const conflicts = S.plan.conflicts;
+  if(!confirm(`确认改名 ${n} 个文件？${conflicts ? `\n（有 ${conflicts} 个冲突会被跳过）` : ""}\n\n改完可以点右上「撤销上一次」还原。`)) return;
+  $("btnRun").disabled = true; $("btnRun").textContent = "改名中…";
+  try{
+    const r = await post("/api/execute", {items: S.plan.items});
+    toast(`已改名 ${r.renamed} 个`);
+    await plan();
+    loadHist();
+  }catch(e){
+    toast("失败：" + e.message);
+    $("btnRun").disabled = false;
+  }
+};
+
+$("btnUndo").onclick = async () => {
+  if(!confirm("撤销上一次改名？\n（会把文件名还原成改之前的样子）")) return;
+  try{
+    const r = await post("/api/undo", {});
+    if(!r.ok){ toast(r.error || "没有可撤销的"); return; }
+    toast(`已还原 ${r.restored}/${r.total} 个`);
+    if(r.failed && r.failed.length) console.warn(r.failed);
+    if(S.folder) await plan();
+    loadHist();
+  }catch(e){ toast("撤销失败：" + e.message); }
+};
+
+async function loadHist(){
+  try{
+    const st = await api("/api/status");
+    const h = st.undo || [];
+    $("hist").innerHTML = h.length ? `<h4>可撤销的批次</h4>` + h.map(x =>
+      `<div style="font-size:11.5px;color:var(--t2);padding:4px 0;border-bottom:1px solid var(--soft)">
+        <span style="font-family:var(--mono)">${esc(x.ts.slice(5,16))}</span>
+        · ${x.count} 个 · ${esc(x.sample)}</div>`).join("")
+      : "";
+  }catch(e){}
+}
+
+document.querySelectorAll("#modes button").forEach(b => b.onclick = () => {
+  S.mode = b.dataset.m;
+  document.querySelectorAll("#modes button").forEach(x => x.classList.toggle("on", x === b));
+  S.plan = null; $("btnRun").disabled = true;
+  renderRule();
+});
+$("btnPlan").onclick = plan;
+$("folder").addEventListener("keydown", e => { if(e.key === "Enter") plan(); });
+
+$("btnBrowse").onclick = async e => {
+  e.stopPropagation();
+  const b = $("browser");
+  b.style.display = "block"; b.style.left = "40px"; b.style.top = "80px";
+  await browse($("folder").value.trim() || "/Users");
+};
+async function browse(path){
+  const b = $("browser");
+  try{
+    const d = await api("/api/folder?path=" + encodeURIComponent(path));
+    b.innerHTML = `<div class="hd">
+      <button id="bUp" style="padding:3px 9px;font-size:12px">↑</button>
+      <span style="flex:1;overflow:hidden;text-overflow:ellipsis">${esc(d.path)}</span>
+      <button id="bPick" class="pri" style="padding:3px 10px;font-size:12px">用这个</button>
+    </div>` + (d.dirs.length ? d.dirs.map(x =>
+      `<div class="it" data-p="${esc(x.path)}">📁 ${esc(x.name)}
+        <span style="color:var(--t3);font-size:11.5px">${x.count} 项</span></div>`).join("")
+      : `<div class="it" style="color:var(--t3)">（没有子目录）</div>`);
+    $("bUp").onclick = ev => { ev.stopPropagation(); browse(d.parent); };
+    $("bPick").onclick = ev => {
+      ev.stopPropagation(); $("folder").value = d.path; b.style.display = "none"; plan();
+    };
+    b.querySelectorAll("[data-p]").forEach(el => el.onclick = ev => {
+      ev.stopPropagation(); browse(el.dataset.p);
+    });
+  }catch(err){
+    b.innerHTML = `<div class="it" style="color:var(--danger)">${esc(err.message)}</div>`;
+  }
+}
+document.addEventListener("click", e => {
+  const b = $("browser");
+  if(b.style.display === "block" && !b.contains(e.target) && e.target.id !== "btnBrowse")
+    b.style.display = "none";
+});
+
+renderRule();
+loadHist();
+$("folder").value = "/Users/" + "master/Downloads";
+</script>
+</body>
+</html>

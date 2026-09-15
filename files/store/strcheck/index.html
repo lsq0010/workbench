@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>文案体检</title>
+<style>
+  :root{--bg:#f6f7f9;--panel:#fff;--line:#e5e7eb;--soft:#f1f2f5;--text:#17191e;
+    --t2:#5a6472;--t3:#98a1ad;--brand:#7c3aed;--brand-soft:#f5f2fe;--brand-line:#ddd2fb;
+    --ok:#15803d;--ok-soft:#eafaf0;--danger:#b91c1c;--warn:#a16207;--warn-soft:#fef9e7;
+    --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif}
+  *{box-sizing:border-box}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:#cfd3da;border:3px solid transparent;
+    background-clip:content-box;border-radius:8px}
+  body{margin:0;font:14px/1.6 var(--sans);background:var(--bg);color:var(--text)}
+  header{background:var(--panel);border-bottom:1px solid var(--line);
+    position:sticky;top:0;z-index:10}
+  .bar{display:flex;align-items:center;gap:10px;padding:0 20px;height:56px;
+    max-width:1160px;margin:0 auto;flex-wrap:wrap}
+  .brand{font-weight:650;font-size:15.5px;display:flex;align-items:center;gap:9px}
+  .brand .mk{width:25px;height:25px;border-radius:6px;display:flex;align-items:center;
+    justify-content:center;font-size:13px;background:var(--brand);color:#fff}
+  .spacer{flex:1}
+  .stat{color:var(--t3);font-size:12.5px;font-family:var(--mono)}
+  button.b{border:1px solid var(--line);background:var(--panel);border-radius:8px;
+    padding:7px 14px;cursor:pointer;font:inherit;font-size:13px;color:var(--text)}
+  button.b:hover{background:var(--brand-soft);border-color:var(--brand-line);color:var(--brand)}
+  button.b.pri{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:620}
+  button.b:disabled{opacity:.45;cursor:not-allowed}
+  main{max-width:1160px;margin:22px auto 80px;padding:0 20px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:13px;
+    padding:18px 20px;margin-bottom:16px}
+  .card h3{margin:0 0 12px;font-size:14.5px;font-weight:650}
+  .proj{padding:10px 13px;border:1px solid var(--line);border-radius:9px;
+    margin-bottom:8px;cursor:pointer;font-size:13px;display:flex;gap:10px;
+    align-items:center;flex-wrap:wrap}
+  .proj:hover{border-color:var(--brand-line);background:var(--brand-soft)}
+  .proj.on{border-color:var(--brand);background:var(--brand-soft)}
+  .proj .nm{font-weight:620;flex:1;min-width:150px}
+  .proj .m{color:var(--t3);font-size:12px;font-family:var(--mono)}
+  .sum{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:11px;
+    padding:11px 16px;min-width:118px}
+  .kpi .k{color:var(--t3);font-size:11.5px}
+  .kpi .v{font-size:19px;font-weight:650;font-family:var(--mono);margin-top:3px}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th{text-align:left;color:var(--t3);font-weight:600;font-size:11px;padding:7px 8px;
+    text-transform:uppercase;letter-spacing:.05em}
+  td{padding:8px;border-top:1px solid var(--soft);vertical-align:top}
+  td.code{font-family:var(--mono);font-size:11.5px;color:var(--t2);word-break:break-all}
+  td.txt{font-weight:600;white-space:nowrap}
+  td.loc{font-family:var(--mono);font-size:11.5px;color:var(--t3);white-space:nowrap}
+  .hint{color:var(--t3);font-size:12.5px;line-height:1.8}
+  .spin{display:inline-block;width:13px;height:13px;border:2px solid var(--line);
+    border-top-color:var(--brand);border-radius:50%;animation:sp .7s linear infinite;
+    vertical-align:-2px;margin-right:7px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .toast{position:fixed;bottom:26px;left:50%;transform:translate(-50%,10px);
+    background:#1c1f26;color:#fff;padding:10px 20px;border-radius:10px;opacity:0;
+    transition:all .2s;pointer-events:none;font-size:13px;z-index:99}
+  .toast.on{opacity:.97;transform:translate(-50%,0)}
+  .aiout{white-space:pre-wrap;font-size:13.5px;line-height:1.85;margin-top:13px}
+  .aiout b{color:var(--brand)}
+  code{font-family:var(--mono);font-size:11.5px;background:var(--soft);
+    padding:1px 5px;border-radius:4px}
+</style>
+</head>
+<body>
+<header><div class="bar">
+  <span class="brand"><span class="mk">🔤</span>文案体检</span>
+  <span class="stat" id="stat"></span>
+</div></header>
+<main>
+  <div class="card">
+    <h3>选一个工程</h3>
+    <div id="list"><div class="hint">扫描中…</div></div>
+  </div>
+  <div id="out"></div>
+</main>
+<div class="toast" id="toast"></div>
+<script>
+"use strict";
+const S = { result: null, path: "" };
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g,
+  c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const api = async p => { const r = await fetch(p); if(!r.ok) throw new Error(r.status); return r.json(); };
+const post = async (p,b) => (await fetch(p, {method:"POST",
+  headers:{"Content-Type":"application/json"}, body: JSON.stringify(b||{})})).json();
+function toast(m){ const t=$("toast"); t.textContent=m; t.classList.add("on");
+  setTimeout(()=>t.classList.remove("on"),2600); }
+function md(t){
+  return esc(t)
+    .replace(/^### (.+)$/gm, "<b>$1</b>")
+    .replace(/^## (.+)$/gm, "<b style='font-size:15px'>$1</b>")
+    .replace(/\*\*([^*]+)\*\*/g, "<b style='color:#111'>$1</b>")
+    .replace(/`([^`\n]+)`/g, "<code>$1</code>");
+}
+
+async function boot(){
+  try{
+    const d = await api("/api/status");
+    const ps = d.projects || [];
+    $("stat").textContent = ps.length ? `${ps.length} 个候选工程` : "";
+    $("list").innerHTML = ps.length ? ps.map((p, i) =>
+      `<div class="proj" data-i="${i}"><span class="nm">${esc(p.name)}</span>
+        <span class="m">${p.swift} 个 swift 文件</span></div>`).join("")
+      : `<div class="hint">桌面/文稿下没找到有明显 Swift 代码的工程</div>`;
+    document.querySelectorAll("[data-i]").forEach(el => el.onclick = () => {
+      document.querySelectorAll(".proj").forEach(x => x.classList.remove("on"));
+      el.classList.add("on");
+      scan(ps[+el.dataset.i].path);
+    });
+    if(ps.length === 1) scan(ps[0].path);
+  }catch(e){
+    $("list").innerHTML = `<div class="hint" style="color:var(--danger)">${esc(e.message)}</div>`;
+  }
+}
+
+async function scan(path){
+  S.path = path;
+  $("out").innerHTML = `<div class="card"><span class="spin"></span>扫描中…</div>`;
+  try{
+    const r = await api("/api/scan?project=" + encodeURIComponent(path));
+    if(!r.ok){ $("out").innerHTML = `<div class="card" style="color:var(--danger)">
+      ${esc(r.error)}</div>`; return; }
+    S.result = r;
+    paint(r);
+  }catch(e){
+    $("out").innerHTML = `<div class="card" style="color:var(--danger)">${esc(e.message)}</div>`;
+  }
+}
+
+function paint(r){
+  const rows = r.ui_hits.slice(0, 120).map(h => `<tr>
+    <td class="loc">${esc(h.file.split("/").pop())}:${h.line}</td>
+    <td class="txt">${esc(h.text)}</td>
+    <td class="code">${esc(h.code.slice(0, 110))}</td>
+  </tr>`).join("");
+  $("out").innerHTML = `
+    <div class="sum">
+      <div class="kpi"><div class="k">用户可见硬编码</div>
+        <div class="v" style="color:${r.ui_count ? "var(--warn)" : "var(--ok)"}">
+          ${r.ui_count}</div></div>
+      <div class="kpi"><div class="k">调试日志里的中文</div>
+        <div class="v" style="color:var(--t3)">${r.dev_count}</div></div>
+      <div class="kpi"><div class="k">已本地化 key</div><div class="v">${r.strings_keys}</div></div>
+      <div class="kpi"><div class="k">扫了文件</div><div class="v">${r.files_scanned}</div></div>
+    </div>
+    <div class="card">
+      <h3>${esc(r.verdict)}</h3>
+      <div class="hint">${esc(r.how)}<br>
+        用时 ${r.seconds}s，跳过 ${r.skipped_generated} 个生成文件。</div>
+    </div>
+    ${r.by_file.length ? `<div class="card">
+      <h3>按文件排（前 15）</h3>
+      <table><tr><th>文件</th><th style="text-align:right">处数</th></tr>
+      ${r.by_file.slice(0,15).map(x => `<tr>
+        <td class="code">${esc(x.file)}</td>
+        <td style="text-align:right;font-family:var(--mono)">${x.count}</td></tr>`).join("")}
+      </table></div>` : ""}
+    ${r.ui_hits.length ? `<div class="card">
+      <h3>具体位置（前 ${Math.min(120, r.ui_count)} 处）</h3>
+      <table><tr><th>位置</th><th>文案</th><th>代码</th></tr>${rows}</table>
+    </div>` : ""}
+    <div class="card">
+      <h3>让 AI 判断优先级</h3>
+      <div class="hint" style="margin-bottom:11px">
+        200 多处不可能一次改完。让 AI 判断哪些真的值得改、
+        哪些其实是同一个文案可以合并、按收益排序给出前 5 个。
+        （会把文案和文件名发给 AI 服务商。）</div>
+      <div style="display:flex;gap:9px;align-items:center;flex-wrap:wrap">
+        <button class="b pri" id="btnAI" ${r.ui_count ? "" : "disabled"}>让 AI 判断</button>
+        <input type="text" id="aiq" style="flex:1;min-width:240px;font:inherit;
+          font-size:13px;border:1px solid var(--line);border-radius:8px;
+          padding:8px 11px;outline:none" placeholder="想让它重点看什么？（可留空）">
+      </div>
+      <div id="aiout" class="aiout"></div>
+    </div>`;
+  const b = $("btnAI");
+  if(b) b.onclick = askAI;
+}
+
+async function askAI(){
+  const b = $("btnAI");
+  b.disabled = true;
+  $("aiout").innerHTML = `<span class="spin"></span>AI 正在看…（十几秒）`;
+  try{
+    const r = await post("/api/ai", {project: S.path, q: $("aiq").value.trim()});
+    $("aiout").innerHTML = r.ok ? md(r.text)
+      : `<span style="color:var(--danger)">${esc(r.error)}</span>`;
+  }catch(e){
+    $("aiout").innerHTML = `<span style="color:var(--danger)">${esc(e.message)}</span>`;
+  }
+  b.disabled = false;
+}
+
+boot();
+</script>
+</body>
+</html>

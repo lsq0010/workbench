@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>App 包检查</title>
+<style>
+  :root{
+    --bg:#f4f5f7;--panel:#fff;--panel2:#fafbfc;--line:#e6e8ec;--soft:#f0f1f4;
+    --text:#16181d;--t2:#5b6472;--t3:#98a1ad;
+    --brand:#5856d6;--brand-soft:#efeffd;--brand-line:#d9d8fb;
+    --ok:#12894f;--ok-soft:#e7f6ee;--warn:#a9670a;--warn-soft:#fdf3e3;
+    --danger:#d23b3b;--danger-soft:#fdecec;
+    --sh1:0 1px 2px rgba(16,24,40,.05);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB",sans-serif;
+  }
+  *{box-sizing:border-box}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:#cfd3da;border:3px solid transparent;
+    background-clip:content-box;border-radius:8px}
+  html,body{height:100%}
+  body{margin:0;font:14px/1.55 var(--sans);background:var(--bg);color:var(--text);
+       display:flex;flex-direction:column;overflow:hidden;-webkit-font-smoothing:antialiased}
+  header{flex:none;background:var(--panel);border-bottom:1px solid var(--line);box-shadow:var(--sh1)}
+  .bar{display:flex;align-items:center;gap:9px;padding:0 18px;height:54px}
+  .brand{font-weight:650;font-size:15.5px;display:flex;align-items:center;gap:8px;flex:none}
+  .brand i{width:9px;height:9px;border-radius:3px;background:linear-gradient(135deg,#5856d6,#a5a3f0)}
+  .spacer{flex:1}
+  .stat{color:var(--t2);font-size:12.5px}
+  button{border:1px solid var(--line);background:var(--panel);border-radius:8px;
+    padding:6px 12px;cursor:pointer;font:inherit;font-size:13px;color:var(--text);transition:all .13s}
+  button:hover{background:#f7f8fa}
+  button.pri{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:600}
+  button.pri:hover{background:#4744c4}
+  main{flex:1;display:flex;min-height:0;overflow:hidden}
+  #side{width:300px;flex:none;border-right:1px solid var(--line);background:var(--panel);
+    overflow:auto;padding:15px}
+  #side h4{margin:0 0 9px;font-size:12px;color:var(--t3);text-transform:uppercase;
+    letter-spacing:.06em}
+  .build{padding:9px 11px;border:1px solid var(--line);border-radius:9px;margin-bottom:8px;
+    cursor:pointer;transition:all .12s;background:var(--panel2)}
+  .build:hover{border-color:var(--brand-line);background:var(--brand-soft)}
+  .build .n{font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;
+    white-space:nowrap}
+  .build .m{color:var(--t3);font-size:11.5px;margin-top:3px;font-family:var(--mono)}
+  #main{flex:1;overflow:auto;padding:20px 24px 60px;min-width:0}
+  h2{margin:0 0 4px;font-size:18px;font-weight:650;display:flex;align-items:center;gap:9px}
+  .sub{color:var(--t2);font-size:12.5px;font-family:var(--mono);margin-bottom:16px;
+    word-break:break-all}
+  .kpis{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:10px 15px;
+    box-shadow:var(--sh1)}
+  .kpi .k{color:var(--t3);font-size:11.5px}
+  .kpi .v{font-size:16px;font-weight:650;font-family:var(--mono);margin-top:3px}
+  .warns{background:var(--danger-soft);border:1px solid #f6c9c9;border-radius:11px;
+    padding:13px 16px;margin-bottom:16px}
+  .warns.ok{background:var(--ok-soft);border-color:#bfe6cf;color:#0d6b3e}
+  .warns h3{margin:0 0 8px;font-size:14px;font-weight:650}
+  .warns .it{font-size:13px;padding:3px 0}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    margin-bottom:14px;overflow:hidden;box-shadow:var(--sh1)}
+  .card>summary{padding:11px 15px;cursor:pointer;font-weight:620;font-size:13.5px;
+    background:var(--panel2);list-style:none;display:flex;align-items:center;gap:8px}
+  .card>summary::-webkit-details-marker{display:none}
+  .card>summary::before{content:"▸";color:var(--t3);font-size:11px;transition:transform .15s}
+  .card[open]>summary::before{transform:rotate(90deg)}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th{text-align:left;color:var(--t3);font-weight:600;font-size:11.5px;padding:8px 13px;
+     background:var(--panel2);border-bottom:1px solid var(--line)}
+  td{padding:8px 13px;border-bottom:1px solid var(--soft)}
+  tr:last-child td{border-bottom:none}
+  .nm{font-family:var(--mono);font-size:12px;word-break:break-all}
+  .kv{display:grid;grid-template-columns:150px 1fr}
+  .kv div{padding:7px 13px;border-bottom:1px solid var(--soft);font-size:12.5px}
+  .kv div:nth-child(odd){color:var(--t3);background:var(--panel2)}
+  .kv div:last-child,.kv div:nth-last-child(2){border-bottom:none}
+  .bar{height:8px;background:var(--soft);border-radius:4px;overflow:hidden;min-width:80px}
+  .bar i{display:block;height:100%;background:linear-gradient(90deg,#5856d6,#a5a3f0)}
+  .tag{font-size:10.5px;border-radius:5px;padding:2px 8px;font-weight:600;white-space:nowrap}
+  .t-big{background:var(--danger-soft);color:var(--danger)}
+  .t-mid{background:var(--warn-soft);color:var(--warn)}
+  .t-ok{background:#f1f3f6;color:var(--t3)}
+  .empty{text-align:center;padding:70px 20px;color:var(--t2)}
+  .empty .big{font-size:44px;opacity:.4;display:block;margin-bottom:13px}
+  .empty b{color:var(--text);display:block;font-size:15px;margin-bottom:7px}
+  .browser{position:fixed;z-index:30;background:var(--panel);border:1px solid var(--line);
+    border-radius:12px;box-shadow:0 10px 32px rgba(16,24,40,.12);width:min(580px,92vw);
+    max-height:440px;overflow:auto;display:none}
+  .browser .hd{padding:10px 14px;background:var(--panel2);border-bottom:1px solid var(--soft);
+    font-family:var(--mono);font-size:12px;position:sticky;top:0;display:flex;gap:8px;align-items:center}
+  .browser .it{padding:8px 14px;border-bottom:1px solid var(--soft);cursor:pointer;font-size:13px}
+  .browser .it:hover{background:var(--brand-soft)}
+  .toast{position:fixed;bottom:24px;left:50%;transform:translate(-50%,10px);
+    background:#1c1f26;color:#fff;padding:10px 20px;border-radius:10px;opacity:0;
+    transition:all .2s;pointer-events:none;font-size:13px;z-index:99}
+  .toast.on{opacity:.97;transform:translate(-50%,0)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="bar">
+    <span class="brand"><i></i>App 包检查</span>
+    <span class="spacer"></span>
+    <span class="stat" id="stat"></span>
+    <button id="btnPick">选 .app / .ipa</button>
+  </div>
+</header>
+
+<main>
+  <aside id="side">
+    <h4>最近的包</h4>
+    <div id="recent"></div>
+    <div style="color:var(--t3);font-size:11.5px;margin-top:14px;line-height:1.6">
+      自动扫描桌面和 Xcode Archives 里的 .app / .ipa
+    </div>
+  </aside>
+  <div id="main">
+    <div class="empty"><span class="big">📦</span><b>选一个包来看</b>
+      <span style="font-size:12.5px">版本号、权限、体积构成、支持架构、签名与描述文件到期</span></div>
+  </div>
+</main>
+<div class="browser" id="browser"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+const S = { path: "" };
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g,
+  c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const api = async p => { const r = await fetch(p); if(!r.ok) throw new Error(r.status); return r.json(); };
+function toast(m){ const t=$("toast"); t.textContent=m; t.classList.add("on");
+  setTimeout(()=>t.classList.remove("on"),2000); }
+
+async function boot(){
+  const st = await api("/api/status");
+  const rec = st.recent || [];
+  $("recent").innerHTML = rec.length ? rec.map(x => `<div class="build" data-p="${esc(x.path)}">
+    <div class="n">${x.kind === "ipa" ? "📦" : "📱"} ${esc(x.name)}</div>
+    <div class="m">${esc(x.size_h)} · ${esc(x.mtime_h)}</div></div>`).join("")
+    : `<div style="color:var(--t3);font-size:12.5px">没找到 .app / .ipa</div>`;
+  document.querySelectorAll("[data-p]").forEach(el => el.onclick = () => inspect(el.dataset.p));
+}
+
+async function inspect(path){
+  S.path = path;
+  $("main").innerHTML = `<div class="empty">分析中…（大包要几秒）</div>`;
+  try{
+    const d = await api("/api/inspect?path=" + encodeURIComponent(path));
+    if(d.error){ $("main").innerHTML = `<div class="empty">${esc(d.error)}</div>`; return; }
+    paint(d);
+  }catch(e){
+    $("main").innerHTML = `<div class="empty">分析失败：${esc(e.message)}</div>`;
+  }
+}
+
+function paint(d){
+  const big = d.breakdown.filter(x => x.pct >= 5);
+  let h = `<h2>${esc(d.name || d.executable)}
+    <span class="tag t-ok">${esc(d.version)} (${esc(d.build)})</span></h2>
+    <div class="sub">${esc(d.path)}</div>
+    <div class="kpis">
+      <div class="kpi"><div class="k">总体积</div><div class="v">${esc(d.total_h)}</div></div>
+      <div class="kpi"><div class="k">主二进制</div><div class="v">${esc(d.binary_size_h)}</div></div>
+      <div class="kpi"><div class="k">架构</div><div class="v">${esc((d.archs||[]).join(" ") || "?")}</div></div>
+      <div class="kpi"><div class="k">最低系统</div><div class="v">iOS ${esc(d.min_os)}</div></div>
+      <div class="kpi"><div class="k">框架</div><div class="v">${(d.frameworks||[]).length}</div></div>
+    </div>`;
+
+  if(d.warnings.length){
+    const crit = d.warnings.some(w => w.level === "critical");
+    h += `<div class="warns">
+      <h3>${crit ? "❌" : "⚠️"} ${d.warnings.length} 项需要注意</h3>
+      ${d.warnings.map(w => `<div class="it">${w.level==="critical"?"❌":"⚠️"} ${esc(w.what)}
+        ${w.detail ? `<span style="color:var(--t3)">　${esc(w.detail)}</span>` : ""}</div>`).join("")}
+    </div>`;
+  }else{
+    h += `<div class="warns ok"><h3>✅ 没发现明显问题</h3></div>`;
+  }
+
+  if(big.length){
+    h += `<div class="warns" style="background:var(--warn-soft);border-color:#fde68a;color:#92400e">
+      <h3>📦 体积大头</h3>
+      ${big.map(x => `<div class="it">${esc(x.name)} —— ${esc(x.size_h)}（占 ${x.pct}%）
+        ${x.kind==="文件" && /\\.(ttf|otf|ttc)$/i.test(x.name)
+          ? "　<b>字体文件</b>，iOS 系统自带中文字体，多数情况可以去掉" : ""}</div>`).join("")}
+    </div>`;
+  }
+
+  h += `<details class="card" open><summary>基本信息</summary><div class="kv">
+    <div>Bundle ID</div><div class="nm">${esc(d.bundle_id)}</div>
+    <div>版本</div><div class="nm">${esc(d.version)} (build ${esc(d.build)})</div>
+    <div>可执行文件</div><div class="nm">${esc(d.executable)}　${esc(d.binary_size_h)}</div>
+    <div>平台 / SDK</div><div class="nm">${esc(d.platform)} / ${esc(d.sdk)}</div>
+    <div>URL Scheme</div><div class="nm">${esc((d.url_schemes||[]).join(", ") || "—")}</div>
+    <div>允许明文 HTTP</div><div>${d.ats
+      ? '<span class="tag t-big">是 —— NSAllowsArbitraryLoads</span>'
+      : '<span class="tag t-ok">否</span>'}</div>
+    <div>签名</div><div class="nm">${esc(d.sign.authority || "?")}
+      ${d.sign.adhoc ? '<span class="tag t-mid">adhoc</span>' : ""}</div>
+    ${d.provision && d.provision.name ? `
+    <div>描述文件</div><div class="nm">${esc(d.provision.name)}</div>
+    <div>到期</div><div>${esc(d.provision.expires)}
+      <span class="tag ${d.provision.days < 0 ? "t-big" : d.provision.days <= 30 ? "t-mid" : "t-ok"}">
+      ${d.provision.days} 天</span></div>` : ""}
+  </div></details>`;
+
+  h += `<details class="card" open><summary>体积构成（占 5% 以上的标出来）</summary>
+    <table><thead><tr><th style="width:44%">名称</th><th style="width:14%">类型</th>
+      <th style="width:13%">大小</th><th style="width:10%">占比</th>
+      <th style="width:19%"></th></tr></thead><tbody>
+      ${d.breakdown.map(x => `<tr>
+        <td class="nm">${esc(x.name)}</td>
+        <td><span class="tag ${x.pct>=20?"t-big":x.pct>=5?"t-mid":"t-ok"}">${esc(x.kind)}</span></td>
+        <td class="nm">${esc(x.size_h)}</td>
+        <td class="nm">${x.pct}%</td>
+        <td><div class="bar"><i style="width:${Math.min(100,x.pct*1.6)}%"></i></div></td>
+      </tr>`).join("")}
+    </tbody></table></details>`;
+
+  if((d.frameworks||[]).length){
+    h += `<details class="card"><summary>内嵌框架（${d.frameworks.length}）</summary>
+      <table><thead><tr><th style="width:52%">名称</th><th style="width:16%">大小</th>
+        <th style="width:32%">架构</th></tr></thead><tbody>
+        ${d.frameworks.map(f => `<tr><td class="nm">${esc(f.name)}</td>
+          <td class="nm">${esc(f.size_h)}</td>
+          <td class="nm">${esc((f.archs||[]).join(" ") || "—")}</td></tr>`).join("")}
+      </tbody></table></details>`;
+  }
+
+  if(d.entitlements.length){
+    h += `<details class="card"><summary>权限 entitlements（${d.entitlements.length}）</summary>
+      <table><thead><tr><th style="width:46%">键</th><th style="width:54%">说明</th></tr></thead><tbody>
+        ${d.entitlements.map(e => `<tr>
+          <td class="nm">${esc(e.key)}</td>
+          <td>${esc(e.note || String(e.value).slice(0, 90))}</td></tr>`).join("")}
+      </tbody></table></details>`;
+  }
+
+  $("main").innerHTML = h;
+  $("stat").textContent = `${d.seconds}s`;
+}
+
+/* ── 目录选择 ── */
+$("btnPick").onclick = async e => {
+  e.stopPropagation();
+  const b = $("browser");
+  b.style.display = "block"; b.style.left = "40px"; b.style.top = "90px";
+  await browse("/Users/" + "master/Desktop");
+};
+async function browse(path){
+  const b = $("browser");
+  try{
+    const d = await api("/api/folder?path=" + encodeURIComponent(path));
+    b.innerHTML = `<div class="hd">
+      <button id="bUp" style="padding:3px 9px;font-size:12px">↑</button>
+      <span style="flex:1;overflow:hidden;text-overflow:ellipsis">${esc(d.path)}</span>
+    </div>` + (d.items.length ? d.items.map(x =>
+      `<div class="it" data-p="${esc(x.path)}" data-app="${x.app?1:0}">
+        ${x.app ? "📱" : "📁"} ${esc(x.name)}</div>`).join("")
+      : `<div class="it" style="color:var(--t3)">（空目录）</div>`);
+    $("bUp").onclick = ev => { ev.stopPropagation(); browse(d.parent); };
+    b.querySelectorAll("[data-p]").forEach(el => el.onclick = ev => {
+      ev.stopPropagation();
+      if(el.dataset.app === "1"){ b.style.display = "none"; inspect(el.dataset.p); }
+      else browse(el.dataset.p);
+    });
+  }catch(err){
+    b.innerHTML = `<div class="it" style="color:var(--danger)">${esc(err.message)}</div>`;
+  }
+}
+document.addEventListener("click", e => {
+  const b = $("browser");
+  if(b.style.display === "block" && !b.contains(e.target) && e.target.id !== "btnPick")
+    b.style.display = "none";
+});
+boot();
+</script>
+</body>
+</html>

@@ -1,0 +1,100 @@
+{
+  "manifest_version": 1,
+  "id": "renamer",
+  "name": "批量重命名",
+  "description": "预览之后才动手，而且能撤销。支持查找替换（含正则）、加前后缀、序号编号、改大小写、改扩展名。绝不覆盖已存在的文件。",
+  "version": "0.1.0",
+  "author": "本机",
+  "type": "local",
+  "runtime": {
+    "entry": "main.py",
+    "requires": {
+      "python": ">=3.7"
+    },
+    "dependencies": []
+  },
+  "ports": {
+    "web": 8910
+  },
+  "platform": {
+    "icon": "✏️",
+    "color": "#c2410c",
+    "open": "http://127.0.0.1:{web}/",
+    "health": "http://127.0.0.1:{web}/api/status",
+    "start": [
+      "python3",
+      "main.py",
+      "start"
+    ],
+    "stop": [
+      "python3",
+      "main.py",
+      "stop"
+    ],
+    "note": "三条安全规矩：先预览才让执行、绝不覆盖已存在的文件、每次执行都能一键撤销。"
+  },
+  "permissions": [
+    {
+      "id": "fs.rename",
+      "why": "重命名用户指定目录里的文件",
+      "risk": "**高**：会真的改动文件名；改错了可能找不到文件",
+      "mitigation": "① 必须先「预览」看到旧名→新名才允许执行；② 目标已存在或两条改名后重名的**自动跳过**并在界面标红；③ 每次执行都写撤销记录（rename 分两阶段做，避免互相覆盖）；④ 撤销也走同一个接口，一键还原"
+    },
+    {
+      "id": "fs.open",
+      "why": "浏览目录 / 在访达定位",
+      "risk": "低：只读目录列表、只调用 open",
+      "mitigation": "只调用系统的 open 命令在访达里定位，不读文件内容、不修改、不删除；路径由用户从界面里选，不接受外部传入的任意路径"
+    }
+  ],
+  "data": {
+    "produces": [
+      {
+        "id": "undo",
+        "file": "undo.jsonl",
+        "kind": "append-only",
+        "desc": "每次改名的移动记录（用于撤销，只追加不改历史）"
+      }
+    ],
+    "consumes": []
+  },
+  "exposes": {
+    "base": "http://127.0.0.1:8910",
+    "endpoints": [
+      {
+        "path": "/api/status",
+        "desc": "服务状态 + 可撤销的批次",
+        "auth": "local-only"
+      },
+      {
+        "path": "/api/folder",
+        "desc": "列子目录 ?path=",
+        "auth": "local-only"
+      }
+    ],
+    "writes": [
+      {
+        "path": "/api/plan",
+        "desc": "预览：算出旧名→新名，不改文件",
+        "auth": "local-only"
+      },
+      {
+        "path": "/api/execute",
+        "desc": "执行改名（会写撤销记录）",
+        "auth": "local-only"
+      },
+      {
+        "path": "/api/undo",
+        "desc": "撤销上一次改名",
+        "auth": "local-only"
+      }
+    ]
+  },
+  "ui": {
+    "entry": "index.html"
+  },
+  "store": {
+    "pricing": "free",
+    "license": "personal"
+  }
+}

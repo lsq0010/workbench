@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>正则实验室</title>
+<style>
+  :root{
+    --bg:#f4f5f7;--panel:#fff;--panel2:#fafbfc;--line:#e6e8ec;--soft:#f0f1f4;
+    --text:#16181d;--t2:#5b6472;--t3:#98a1ad;
+    --brand:#7c3aed;--brand-soft:#f3eeff;--brand-line:#ddd0ff;
+    --ok:#12894f;--ok-soft:#e7f6ee;--warn:#a9670a;--warn-soft:#fdf3e3;--danger:#d23b3b;
+    --sh1:0 1px 2px rgba(16,24,40,.05);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB",sans-serif;
+  }
+  *{box-sizing:border-box}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:#cfd3da;border:3px solid transparent;
+    background-clip:content-box;border-radius:8px}
+  html,body{height:100%}
+  body{margin:0;font:14px/1.55 var(--sans);background:var(--bg);color:var(--text);
+       display:flex;flex-direction:column;overflow:hidden;-webkit-font-smoothing:antialiased}
+  header{flex:none;background:var(--panel);border-bottom:1px solid var(--line);box-shadow:var(--sh1)}
+  .bar{display:flex;align-items:center;gap:9px;padding:0 18px;height:54px}
+  .brand{font-weight:650;font-size:15.5px;display:flex;align-items:center;gap:8px;flex:none}
+  .brand i{width:9px;height:9px;border-radius:3px;background:linear-gradient(135deg,#7c3aed,#c4b5fd)}
+  .spacer{flex:1}
+  .stat{color:var(--t2);font-size:12.5px}
+  button{border:1px solid var(--line);background:var(--panel);border-radius:8px;
+    padding:6px 11px;cursor:pointer;font:inherit;font-size:12.5px;color:var(--text);transition:all .13s}
+  button:hover{background:#f7f8fa}
+  button.pri{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:600}
+  button.pri:hover{background:#6b2fd6}
+  .rxbar{display:flex;align-items:center;gap:8px;padding:11px 18px;background:var(--panel2);
+    border-top:1px solid var(--soft);flex-wrap:wrap}
+  .rxbox{flex:1;min-width:280px;display:flex;align-items:center;gap:2px;background:var(--panel);
+    border:1px solid var(--line);border-radius:9px;padding:2px 4px 2px 11px;font-family:var(--mono)}
+  .rxbox:focus-within{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft)}
+  .rxbox .sl{color:var(--t3);font-size:15px}
+  .rxbox input{flex:1;border:none;background:none;outline:none;font-family:var(--mono);
+    font-size:13.5px;padding:6px 4px;color:var(--text)}
+  .rxbox input:focus{box-shadow:none}
+  .fl{display:flex;gap:3px}
+  .fl label{font-family:var(--mono);font-size:12px;color:var(--t2);cursor:pointer;
+    padding:4px 8px;border-radius:6px;border:1px solid transparent;background:var(--panel)}
+  .fl input{display:none}
+  .fl input:checked+span{color:var(--brand);font-weight:700}
+  .fl label:has(input:checked){background:var(--brand-soft);border-color:var(--brand-line)}
+  main{flex:1;display:flex;min-height:0;overflow:hidden}
+  .pane{flex:1;display:flex;flex-direction:column;min-height:0;background:var(--panel);min-width:0}
+  .pane+.pane{border-left:1px solid var(--line)}
+  .phead{display:flex;align-items:center;gap:8px;padding:9px 14px;border-bottom:1px solid var(--soft);
+    background:var(--panel2);flex:none;flex-wrap:wrap}
+  .phead .lbl{font-weight:620;font-size:12.5px;color:var(--t2)}
+  .phead .sp{flex:1}
+  textarea{flex:1;border:none;outline:none;resize:none;padding:13px 15px;font-family:var(--mono);
+    font-size:12.5px;line-height:1.65;background:var(--panel);color:var(--text);min-height:0}
+  textarea::placeholder{color:var(--t3)}
+  #hl{flex:1;overflow:auto;padding:13px 15px;font-family:var(--mono);font-size:12.5px;
+    line-height:1.65;white-space:pre-wrap;word-break:break-word;min-height:0;background:var(--panel)}
+  #hl mark{background:#ffe08a;color:inherit;border-radius:3px;padding:0 1px;font-weight:600}
+  #hl mark.g0{background:#ffd0e0}
+  .tabbar{display:flex;gap:3px;padding:8px 14px;background:var(--panel2);
+    border-bottom:1px solid var(--soft);flex:none}
+  .tabbar button{border:none;background:none;font-size:12.5px;color:var(--t2);padding:4px 11px;
+    border-radius:6px}
+  .tabbar button.on{background:var(--panel);color:var(--brand);font-weight:600;box-shadow:var(--sh1)}
+  pre{margin:0;flex:1;overflow:auto;padding:13px 15px;font-family:var(--mono);font-size:12.5px;
+    line-height:1.65;white-space:pre-wrap;word-break:break-word;min-height:0}
+  .err{background:#fdecec;border:1px solid #f6c9c9;color:#a02c2c;border-radius:9px;
+    padding:10px 13px;margin:12px 14px;font-size:12.5px;font-family:var(--mono)}
+  .groups{overflow:auto;padding:12px 14px;flex:1}
+  .g{background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:9px 12px;
+    margin-bottom:8px;font-size:12.5px}
+  .g .h{color:var(--t3);font-family:var(--mono);font-size:11.5px;margin-bottom:5px}
+  .g .v{font-family:var(--mono);word-break:break-all}
+  .g .v b{color:var(--brand)}
+  .presets{display:flex;gap:6px;flex-wrap:wrap;padding:10px 14px;background:var(--panel2);
+    border-bottom:1px solid var(--soft);flex:none}
+  .presets button{font-size:11.5px;padding:3px 10px;border-radius:999px;background:var(--panel);
+    color:var(--t2)}
+  .presets button:hover{background:var(--brand-soft);border-color:var(--brand-line);color:var(--brand)}
+  .explain{overflow:auto;padding:12px 14px;flex:1}
+  .ex{display:flex;gap:10px;align-items:baseline;padding:5px 0;border-bottom:1px solid var(--soft);
+    font-size:12.5px}
+  .ex code{background:var(--brand-soft);color:var(--brand);border-radius:5px;padding:1px 7px;
+    font-family:var(--mono);font-weight:600;flex:none}
+  .toast{position:fixed;bottom:24px;left:50%;transform:translate(-50%,10px);
+    background:#1c1f26;color:#fff;padding:10px 20px;border-radius:10px;opacity:0;
+    transition:all .2s;pointer-events:none;font-size:13px;z-index:99}
+  .toast.on{opacity:.97;transform:translate(-50%,0)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="bar">
+    <span class="brand"><i></i>正则实验室</span>
+    <span class="spacer"></span>
+    <span class="stat" id="stat"></span>
+    <button id="btnSample">放个样例</button>
+    <button id="btnCopyRe">复制正则</button>
+  </div>
+  <div class="rxbar">
+    <div class="rxbox">
+      <span class="sl">/</span>
+      <input id="re" placeholder="正则表达式，例如 &quot;(\w+)&quot;\s*:\s*&quot;([^&quot;]*)&quot;" autocomplete="off">
+      <span class="sl">/</span>
+    </div>
+    <div class="fl" id="flags">
+      <label><input type="checkbox" data-f="i"><span>i</span></label>
+      <label><input type="checkbox" data-f="m"><span>m</span></label>
+      <label><input type="checkbox" data-f="s"><span>s</span></label>
+      <label><input type="checkbox" data-f="x"><span>x</span></label>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="pane">
+    <div class="phead"><span class="lbl">测试文本</span><span class="sp"></span>
+      <span style="color:var(--t3);font-size:11.5px" id="tinfo"></span></div>
+    <textarea id="text" placeholder="把要匹配的文本贴进来（⌘/Ctrl+Enter 重新匹配）"></textarea>
+  </div>
+  <div class="pane">
+    <div class="tabbar" id="tabs">
+      <button data-t="hl" class="on">高亮</button>
+      <button data-t="groups">分组</button>
+      <button data-t="replace">替换</button>
+      <button data-t="explain">解释</button>
+    </div>
+    <div id="out"><div class="err" style="background:var(--panel2);border-color:var(--line);
+      color:var(--t2)">在上面写正则，匹配结果会实时显示在这里</div></div>
+  </div>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+const S = { tab: "hl", result: null, presets: [] };
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g,
+  c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const api = async p => { const r = await fetch(p); if(!r.ok) throw new Error(r.status); return r.json(); };
+const post = async (p,b) => (await fetch(p,{method:"POST",headers:{"Content-Type":"application/json"},
+  body:JSON.stringify(b||{})})).json();
+function toast(m){ const t=$("toast"); t.textContent=m; t.classList.add("on");
+  setTimeout(()=>t.classList.remove("on"),1800); }
+
+const SAMPLE = [
+  '{"areaCode":"NGA00001","destinationSite":"234449","orderType":"L","volumeM":1.2}',
+  '下单时间 2026-09-14T10:30:00，运单号 SF12345678901',
+  '联系 13812345678 或 example@example.com',
+  'GET /basic/waybillRegex/queryList?id=123 200',
+].join("\n");
+
+async function boot(){
+  const st = await api("/api/status");
+  S.presets = st.presets || [];
+  $("stat").textContent = `Python ${st.python} 的 re 语法`;
+  renderPresets();
+  $("text").value = SAMPLE;
+  $("re").value = '"(\\w+)"\\s*:\\s*"([^"]*)"';
+  info();
+  run();
+}
+
+function renderPresets(){
+  const d = document.createElement("div");
+  d.className = "presets";
+  d.innerHTML = `<span style="color:var(--t3);font-size:11.5px;align-self:center">常用：</span>` +
+    S.presets.map((p, i) => `<button data-i="${i}">${esc(p.name)}</button>`).join("");
+  $("flags").parentNode.parentNode.insertBefore(d, $("flags").parentNode.nextSibling);
+  d.querySelectorAll("button").forEach(b => b.onclick = () => {
+    $("re").value = S.presets[+b.dataset.i].re;
+    run();
+  });
+}
+
+function info(){
+  const t = $("text").value;
+  $("tinfo").textContent = t ? `${t.length} 字符 / ${t.split("\n").length} 行` : "";
+}
+
+function flags(){
+  const f = {};
+  document.querySelectorAll("#flags input").forEach(i => { if(i.checked) f[i.dataset.f] = 1; });
+  return f;
+}
+
+async function run(){
+  info();
+  const pattern = $("re").value;
+  const text = $("text").value;
+  if(!pattern){ $("out").innerHTML = `<div class="err" style="background:var(--panel2);
+    border-color:var(--line);color:var(--t2)">写个正则</div>`; return; }
+  const body = {pattern, text, flags: flags()};
+  if(S.tab === "replace") body.replace = $("repl") ? $("repl").value : "";
+  const r = await post("/api/run", body);
+  S.result = r;
+  paint();
+}
+
+function paint(){
+  const r = S.result;
+  if(!r){ return; }
+  if(r.error){
+    $("out").innerHTML = `<div class="err">${esc(r.error)}</div>`;
+    return;
+  }
+  $("stat").textContent = `${r.count} 处匹配 · ${r.seconds}s`;
+
+  if(S.tab === "hl"){
+    let h = "";
+    for(const s of r.segments){
+      h += s.t === "match" ? `<mark>${esc(s.v)}</mark>` : esc(s.v);
+    }
+    $("out").innerHTML = h || `<div class="err" style="background:var(--panel2);
+      border-color:var(--line);color:var(--t2)">没有匹配</div>`;
+  }else if(S.tab === "groups"){
+    if(!r.matches.length){
+      $("out").innerHTML = `<div class="err" style="background:var(--panel2);
+        border-color:var(--line);color:var(--t2)">没有匹配</div>`;
+      return;
+    }
+    let h = `<div class="groups">`;
+    r.matches.slice(0,40).forEach((m, i) => {
+      h += `<div class="g"><div class="h">第 ${i+1} 处 · 第 ${m.line} 行 ${m.col} 列</div>
+        <div class="v">整体: <b>${esc(m.text)}</b></div>`;
+      m.groups.forEach(g => {
+        h += `<div class="v">组 ${g.i}: ${g.value === null
+          ? '<span style="color:var(--t3)">(没匹配到)</span>' : esc(g.value)}</div>`;
+      });
+      Object.entries(m.named || {}).forEach(([k, v]) => {
+        h += `<div class="v">${esc(k)}: ${v === null
+          ? '<span style="color:var(--t3)">(没匹配到)</span>' : esc(v)}</div>`;
+      });
+      h += `</div>`;
+    });
+    if(r.count > 40) h += `<div style="color:var(--t3);font-size:12px">只显示前 40 处</div>`;
+    $("out").innerHTML = h + `</div>`;
+  }else if(S.tab === "replace"){
+    const has = ($("repl") ? $("repl").value : "") !== null;
+    $("out").innerHTML = `
+      <div style="padding:9px 14px;background:var(--panel2);border-bottom:1px solid var(--soft)">
+        <input id="repl" placeholder="替换成什么（可用 \\1 \\2 引用分组）"
+          value="${esc($("repl") ? $("repl").value : "")}"
+          style="width:100%;font:inherit;font-family:var(--mono);font-size:12.5px;
+          border:1px solid var(--line);border-radius:8px;padding:6px 11px;outline:none">
+      </div>
+      ${r.replace_error ? `<div class="err">${esc(r.replace_error)}</div>`
+        : `<pre>${esc(r.replaced === undefined ? "" : r.replaced)}</pre>`}`;
+    $("repl").addEventListener("input", () => {
+      clearTimeout(S.rt);
+      S.rt = setTimeout(run, 250);
+    });
+    $("repl").focus();
+  }else{
+    const ex = r.explain || [];
+    $("out").innerHTML = ex.length ? `<div class="explain">${ex.map(e =>
+      `<div class="ex"><code>${esc(e.token)}</code><span>${esc(e.desc)}</span></div>`).join("")}
+      <div style="color:var(--t3);font-size:11.5px;margin-top:11px">
+        这是按常见构造逐段拆的，复杂正则（如回溯、断言）只解释主要部分</div></div>`
+      : `<div class="err" style="background:var(--panel2);border-color:var(--line);
+         color:var(--t2)">没有可解释的构造</div>`;
+  }
+}
+
+document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => {
+  S.tab = b.dataset.t;
+  document.querySelectorAll("#tabs button").forEach(x => x.classList.toggle("on", x === b));
+  paint();
+});
+let t1 = null;
+$("re").addEventListener("input", () => { clearTimeout(t1); t1 = setTimeout(run, 200); });
+$("text").addEventListener("input", () => { clearTimeout(t1); t1 = setTimeout(run, 250); });
+document.querySelectorAll("#flags input").forEach(i => i.onchange = run);
+document.addEventListener("keydown", e => {
+  if((e.metaKey || e.ctrlKey) && e.key === "Enter"){ e.preventDefault(); run(); }
+});
+$("btnSample").onclick = () => { $("text").value = SAMPLE; run(); };
+$("btnCopyRe").onclick = () => {
+  const re = $("re").value;
+  if(!re) return toast("还没有正则");
+  const f = Object.keys(flags()).join("");
+  navigator.clipboard.writeText(`/${re}/${f}`).then(()=>toast("已复制 /…/" + f));
+};
+boot();
+</script>
+</body>
+</html>

@@ -1,0 +1,90 @@
+{
+  "manifest_version": 1,
+  "id": "iosauto",
+  "name": "iOS 开发自动化",
+  "description": "把「编译→装到模拟器→启动→抓日志」串成一次点击。自动认出 CocoaPods 工程该用 workspace 还是 project，自动列 scheme、挑模拟器，还能单独构建/归档/截图/pod install。",
+  "version": "0.1.0",
+  "author": "本机",
+  "type": "local",
+
+  "runtime": { "entry": "main.py", "requires": { "python": ">=3.7" }, "dependencies": [] },
+  "ports": { "web": 8919 },
+
+  "platform": {
+    "icon": "🛠",
+    "color": "#0f766e",
+    "open": "http://127.0.0.1:{web}/",
+    "health": "http://127.0.0.1:{web}/api/status",
+    "start": ["python3", "main.py", "start"],
+    "stop": ["python3", "main.py", "stop"],
+    "note": "半自动：点了才动。跑完流水线会顺手让「代码日志」开始抓日志，接着就能让 AI 分析。"
+  },
+
+  "permissions": [
+    {
+      "id": "process.exec.xcode",
+      "why": "调用 xcodebuild / xcrun simctl / pod 编译、装 App、启模拟器",
+      "risk": "中：会在你的工程目录里跑构建，占用 CPU 和磁盘",
+      "mitigation": "只在用户点按钮时执行；产物写到本功能自己的 DerivedData 目录，**不碰你工程里的 build**；不自动签名、不改工程配置"
+    },
+    {
+      "id": "process.exec.pod",
+      "why": "「pod install」按钮",
+      "risk": "中：会修改工程的 Podfile.lock 和 Pods 目录",
+      "mitigation": "只在用户明确点「pod install」时执行；执行前会说明它会改什么；不改 Podfile"
+    },
+    {
+      "id": "fs.scan.projects",
+      "why": "扫描桌面/文稿找 Xcode 工程",
+      "risk": "低：只读目录名和工程文件名，不读源码",
+      "mitigation": "只扫两层目录，跳过 Pods/build/DerivedData；不读任何源码内容"
+    },
+    {
+      "id": "fs.write",
+      "why": "构建产物、归档、截图落盘",
+      "risk": "低：只写本功能自己的目录",
+      "mitigation": "写入范围限制在功能目录内；运行记录只追加"
+    },
+    {
+      "id": "net.local.read",
+      "why": "通知「代码日志」开始抓模拟器日志",
+      "risk": "低：只调本机 127.0.0.1",
+      "mitigation": "只发一个「开始抓取」的请求，不读其他功能的数据"
+    }
+  ],
+
+  "data": {
+    "produces": [
+      { "id": "runs", "file": "runs.jsonl", "kind": "append-only",
+        "desc": "流水线运行记录（方案/模拟器/耗时/每步结果，带 user_id）" },
+      { "id": "archives", "file": "Archives/*.xcarchive", "kind": "files",
+        "desc": "归档产物" }
+    ],
+    "consumes": [
+      { "feature": "loghub", "via": "http", "endpoints": ["/api/capture/start"],
+        "desc": "跑完流水线后让「代码日志」开始抓模拟器日志" }
+    ]
+  },
+
+  "exposes": {
+    "base": "http://127.0.0.1:8919",
+    "endpoints": [
+      { "path": "/api/status", "desc": "Xcode 版本 + 模拟器 + 历史", "auth": "local-only" },
+      { "path": "/api/projects", "desc": "扫描 Xcode 工程", "auth": "local-only" },
+      { "path": "/api/schemes", "desc": "列工程 scheme ?entry=&kind=", "auth": "local-only" },
+      { "path": "/api/simulators", "desc": "可用模拟器", "auth": "local-only" },
+      { "path": "/api/digest", "desc": "无告警（占位）", "auth": "local-only" }
+    ],
+    "writes": [
+      { "path": "/api/run", "desc": "一键流水线", "auth": "local-only" },
+      { "path": "/api/build", "desc": "编译", "auth": "local-only" },
+      { "path": "/api/archive", "desc": "归档 Release", "auth": "local-only" },
+      { "path": "/api/screenshot", "desc": "模拟器截图", "auth": "local-only" },
+      { "path": "/api/pod", "desc": "pod install", "auth": "local-only" },
+      { "path": "/api/sim", "desc": "模拟器开关机", "auth": "local-only" }
+    ]
+  },
+
+  "ui": { "entry": "index.html" },
+  "store": { "pricing": "free", "license": "personal" }
+}

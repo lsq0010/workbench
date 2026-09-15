@@ -1,0 +1,1471 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>工作平台</title>
+<style>
+  :root{
+    --bg:#eef0f4; --panel:#fff; --panel2:#fafbfc; --line:#e3e6ec; --soft:#f0f2f6;
+    --text:#14161a; --t2:#5b6472; --t3:#98a1ad;
+    --brand:#2f6df6; --brand-soft:#eef3ff; --brand-line:#cfdffd;
+    --ok:#12894f; --ok-soft:#e7f6ee; --warn:#a9670a; --warn-soft:#fdf3e3;
+    --danger:#d23b3b; --danger-soft:#fdecec; --ai:#7c3aed;
+    --sh1:0 1px 2px rgba(16,24,40,.05);
+    --sh2:0 4px 14px rgba(16,24,40,.10),0 1px 3px rgba(16,24,40,.05);
+    --sh3:0 20px 56px rgba(16,24,40,.20);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",
+           "Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  }
+  *{box-sizing:border-box}
+  ::-webkit-scrollbar{width:11px;height:11px}
+  ::-webkit-scrollbar-thumb{background:#c8cdd6;border:3px solid transparent;
+    background-clip:content-box;border-radius:8px}
+  html,body{height:100%}
+  body{margin:0;font:14px/1.55 var(--sans);color:var(--text);
+       display:flex;flex-direction:column;overflow:hidden;-webkit-font-smoothing:antialiased;
+       background:
+         radial-gradient(1200px 600px at 12% -8%, #dfe8ff 0%, transparent 55%),
+         radial-gradient(1000px 500px at 92% 4%, #ffe9d6 0%, transparent 50%),
+         var(--bg);
+       background-attachment:fixed}
+
+  /* ── 顶栏 ── */
+  header{flex:none;background:rgba(255,255,255,.82);backdrop-filter:blur(18px);
+         border-bottom:1px solid rgba(0,0,0,.06);z-index:6}
+  .bar{display:flex;align-items:center;gap:11px;padding:0 20px;height:58px}
+  .brand{display:flex;align-items:center;gap:9px;font-weight:650;font-size:16px;
+         letter-spacing:-.01em;flex:none}
+  .brand .mk{width:25px;height:25px;border-radius:7px;display:flex;align-items:center;
+    justify-content:center;font-size:13px;color:#fff;
+    background:linear-gradient(135deg,#2f6df6,#7aa5ff);
+    box-shadow:0 2px 7px rgba(47,109,246,.4)}
+  .spacer{flex:1}
+  .tabs{display:flex;gap:3px;background:rgba(0,0,0,.05);padding:3px;border-radius:10px}
+  .tabs button{border:none;background:transparent;border-radius:7px;padding:6px 15px;
+    font-size:13.5px;color:var(--t2);font-weight:550;cursor:pointer;transition:all .14s;
+    font-family:inherit}
+  .tabs button:hover{color:var(--text)}
+  .tabs button.on{background:#fff;color:var(--text);box-shadow:var(--sh1)}
+  .aibtn{display:flex;align-items:center;gap:7px;border:none;cursor:pointer;
+    background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;font-weight:620;
+    font-size:13.5px;padding:8px 16px;border-radius:10px;font-family:inherit;
+    box-shadow:0 3px 12px rgba(124,58,237,.35);transition:all .14s}
+  .aibtn:hover{transform:translateY(-1px);box-shadow:0 5px 18px rgba(124,58,237,.45)}
+  .pill{display:flex;align-items:center;gap:7px;border-radius:999px;padding:5px 13px;
+    font-size:12.5px;font-weight:600;cursor:pointer;border:1px solid transparent;
+    font-family:inherit;transition:all .13s}
+  .pill.crit{background:var(--danger-soft);color:var(--danger);border-color:#f6c9c9}
+  .pill.warn{background:var(--warn-soft);color:var(--warn);border-color:#fde68a}
+  .pill.ok{background:var(--ok-soft);color:var(--ok);border-color:#bfe6cf}
+  button.iconbtn{border:1px solid rgba(0,0,0,.08);background:rgba(255,255,255,.9);
+    border-radius:9px;padding:7px 13px;cursor:pointer;font:inherit;font-size:13px;
+    color:var(--t2);transition:all .13s}
+  button.iconbtn:hover{background:#fff;color:var(--text);border-color:rgba(0,0,0,.14)}
+  .kbd{font-family:var(--mono);font-size:11px;background:rgba(0,0,0,.06);
+    border-radius:5px;padding:1px 6px;color:var(--t3)}
+
+  main{flex:1;overflow:auto;padding:26px 34px 90px}
+  .wrap{max-width:1280px;margin:0 auto}
+  h2.sec{font-size:12.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--t3);
+         margin:0 0 14px;font-weight:700;display:flex;align-items:center;gap:9px}
+  h2.sec span{text-transform:none;letter-spacing:0;color:var(--t3);font-weight:450;
+              font-size:12.5px}
+  h2.sec:not(:first-child){margin-top:34px}
+
+  /* ── 今日关注 ── */
+  .digest{display:flex;flex-direction:column;gap:9px;margin-bottom:8px}
+  .alert{background:rgba(255,255,255,.92);border:1px solid var(--line);
+    border-left:4px solid var(--t3);border-radius:12px;padding:12px 17px;display:flex;
+    align-items:flex-start;gap:12px;cursor:pointer;box-shadow:var(--sh1);
+    transition:all .13s}
+  .alert:hover{box-shadow:var(--sh2);transform:translateX(2px)}
+  .alert.critical{border-left-color:var(--danger);background:#fffbfb}
+  .alert.warn{border-left-color:var(--warn);background:#fffdf8}
+  .alert.info{border-left-color:var(--brand)}
+  .alert .ai{font-size:17px;flex:none;width:22px;text-align:center}
+  .alert .at{font-weight:620;font-size:14px}
+  .alert .ad{color:var(--t2);font-size:12.5px;margin-top:3px}
+  .alert .af{color:var(--t3);font-size:11.5px;margin-top:5px;display:flex;gap:9px;
+    align-items:center}
+  .alert .src{background:rgba(0,0,0,.04);border-radius:5px;padding:1px 7px;font-weight:600}
+  .allday{background:var(--ok-soft);border:1px solid #bfe6cf;color:#0d6b3e;
+    border-radius:12px;padding:13px 17px;font-size:13.5px;font-weight:500}
+
+  /* ── 桌面图标网格（像 macOS 桌面）── */
+  .desk{display:grid;grid-template-columns:repeat(auto-fill,minmax(124px,1fr));
+        gap:8px 4px}
+  .ico{display:flex;flex-direction:column;align-items:center;gap:7px;padding:13px 6px 11px;
+    border-radius:14px;cursor:pointer;position:relative;transition:all .13s;
+    user-select:none}
+  .ico:hover{background:rgba(255,255,255,.72)}
+  .ico.on{background:rgba(47,109,246,.14)}
+  .ico .glyph{width:60px;height:60px;border-radius:15px;display:flex;align-items:center;
+    justify-content:center;font-size:29px;position:relative;flex:none;
+    background:#fff;box-shadow:var(--sh2);transition:transform .14s}
+  .ico:hover .glyph{transform:translateY(-2px) scale(1.03)}
+  .ico .glyph::after{content:"";position:absolute;inset:0;border-radius:15px;
+    background:linear-gradient(160deg,rgba(255,255,255,.5),transparent 60%);
+    pointer-events:none}
+  .ico .nm{font-size:12.5px;font-weight:550;text-align:center;line-height:1.35;
+    max-width:116px;word-break:break-word;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .ico .dot{position:absolute;top:11px;right:15px;width:9px;height:9px;border-radius:50%;
+    border:2px solid rgba(255,255,255,.95)}
+  .ico .dot.on{background:#34c759}
+  .ico .dot.off{background:#c2c8d0}
+  .ico .dot.bad{background:#ff3b30}
+  .ico .pin{position:absolute;top:9px;left:13px;font-size:11px;opacity:.9}
+  .ico .menu{position:absolute;top:8px;right:10px;width:22px;height:22px;border-radius:50%;
+    border:none;background:rgba(0,0,0,.42);color:#fff;font-size:13px;line-height:1;
+    cursor:pointer;opacity:0;transition:opacity .12s;padding:0}
+  .ico:hover .menu{opacity:1}
+  .ico .badge{position:absolute;top:8px;left:12px;background:var(--danger);color:#fff;
+    font-size:10px;font-weight:700;border-radius:999px;padding:1px 6px;min-width:16px;
+    text-align:center}
+  .ico.add .glyph{background:rgba(255,255,255,.55);border:2px dashed rgba(0,0,0,.18);
+    box-shadow:none;color:var(--t3);font-size:26px}
+  .ico.add:hover .glyph{border-color:var(--brand);color:var(--brand)}
+
+  /* ── 卡片（商店/设置）── */
+  .card{background:rgba(255,255,255,.94);border:1px solid var(--line);border-radius:14px;
+    padding:18px 20px;margin-bottom:14px;box-shadow:var(--sh1)}
+  .card h3{margin:0 0 13px;font-size:14.5px;font-weight:650;display:flex;align-items:center;
+    gap:9px}
+  .frow{display:flex;align-items:center;gap:10px;margin-bottom:11px;flex-wrap:wrap}
+  .frow label{font-size:12.5px;color:var(--t2);width:82px;flex:none}
+  .frow input,.frow select{flex:1;min-width:180px;font:inherit;font-size:13px;
+    border:1px solid var(--line);border-radius:8px;padding:8px 11px;background:#fff;
+    color:var(--text);outline:none}
+  .frow input:focus,.frow select:focus{border-color:var(--brand);
+    box-shadow:0 0 0 3px var(--brand-soft)}
+  .btn{border:1px solid var(--line);background:#fff;border-radius:9px;padding:8px 14px;
+    cursor:pointer;font:inherit;font-size:13px;color:var(--text);transition:all .13s}
+  .btn:hover{background:#f7f8fa}
+  .btn.pri{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:600}
+  .btn.pri:hover{background:#245ad9}
+  .btn.danger{background:var(--danger);border-color:var(--danger);color:#fff}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .kv{display:grid;grid-template-columns:150px 1fr}
+  .kv div{padding:7px 13px;border-bottom:1px solid var(--soft);font-size:12.5px;
+    font-family:var(--mono);word-break:break-all}
+  .kv div:nth-child(odd){color:var(--t3);background:var(--panel2);font-family:var(--sans)}
+  .kv div:last-child,.kv div:nth-last-child(2){border-bottom:none}
+  .state{font-size:12.5px;margin-top:10px;line-height:1.7;white-space:pre-line;
+    max-height:170px;overflow:auto}
+  .state.ok{color:var(--ok)} .state.bad{color:var(--danger)} .state.warn{color:var(--warn)}
+
+  /* ── AI 面板 ── */
+  /* ── 今日关注抽屉（左侧滑出，和右边的 AI 面板对称）── */
+#digest{position:fixed;top:0;left:0;bottom:0;width:min(470px,92vw);z-index:45;
+  background:rgba(252,252,253,.985);backdrop-filter:blur(20px);
+  box-shadow:6px 0 40px rgba(16,24,40,.16);display:flex;flex-direction:column;
+  transform:translateX(-101%);transition:transform .26s cubic-bezier(.32,.72,0,1)}
+#digest.on{transform:none}
+#digest .dhead{padding:15px 20px;border-bottom:1px solid var(--line);flex:none;
+  display:flex;align-items:center;gap:10px}
+#digest .dhead .t{font-weight:660;font-size:15.5px}
+#digest .dhead .c{font-size:12px;color:var(--t3);font-weight:400;margin-left:2px}
+#digest .dbody{flex:1;overflow:auto;padding:14px 16px 40px}
+#digest .dbody .digest{margin-bottom:0}
+#digest .dempty{text-align:center;padding:64px 20px;color:var(--t2);font-size:13.5px}
+#digest .dempty .big{font-size:40px;opacity:.35;display:block;margin-bottom:12px}
+#digest .dfoot{flex:none;padding:11px 16px;border-top:1px solid var(--line);
+  display:flex;gap:9px;align-items:center;font-size:12px;color:var(--t3)}
+#doverlay{position:fixed;inset:0;background:rgba(16,24,40,.24);z-index:44;
+  opacity:0;pointer-events:none;transition:opacity .26s}
+#doverlay.on{opacity:1;pointer-events:auto}
+
+#ai{position:fixed;top:0;right:0;bottom:0;width:min(560px,94vw);z-index:40;
+    background:rgba(255,255,255,.98);backdrop-filter:blur(20px);
+    box-shadow:var(--sh3);display:flex;flex-direction:column;
+    transform:translateX(100%);transition:transform .24s cubic-bezier(.32,.72,0,1)}
+  #ai.on{transform:none}
+  .aihead{flex:none;display:flex;align-items:center;gap:10px;padding:14px 18px;
+    border-bottom:1px solid var(--line)}
+  .aihead .t{font-weight:650;font-size:15px;display:flex;align-items:center;gap:8px}
+  .aihead .t i{width:22px;height:22px;border-radius:7px;display:flex;align-items:center;
+    justify-content:center;font-size:12px;font-style:normal;color:#fff;
+    background:linear-gradient(135deg,#7c3aed,#a855f7)}
+  .aihead .sub{font-size:11.5px;color:var(--t3);margin-top:1px}
+  .aibody{flex:1;overflow:auto;padding:18px}
+  .msg{margin-bottom:15px;display:flex;gap:10px}
+  .msg .av{width:27px;height:27px;border-radius:8px;flex:none;display:flex;
+    align-items:center;justify-content:center;font-size:13px}
+  .msg.u .av{background:#e8ecf3}
+  .msg.a .av{background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff}
+  .msg .bd{flex:1;min-width:0;font-size:13.5px;line-height:1.72;white-space:pre-wrap;
+    word-break:break-word}
+  .msg.u .bd{color:var(--text)}
+  .msg.a .bd code{background:rgba(0,0,0,.06);border-radius:4px;padding:1px 5px;
+    font-family:var(--mono);font-size:12.5px}
+  .msg.a .bd pre{background:#1c1f26;color:#e6e8ec;border-radius:9px;padding:11px 14px;
+    overflow:auto;font-family:var(--mono);font-size:12px;margin:8px 0;white-space:pre}
+  .toolline{background:#f4f0ff;border:1px solid #e2ccff;border-radius:9px;padding:8px 12px;
+    font-family:var(--mono);font-size:11.5px;margin:7px 0;color:#6b21a8;word-break:break-all}
+  .toolline.ok{background:var(--ok-soft);border-color:#bfe6cf;color:#0d6b3e}
+  .toolline.bad{background:var(--danger-soft);border-color:#f6c9c9;color:#a02c2c}
+  .aifoot{flex:none;border-top:1px solid var(--line);padding:12px 16px}
+  .aiin{display:flex;gap:9px;align-items:flex-end}
+  .aiin textarea{flex:1;font:inherit;font-size:13.5px;border:1px solid var(--line);
+    border-radius:11px;padding:10px 13px;resize:none;min-height:44px;max-height:150px;
+    outline:none;background:#fff;color:var(--text)}
+  .aiin textarea:focus{border-color:var(--ai);box-shadow:0 0 0 3px #f3eeff}
+  .aiin button{border:none;background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;
+    border-radius:11px;width:44px;height:44px;cursor:pointer;font-size:17px;flex:none}
+  .aiin button:disabled{opacity:.4;cursor:not-allowed}
+  .quick{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+  .quick button{border:1px solid var(--line);background:#fff;border-radius:999px;
+    padding:4px 12px;font-size:12px;cursor:pointer;color:var(--t2);font-family:inherit}
+  .quick button:hover{border-color:#ddd0ff;color:var(--ai);background:#faf7ff}
+  .aistat{font-size:11.5px;color:var(--t3);margin-top:7px;display:flex;gap:10px;
+    align-items:center;flex-wrap:wrap}
+
+  /* ── 遮罩/弹层 ── */
+  .overlay{position:fixed;inset:0;background:rgba(16,24,40,.3);z-index:50;display:none;
+    align-items:flex-start;justify-content:center;padding-top:11vh;
+    backdrop-filter:blur(3px)}
+  .overlay.on{display:flex}
+  .palette{width:min(640px,92vw);background:#fff;border-radius:15px;box-shadow:var(--sh3);
+    overflow:hidden;border:1px solid var(--line)}
+  .palette input{width:100%;border:none;outline:none;font:inherit;font-size:16px;
+    padding:17px 20px;background:transparent;border-bottom:1px solid var(--soft)}
+  .palette .list{max-height:54vh;overflow:auto;padding:6px}
+  .pitem{display:flex;align-items:center;gap:11px;padding:10px 13px;border-radius:9px;
+    cursor:pointer}
+  .pitem.on{background:var(--brand-soft)}
+  .pitem .pic{width:30px;height:30px;border-radius:8px;flex:none;display:flex;
+    align-items:center;justify-content:center;font-size:16px;background:#f1f3f6}
+  .pitem .pn{font-weight:600;font-size:13.5px}
+  .pitem .pd{color:var(--t3);font-size:11.5px;margin-left:auto;font-family:var(--mono)}
+
+  .sheet{position:fixed;inset:0;background:rgba(16,24,40,.34);z-index:60;display:none;
+    align-items:center;justify-content:center;backdrop-filter:blur(3px)}
+  .sheet.on{display:flex}
+  .sheet .box{width:min(620px,94vw);max-height:84vh;background:#fff;border-radius:16px;
+    box-shadow:var(--sh3);display:flex;flex-direction:column;overflow:hidden}
+  .sheet .hd{padding:16px 20px;border-bottom:1px solid var(--line);font-weight:650;
+    font-size:15px;display:flex;align-items:center;gap:9px}
+  .sheet .bd{padding:18px 20px;overflow:auto}
+  .sheet .ft{padding:14px 20px;border-top:1px solid var(--line);display:flex;gap:9px;
+    justify-content:flex-end}
+  .kinds{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:16px}
+  .kinds button{border:1px solid var(--line);background:#fff;border-radius:10px;
+    padding:11px 4px;cursor:pointer;font-family:inherit;font-size:11.5px;color:var(--t2);
+    display:flex;flex-direction:column;align-items:center;gap:5px;transition:all .12s}
+  .kinds button .e{font-size:20px}
+  .kinds button.on{border-color:var(--brand);background:var(--brand-soft);color:var(--text);
+    font-weight:600}
+  .picklist{max-height:240px;overflow:auto;border:1px solid var(--line);border-radius:10px;
+    margin-top:9px}
+  .picklist .it{padding:8px 13px;border-bottom:1px solid var(--soft);cursor:pointer;
+    font-size:13px;display:flex;align-items:center;gap:9px}
+  .picklist .it:last-child{border-bottom:none}
+  .picklist .it:hover{background:var(--brand-soft)}
+  .mono{font-family:var(--mono);font-size:11.5px;color:var(--t3);word-break:break-all}
+
+  .empty{text-align:center;padding:64px 20px;color:var(--t2);font-size:13px}
+  .empty .big{font-size:46px;opacity:.35;display:block;margin-bottom:13px}
+  .empty b{color:var(--text);display:block;font-size:15px;margin-bottom:7px}
+  #imgbar:empty{display:none}
+#imgbar{margin-top:8px;display:flex;gap:8px;flex-wrap:wrap}
+#imgbar .thumb{position:relative;width:64px;height:64px;border-radius:8px;
+  overflow:hidden;border:1px solid var(--line);background:#0b0d11}
+#imgbar .thumb img{width:100%;height:100%;object-fit:cover;display:block}
+#imgbar .thumb b{position:absolute;top:2px;right:2px;width:16px;height:16px;
+  border-radius:50%;background:rgba(0,0,0,.6);color:#fff;font-size:11px;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;font-weight:400}
+#imgbar .thumb b:hover{background:var(--danger)}
+.aibody.drag{outline:2px dashed var(--ai);outline-offset:-6px;background:rgba(124,58,237,.06)}
+.toast{position:fixed;bottom:26px;left:50%;transform:translate(-50%,10px);
+    background:rgba(28,31,38,.96);color:#fff;padding:11px 21px;border-radius:11px;opacity:0;
+    transition:all .2s;pointer-events:none;font-size:13px;z-index:99;max-width:74vw;
+    text-align:center;box-shadow:var(--sh3)}
+  .toast.on{opacity:1;transform:translate(-50%,0)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="bar">
+    <span class="brand"><span class="mk">🧰</span>工作平台</span>
+    <span id="alertslot"></span>
+    <span class="spacer"></span>
+    <div class="tabs" id="tabs">
+      <button data-v="desk" class="on">桌面</button>
+      <button data-v="store">功能商店</button>
+      <button data-v="set">设置</button>
+    </div>
+    <button class="iconbtn" id="btnWatch" title="AI 值守：后台主动发现问题">
+      <span id="watchdot" style="display:inline-block;width:7px;height:7px;border-radius:50%;
+        background:#c2c8d0;margin-right:5px;vertical-align:1px"></span>值守</button>
+    <button class="iconbtn" id="btnPalette">搜索 <span class="kbd">⌘K</span></button>
+    <button class="aibtn" id="btnAI">✦ AI 助手</button>
+  </div>
+</header>
+
+<div id="doverlay"></div>
+
+<!-- 今日关注抽屉（左侧） -->
+<aside id="digest">
+  <div class="dhead">
+    <div class="t">今日关注 <span class="c" id="dcount"></span></div>
+    <span class="spacer" style="flex:1"></span>
+    <button class="iconbtn" id="btnDigestClose" title="关掉（Esc）">✕</button>
+  </div>
+  <div class="dbody" id="dbody"></div>
+  <div class="dfoot">
+    <span>平台从各功能汇总 —— 点一条去处理</span>
+    <span class="spacer" style="flex:1"></span>
+    <button class="iconbtn" id="btnDigestRefresh" title="重新汇总">↻</button>
+  </div>
+</aside>
+
+<main><div class="wrap" id="view"></div></main>
+
+<!-- AI 面板 -->
+<aside id="ai">
+  <div class="aihead">
+    <div>
+      <div class="t"><i>✦</i>AI 助手</div>
+      <div class="sub" id="aimodel">平台自带入口 · 删不掉，坏了能自救</div>
+    </div>
+    <span class="spacer" style="flex:1"></span>
+    <button class="iconbtn" id="btnAISet" title="AI 设置">⚙︎</button>
+    <button class="iconbtn" id="btnAIClose">✕</button>
+  </div>
+  <div class="aibody" id="aibody">
+    <div class="msg a"><span class="av">✦</span><div class="bd">我能做这些：
+· 回答技术问题（iOS/Swift、uni-app、接口、抓包）
+· 看你的日志、报文、代码，指出问题
+· <b>改这个平台自己的代码</b> —— 改界面、加功能、修 bug，改错了能回滚
+
+值守发现的问题，点「今日关注」里那条 🤖 就能直接让我接着修。
+
+<b>我也能看图</b> —— 点下面「📷 看截图」，或者直接把图片拖进来。
+手机截图、Xcode 报错截图、App 界面都能看。
+
+直接说你要什么就行。要改平台代码的话，我会先读文件、说清楚改什么，再动手。</div></div>
+  </div>
+  <div class="aifoot">
+    <div class="quick" id="quick"><button class="qbtn" id="btnVision">📷 看截图</button></div>
+    <div class="aiin">
+      <textarea id="aiq" rows="1" placeholder="问点什么，或者勾上「自主模式」给个目标让它自己干…"></textarea>
+      <button id="aisend">↑</button>
+    </div>
+    <div class="aistat" id="aistat"></div>
+    <label style="display:flex;align-items:center;gap:7px;margin-top:9px;
+      font-size:12.5px;color:var(--t2);cursor:pointer">
+      <input type="checkbox" id="agentmode" style="width:auto;accent-color:var(--ai)">
+      自主模式（给个目标，它自己读代码→改→验证，不需要你盯着）
+    </label>
+    <div id="imgbar"></div>
+  </div>
+</aside>
+
+<!-- 命令面板 -->
+<div class="overlay" id="overlay">
+  <div class="palette">
+    <input id="pq" placeholder="搜索…（↑↓ 选，回车打开，Esc 关闭）" autocomplete="off">
+    <div class="list" id="plist"></div>
+  </div>
+</div>
+
+<!-- 添加桌面项 -->
+<div class="sheet" id="addsheet">
+  <div class="box">
+    <div class="hd">＋ 加到桌面</div>
+    <div class="bd">
+      <div class="kinds" id="kinds"></div>
+      <div class="frow"><label>位置</label>
+        <input id="addtarget" placeholder="选一个，或直接粘路径 / 网址"></div>
+      <div class="frow"><label>名字</label>
+        <input id="addname" placeholder="留空就用文件名"></div>
+      <div style="display:flex;gap:8px;margin-top:4px">
+        <button class="btn" id="btnPick">浏览…</button>
+        <span style="font-size:12px;color:var(--t3);align-self:center" id="pickinfo"></span>
+      </div>
+      <div class="picklist" id="picklist" style="display:none"></div>
+    </div>
+    <div class="ft">
+      <button class="btn" id="btnAddCancel">取消</button>
+      <button class="btn pri" id="btnAddOk">加到桌面</button>
+    </div>
+  </div>
+</div>
+
+<!-- 图标菜单 -->
+<div class="sheet" id="menusheet">
+  <div class="box" style="width:min(380px,92vw)">
+    <div class="hd" id="menutitle">操作</div>
+    <div class="bd" id="menubody" style="display:flex;flex-direction:column;gap:9px"></div>
+    <div class="ft"><button class="btn" id="btnMenuCancel">取消</button></div>
+  </div>
+</div>
+
+<div class="sheet" id="shotsheet">
+  <div class="box" style="width:min(880px,94vw)">
+    <div class="hd">📷 选一张图 <span style="font-weight:400;font-size:12.5px;
+      color:var(--t3);margin-left:6px">桌面的截图 · 平台暂存的 · 也可以直接按 ⌘V 粘贴</span></div>
+    <div class="bd"><div id="shotlist" style="display:grid;
+      grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:11px"></div></div>
+    <div class="ft">
+      <button class="b" id="btnShotUpload">从文件选…</button>
+      <button class="b" id="btnShotClose">关闭</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+const S = { imgs: [], view: localStorage.getItem("pf.view2") || "desk", items: [], kinds: {},
+            digest: null, settings: null, aiHistory: [], addKind: "folder",
+            pickPath: "", menuItem: null, aiBusy: false };
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g,
+  c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const api = async p => { const r = await fetch(p); if(!r.ok) throw new Error(r.status); return r.json(); };
+const post = async (p,b) => {
+  const r = await fetch(p, {method:"POST", headers:{"Content-Type":"application/json"},
+                            body: JSON.stringify(b||{})});
+  const j = await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(j.error || j.message || ("HTTP "+r.status));
+  return j;
+};
+function toast(m){ const t=$("toast"); t.textContent=m; t.classList.add("on");
+  setTimeout(()=>t.classList.remove("on"),2200); }
+
+async function boot(){
+  await load();
+  initAI();
+  checkWatch();
+  setInterval(checkWatch, 30000);
+  // 别的功能可以把截图甩过来：?seeimg=路径&q=问什么
+  try{
+    const p2 = new URLSearchParams(location.search);
+    const img = p2.get("seeimg");
+    if(img){
+      toggleAI(true);
+      S.imgs = [{path: img, name: img.split("/").pop(),
+                 url: "/api/ai/file?path=" + encodeURIComponent(img)}];
+      paintImgs();
+      if(p2.get("q")) $("aiq").value = p2.get("q");
+      toast("收到截图，回车就让它看");
+      history.replaceState(null, "", location.pathname);
+    }
+  }catch(e){}
+  // 别的功能可以把任务甩过来：?fixgoal=xxx
+  // （比如 iosauto 构建失败时，点「让 AI 试着修」就跳到这里）
+  try{
+    const p = new URLSearchParams(location.search);
+    const goal = p.get("fixgoal");
+    if(goal){
+      toggleAI(true);
+      if($("agentmode")) $("agentmode").checked = true;
+      $("aiq").value = goal;
+      $("aiq").style.height = "auto";
+      $("aiq").style.height = Math.min($("aiq").scrollHeight, 150) + "px";
+      toast("已收到任务，勾了自主模式 —— 回车就让它自己干");
+      history.replaceState(null, "", location.pathname);
+    }
+  }catch(e){}
+}
+
+async function checkWatch(){
+  try{
+    const w = await api("/api/watch");
+    const dot = $("watchdot");
+    if(!dot) return;
+    dot.style.background = w.running ? "#34c759" : "#c2c8d0";
+    $("btnWatch").title = w.running
+      ? `AI 值守运行中（每 ${w.interval}s 一轮，已关注 ${w.watched} 项）`
+      : "AI 值守未运行 —— 点一下启动";
+  }catch(e){}
+}
+
+async function load(){
+  try{
+    const [d, st] = await Promise.all([api("/api/desktop"), api("/api/store")]);
+    S.items = d.items || []; S.kinds = d.kinds || {}; S.store = st.items || [];
+    api("/api/digest").then(x => { S.digest = x; if(S.view === "desk") render(); });
+    render();
+  }catch(e){
+    $("view").innerHTML = `<div class="empty"><span class="big">🔌</span>
+      <b>连不上平台服务</b>${esc(e.message)}</div>`;
+  }
+}
+
+function render(){
+  document.querySelectorAll("#tabs button").forEach(b =>
+    b.classList.toggle("on", b.dataset.v === S.view));
+  const d = S.digest;
+  if(d && d.count){
+    const crit = d.critical > 0;
+    // 顶栏 pill 显示**总项数**，和抽屉里的数字保持一致；
+    // 有 critical 时前面标红叉，但不改变数字口径（以前显示 critical 数，
+    // 和抽屉里的总数对不上，看着像两个东西）
+    $("alertslot").innerHTML = `<button class="pill ${crit?"crit":"warn"}" id="apill"
+      title="点开看详情（⌘D）">
+      ${crit?"❌":"⚠️"} ${d.count} 项关注${crit?`（${d.critical} 严重）`:""}
+      <span style="opacity:.6;font-weight:400">›</span></button>`;
+    $("apill").onclick = openDigest;
+  } else if(d){ $("alertslot").innerHTML =
+    `<button class="pill ok" id="apill" title="点开看详情（⌘D）">
+      ✅ 一切正常 <span style="opacity:.6;font-weight:400">›</span></button>`;
+    $("apill").onclick = openDigest; }
+  else $("alertslot").innerHTML = "";
+  paintDigest();
+
+  if(S.view === "desk") renderDesk();
+  else if(S.view === "store") renderStore();
+  else renderSettings();
+  bind();
+}
+
+/* ── 今日关注抽屉 ── */
+function paintDigest(){
+  const d = S.digest;
+  const body = $("dbody");
+  if(!body) return;
+  if(!d || !d.items || !d.items.length){
+    $("dcount").textContent = "";
+    body.innerHTML = `<div class="dempty"><span class="big">✅</span>
+      <b style="color:var(--text);display:block;font-size:15px;margin-bottom:7px">
+      所有功能都没报告问题</b>
+      平台每隔一会汇总一次各功能的状态</div>`;
+    return;
+  }
+  $("dcount").textContent = `${d.items.length} 项`;
+  // 顺手把桌面图标的角标也改掉（省得为这个重新拉整个桌面）
+  try{
+    const wrap = document.querySelector("[data-digest]");
+    if(wrap){
+      const n = d.items.length;
+      const gl = wrap.querySelector(".glyph");
+      let bd = wrap.querySelector(".badge");
+      if(n && !bd && gl){
+        bd = document.createElement("span");
+        bd.className = "badge";
+        gl.appendChild(bd);
+      }
+      if(bd){
+        bd.textContent = n;
+        bd.style.background = d.critical ? "var(--danger)" : "";
+        bd.style.display = n ? "" : "none";
+      }
+      const dot = wrap.querySelector(".dot");
+      if(dot) dot.className = "dot " + (n ? "on" : "off");
+    }
+  }catch(e){}
+  body.innerHTML = `<div class="digest">` + d.items.map((it,i) => `
+    <div class="alert ${esc(it.level)}" data-di="${i}">
+      <span class="ai">${it.feature === "ai_watch" ? "🤖"
+        : it.level==="critical"?"❌":it.level==="warn"?"⚠️":"💡"}</span>
+      <div style="flex:1;min-width:0">
+        <div class="at">${esc(it.title)}</div>
+        ${it.detail?`<div class="ad">${esc(it.detail)}</div>`:""}
+        <div class="af"><span class="src">${esc(it.icon||"")} ${esc(it.feature_name)}</span>
+          ${esc(it.action||"")}</div>
+      </div></div>`).join("") + `</div>`;
+  bindDigestItems();
+}
+
+function bindDigestItems(){
+  document.querySelectorAll("#dbody [data-di]").forEach(el => {
+    el.onclick = () => {
+      const it = (S.digest.items||[])[+el.dataset.di];
+      if(!it) return;
+      closeDigest();
+      // AI 值守的发现：把分析直接喂给 AI，让它接着修
+      if(it.feature === "ai_watch"){
+        toggleAI(true);
+        $("aiq").value = "关于这个问题，帮我看看能不能修：\n\n" +
+          it.title + "\n" + (it.ai_analysis || it.detail || "") +
+          "\n\n如果能修，先用 read_file 看清相关代码，再用 edit_snippet 改，" +
+          "改完告诉我改了什么、怎么回滚。";
+        $("aiq").focus();
+        $("aiq").style.height = "auto";
+        $("aiq").style.height = Math.min($("aiq").scrollHeight, 150) + "px";
+        toast("已把 AI 的分析放进输入框，确认后回车");
+        return;
+      }
+      openItem(it.feature, "feature");
+    };
+  });
+}
+
+function openDigest(){
+  $("digest").classList.add("on");
+  $("doverlay").classList.add("on");
+  S.digestOpen = true;
+}
+
+function closeDigest(){
+  const el = $("digest");
+  if(el) el.classList.remove("on");
+  const ov = $("doverlay");
+  if(ov) ov.classList.remove("on");
+  S.digestOpen = false;
+}
+
+function renderDesk(){
+
+  // 今日关注不再内联在桌面上（7 张卡片会把图标挤出屏幕），
+  // 改成左侧抽屉 —— 见 paintDigest() 和 openDigest()
+  let h = "";
+  const feats = S.items.filter(x => !x.custom);
+  const mine = S.items.filter(x => x.custom);
+  h += `<h2 class="sec">桌面
+    <span>${S.items.length} 项 · 点图标打开 · 长按/右键出菜单 · ⌘K 搜索</span></h2>
+    <div class="desk" id="desk">`;
+  for(const it of S.items) h += iconHTML(it);
+  h += `<div class="ico add" data-add="1">
+      <div class="glyph">＋</div><div class="nm">添加</div></div>`;
+  h += `</div>`;
+
+  h += `<div style="color:var(--t3);font-size:12px;margin-top:26px;line-height:1.9;
+    text-align:center">
+    桌面上的东西由你决定 —— 文件夹、文件、App、网址都能放上来。<br>
+    <b>✦ AI 助手</b> 是平台自带的，删不掉也改不坏：万一平台被改出问题，它能帮你修回来。</div>`;
+  $("view").innerHTML = h;
+}
+
+function iconHTML(it){
+  // 「今日关注」是内置工具项：有角标、点了开抽屉、不能删
+  if(it.kind === "digest"){
+    const n = it.badge || 0;
+    const crit = (it.critical || 0) > 0;
+    return `<div class="ico" data-digest="1" title="${esc(it.note||"")}">
+      <div class="glyph" style="background:${esc(it.color)}22;box-shadow:var(--sh2)">
+        <span>${it.icon}</span>
+        <span class="dot ${n?"on":"off"}"></span>
+        ${n?`<span class="badge" style="${crit?"background:var(--danger)":""}">${n}</span>`:""}
+      </div>
+      <div class="nm">${esc(it.name)}</div>
+      <button class="menu" data-menu="${esc(it.id)}">⋯</button></div>`;
+  }
+  if(it.kind === "feature"){
+    const st = it.status || {};
+    const dot = it.broken ? "bad" : (st.running ? "on" : "off");
+    const alerts = (it.alerts || []).length;
+    return `<div class="ico" data-open="${esc(it.id)}" data-kind="feature">
+      <div class="glyph" style="background:${esc(it.color)}22;box-shadow:var(--sh2)">
+        <span>${it.icon}</span>
+        <span class="dot ${dot}" title="${st.running?"在运行":"已停止"}"></span>
+        ${alerts?`<span class="badge">${alerts}</span>`:""}
+        ${it.pinned?`<span class="pin">★</span>`:""}
+      </div>
+      <div class="nm">${esc(it.name)}</div>
+      <button class="menu" data-menu="${esc(it.id)}">⋯</button></div>`;
+  }
+  const missing = it.exists === false;
+  return `<div class="ico" data-open="${esc(it.id)}" data-kind="${esc(it.kind)}">
+    <div class="glyph" style="background:${esc(it.color)}22;
+      ${missing?"opacity:.45":""}">
+      <span>${it.icon}</span>
+      ${missing?`<span class="dot bad" title="路径不在了"></span>`:""}</div>
+    <div class="nm" style="${missing?"opacity:.55":""}">${esc(it.name)}</div>
+    <button class="menu" data-menu="${esc(it.id)}">⋯</button></div>`;
+}
+
+function renderStore(){
+  if(!S.store.length)
+    return $("view").innerHTML = `<div class="empty"><span class="big">🏪</span>
+      <b>商店还是空的</b></div>`;
+  $("view").innerHTML = `<h2 class="sec">功能商店
+    <span>本地 · ${S.store.length} 个</span></h2>` +
+    S.store.map(it => `<div class="card" style="display:flex;align-items:center;gap:15px;
+        padding:15px 18px;margin-bottom:11px">
+      <div style="width:44px;height:44px;border-radius:12px;flex:none;display:flex;
+        align-items:center;justify-content:center;font-size:22px;
+        background:${esc(it.color)}22">${it.icon}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:620;font-size:14.5px">${esc(it.name)}
+          <span style="color:var(--t3);font-family:var(--mono);font-size:11.5px">v${esc(it.version)}</span>
+          ${it.installed?`<span class="pill ok" style="margin-left:7px;display:inline-flex">已装</span>`:""}</div>
+        <div style="color:var(--t2);font-size:12.5px;margin-top:2px">${esc(it.description)}</div>
+        ${it.perms.length?`<div class="mono" style="margin-top:4px">权限：${it.perms.map(esc).join(" · ")}</div>`:""}
+      </div>
+      ${it.installed?"":`<button class="btn pri" data-install="${esc(it.id)}">安装</button>`}
+    </div>`).join("");
+}
+
+async function renderSettings(){
+  if(!S.settings){
+    try{ S.settings = await api("/api/settings"); }catch(e){ S.settings = {}; }
+  }
+  let core = {};
+  try{ core = await api("/api/ai/core"); }catch(e){}
+  const s = S.settings || {}, ai = s.ai || {}, id = s.identity || {};
+  const c = core.config || {}, integ = core.integrity || {};
+  $("view").innerHTML = `
+    <h2 class="sec">AI 根入口<span>平台自带，不在功能列表里 —— 功能全坏了它也还在</span></h2>
+    <div class="card">
+      <h3>状态 ${c.ready?'<span class="pill ok" style="display:inline-flex">就绪</span>'
+                        :'<span class="pill crit" style="display:inline-flex">未配置</span>'}</h3>
+      <div class="kv">
+        <div>模型</div><div>${esc(c.provider_name||"?")} / ${esc(c.model||"?")}</div>
+        <div>完整性</div><div>${integ.ok?"✅ 未被改动":"⚠️ 与记录不符"}
+          （${esc(integ.core_hash||"")}）<br>
+          <span style="color:var(--t3);font-size:11.5px">${esc(integ.note||"")}</span></div>
+        <div>干净副本</div><div>${integ.has_pristine?"✅ 已存（可还原）":"❌ 没有"}</div>
+        <div>受保护文件</div><div>${(core.protected||[]).map(esc).join("　")}</div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+        <button class="btn" id="btnRestoreCore">还原根入口</button>
+        <button class="btn" id="btnAcceptCore">重新登记基准</button>
+        <button class="btn" id="btnAiSet2">改 AI 配置</button>
+      </div>
+      <div style="color:var(--t3);font-size:12px;margin-top:10px;line-height:1.8">
+        这几个文件 AI 自己改不了 —— 万一平台被改出问题，AI 入口还在，能帮你修回来。</div>
+    </div>
+
+    <h2 class="sec">AI 配置<span>所有功能共用这一个 key</span></h2>
+    <div class="card">
+      <div class="frow"><label>服务商</label>
+        <select id="aiProv">
+          <option value="deepseek"${ai.provider==="deepseek"?" selected":""}>DeepSeek</option>
+          <option value="openai"${ai.provider==="openai"?" selected":""}>OpenAI</option>
+          <option value="moonshot"${ai.provider==="moonshot"?" selected":""}>月之暗面 Kimi</option>
+          <option value="custom"${ai.provider==="custom"?" selected":""}>自定义（OpenAI 兼容）</option>
+        </select></div>
+      <div class="frow"><label>模型</label>
+        <input id="aiModel" value="${esc(ai.model||"")}" placeholder="deepseek-chat"></div>
+      <div class="frow"><label>Base URL</label>
+        <input id="aiBase" value="${esc(ai.base_url||"")}" placeholder="https://api.deepseek.com/v1"></div>
+      <div class="frow"><label>API Key</label>
+        <input id="aiKey" type="password"
+          placeholder="${ai.key_hint?esc(ai.key_hint)+"（已设置，留空不改）":"粘贴你的 key"}"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
+        <button class="btn pri" id="aiSave">保存并测试</button>
+        <button class="btn" id="aiFill">一键填写（扫本机）</button>
+        <button class="btn" id="aiClear">清除 key</button>
+      </div>
+      <div class="state" id="aiState"></div>
+    </div>
+
+    <h2 class="sec">身份<span>所有功能共用同一个 user_id</span></h2>
+    <div class="card"><div class="kv">
+      <div>user_id</div><div>${esc(id.user_id||"—")}</div>
+      <div>类型</div><div>${esc(id.kind||"—")}</div>
+      <div>创建于</div><div>${esc(id.created_at||"—")}</div>
+    </div></div>
+
+    <h2 class="sec">AI 改动记录<span>改了什么、成没成，都在这</span></h2>
+    <div class="card">
+      ${(core.audit||[]).length ? (core.audit||[]).map(a =>
+        `<div style="font-size:12px;padding:5px 0;border-bottom:1px solid var(--soft)">
+          <span class="mono">${esc(a.ts.slice(5,16))}</span>
+          <b style="color:${a.ok?"var(--ok)":"var(--danger)"}">${esc(a.action)}</b>
+          ${esc(JSON.stringify(a.detail).slice(0,110))}</div>`).join("")
+        : `<div style="color:var(--t3);font-size:12.5px">还没有记录</div>`}
+      ${(core.backups||[]).length ? `<div style="margin-top:11px;color:var(--t3);font-size:12px">
+        备份 ${core.backups.length} 个，最近的：${esc(core.backups[0].name)}</div>` : ""}
+    </div>
+
+    <h2 class="sec">位置</h2>
+    <div class="card"><div class="kv">
+      <div>平台目录</div><div>${esc(s.home||"—")}</div>
+      <div>功能目录</div><div>${esc(s.features_dir||"—")}</div>
+      <div>商店目录</div><div>${esc(s.store_dir||"—")}</div>
+      <div>平台端口</div><div>${esc(String(s.port||""))}</div>
+    </div></div>`;
+}
+
+function bind(){
+  /* 今日关注图标 —— 点了直接开抽屉 */
+  document.querySelectorAll("[data-digest]").forEach(el => {
+    el.onclick = e => {
+      if(e.target.closest("[data-menu]")) return;
+      openDigest();
+    };
+  });
+  /* 桌面图标 */
+  document.querySelectorAll("[data-open]").forEach(el => {
+    el.onclick = e => {
+      if(e.target.closest("[data-menu]")) return;
+      openItem(el.dataset.open, el.dataset.kind);
+    };
+  });
+  document.querySelectorAll("[data-menu]").forEach(b => {
+    b.onclick = e => { e.stopPropagation(); openMenu(b.dataset.menu); };
+  });
+  document.querySelectorAll("[data-add]").forEach(el => el.onclick = openAddSheet);
+  // 旧的内联块已移到抽屉里（bindDigestItems）
+  document.querySelectorAll("[data-install]").forEach(b => {
+    b.onclick = async () => {
+      b.disabled = true; b.textContent = "安装中…";
+      try{ const r = await post("/api/install", {id: b.dataset.install});
+        toast(r.message || "已安装"); }
+      catch(e){ toast("失败：" + e.message); }
+      await load();
+    };
+  });
+
+  if(S.view === "set"){
+    const save = async (clear) => {
+      $("aiState").className = "state warn";
+      $("aiState").textContent = "正在保存并测试…";
+      try{
+        const r = await post("/api/ai/save", {
+          provider: $("aiProv").value, model: $("aiModel").value.trim(),
+          base_url: $("aiBase").value.trim(),
+          api_key: $("aiKey").value.trim() || undefined,
+          clear_key: !!clear, skip_test: !!clear});
+        $("aiState").className = "state " + (r.test_ok ? "ok" : "bad");
+        $("aiState").textContent = (r.test_ok ? "✅ " : "⚠️ ") + (r.message||"");
+        $("aiKey").value = ""; S.settings = null; await load();
+      }catch(e){ $("aiState").className = "state bad";
+        $("aiState").textContent = "保存失败：" + e.message; }
+    };
+    $("aiSave").onclick = () => save(false);
+    $("aiClear").onclick = () => {
+      if(confirm("清除平台 AI 的 key？")) save(true); };
+    $("aiFill").onclick = async () => {
+      $("aiState").className = "state warn";
+      $("aiState").textContent = "正在扫描本机可能存 key 的地方…";
+      try{
+        const r = await post("/api/ai/autofill", {});
+        const tried = (r.tried||[]).map(t => (t.ok?"✅ ":"❌ ") + t.source +
+          "（" + t.hint + "）" + (t.ok?"":"：" + t.message));
+        $("aiState").className = "state " + (r.ok ? "ok" : "bad");
+        $("aiState").textContent = (r.ok ? "✅ 已采用 " + r.hint + "，来源：" + r.source
+          : "⚠️ " + (r.error||"都没测通")) + (tried.length ? "\n" + tried.join("\n") : "");
+        S.settings = null; await load();
+      }catch(e){ $("aiState").className = "state bad";
+        $("aiState").textContent = "失败：" + e.message; }
+    };
+    $("btnAiSet2").onclick = () => { $("aiProv").scrollIntoView({behavior:"smooth"}); };
+    $("btnAcceptCore").onclick = async () => {
+      if(!confirm("把当前版本登记为基准？\n\n" +
+        "只有你自己有意改过根入口之后才需要点。\n" +
+        "点了之后，现在的版本就被当作「正确版本」，以后不一致会重新报警。")) return;
+      const r = await post("/api/ai/accept", {});
+      toast(r.ok ? "已登记（" + r.hash + "）" : (r.error || "失败"));
+      S.settings = null; await load();
+    };
+    $("btnRestoreCore").onclick = async () => {
+      if(!confirm("把根入口还原成平台最初的版本？\n（当前版本会存成 .before-restore）")) return;
+      const r = await post("/api/ai/restore", {});
+      toast(r.ok ? "已还原：" + r.restored.join("、") : (r.error||"还原失败"));
+      S.settings = null; await load();
+    };
+  }
+}
+
+async function openItem(id, kind){
+  const it = S.items.find(x => x.id === id);
+  if(!it) return;
+  if(it.kind === "digest" || kind === "digest") return openDigest();
+  if(kind === "feature"){
+    if(it.broken) return toast("这个功能坏了：" + it.broken);
+    if(!it.open_url) return toast("这个功能没声明打开方式");
+    post("/api/opened", {id}).catch(()=>{});
+    window.open(it.open_url, "_blank");
+    return;
+  }
+  if(it.exists === false) return toast("路径不在了：" + it.target);
+  try{
+    const r = await post("/api/desktop/open", {id});
+    toast(r.message + (r.target && !r.target.startsWith("http") ? "" : ""));
+  }catch(e){ toast("打不开：" + e.message); }
+}
+
+function openMenu(id){
+  const it = S.items.find(x => x.id === id);
+  if(!it) return;
+  S.menuItem = it;
+  $("menutitle").textContent = it.name;
+  const rows = [];
+  if(it.kind === "digest"){
+    // 内置项不能删、不能卸载 —— 它是平台的一部分，不是装出来的功能
+    rows.push(`<button class="btn" data-act="open">打开今日关注</button>`);
+    rows.push(`<div style="font-size:12px;color:var(--t3);line-height:1.7">
+      它是平台把各功能的汇报汇总出来的，不是装出来的功能，所以不能卸载。</div>`);
+    $("menubody").innerHTML = rows.join("");
+    $("btnMenuCancel").onclick = () => $("menusheet").classList.remove("on");
+    $("menusheet").classList.add("on");
+    document.querySelectorAll("#menubody [data-act]").forEach(b => {
+      b.onclick = () => { $("menusheet").classList.remove("on"); openDigest(); };
+    });
+    return;
+  }
+  if(it.kind === "feature"){
+    rows.push(`<button class="btn" data-act="open">打开</button>`);
+    if(it.has_start && !it.status.running)
+      rows.push(`<button class="btn" data-act="start">启动</button>`);
+    if(it.has_stop && it.status.running)
+      rows.push(`<button class="btn" data-act="stop">停止</button>`);
+    rows.push(`<button class="btn" data-act="pin">${it.pinned?"取消置顶":"置顶到最前"}</button>`);
+  }else{
+    rows.push(`<button class="btn" data-act="open">打开</button>`);
+    if(it.kind !== "url" && it.exists !== false)
+      rows.push(`<button class="btn" data-act="reveal">在访达中显示</button>`);
+    rows.push(`<button class="btn danger" data-act="remove">从桌面移除</button>`);
+  }
+  rows.push(`<div class="mono" style="margin-top:4px">${esc(it.target||"")}</div>`);
+  $("menubody").innerHTML = rows.join("");
+  $("btnMenuCancel").onclick = () => $("menusheet").classList.remove("on");
+  $("menusheet").classList.add("on");
+  document.querySelectorAll("#menubody [data-act]").forEach(b => {
+    b.onclick = async () => {
+      const act = b.dataset.act;
+      $("menusheet").classList.remove("on");
+      try{
+        if(act === "open") return openItem(it.id, it.kind);
+        if(act === "pin"){ const r = await post("/api/pin", {id: it.id});
+          toast(r.pinned?"已置顶":"已取消置顶"); return load(); }
+        if(act === "start" || act === "stop"){
+          const r = await post("/api/"+act, {id: it.id});
+          toast(r.message||"完成"); return load(); }
+        if(act === "reveal"){
+          return post("/api/reveal", {path: it.target}); }
+        if(act === "remove"){
+          const r = await post("/api/desktop/remove", {id: it.id});
+          toast(r.message); return load(); }
+      }catch(e){ toast("失败：" + e.message); }
+    };
+  });
+}
+
+/* ── 添加桌面项 ── */
+function openAddSheet(){
+  $("kinds").innerHTML = Object.entries(S.kinds).map(([k,v]) =>
+    `<button data-k="${k}" class="${S.addKind===k?"on":""}">
+      <span class="e">${v.icon}</span>${esc(v.name)}</button>`).join("");
+  $("addtarget").value = ""; $("addname").value = "";
+  $("picklist").style.display = "none"; $("pickinfo").textContent = "";
+  $("addsheet").classList.add("on");
+  $("addtarget").focus();
+  document.querySelectorAll("#kinds button").forEach(b => b.onclick = () => {
+    S.addKind = b.dataset.k;
+    document.querySelectorAll("#kinds button").forEach(x =>
+      x.classList.toggle("on", x === b));
+    $("addtarget").placeholder = S.addKind === "url" ? "https://…" : "选一个，或直接粘路径";
+  });
+}
+async function pick(path){
+  try{
+    const d = await api("/api/pick?path=" + encodeURIComponent(path) +
+                        "&files=" + (S.addKind === "url" ? "0" : "1"));
+    S.pickPath = d.path;
+    $("pickinfo").textContent = d.path;
+    let h = `<div class="it" data-up="1">⬆︎ 上一级</div>`;
+    for(const x of d.dirs) h += `<div class="it" data-p="${esc(x.path)}">📁 ${esc(x.name)}</div>`;
+    for(const x of d.files) h += `<div class="it" data-f="${esc(x.path)}">
+      ${x.app?"🚀":"📄"} ${esc(x.name)}</div>`;
+    $("picklist").innerHTML = h; $("picklist").style.display = "";
+    $("picklist").querySelectorAll("[data-p]").forEach(el => el.onclick = () => pick(el.dataset.p));
+    $("picklist").querySelectorAll("[data-f]").forEach(el => el.onclick = () => {
+      $("addtarget").value = el.dataset.f;
+      if(!$("addname").value) $("addname").value = el.dataset.f.split("/").pop();
+    });
+    $("picklist").querySelector("[data-up]").onclick = () => pick(d.parent);
+  }catch(e){ toast("读目录失败：" + e.message); }
+}
+
+/* ── AI ── */
+async function initAI(){
+  const QUICK = ["帮我看看今天要处理什么", "把桌面图标改大一点",
+                 "抓包数据里有哪些接口", "解释一下这个平台的架构"];
+  $("quick").innerHTML = QUICK.map(q => `<button data-q="${esc(q)}">${esc(q)}</button>`).join("");
+  document.querySelectorAll("[data-q]").forEach(b => b.onclick = () => {
+    $("aiq").value = b.dataset.q; sendAI();
+  });
+  try{
+    const c = await api("/api/ai/core");
+    const cfg = c.config || {};
+    $("aimodel").textContent = cfg.ready
+      ? `平台自带入口 · ${cfg.provider_name||""} ${cfg.model||""} · 删不掉`
+      : "平台自带入口 · 还没配 key（点 ⚙︎ 去配）";
+    $("aistat").innerHTML = cfg.ready
+      ? `<span style="color:var(--ok)">●</span> 已就绪　
+         <span>受保护文件 ${(c.protected||[]).length} 个</span>
+         <span>备份 ${(c.backups||[]).length} 个</span>`
+      : `<span style="color:var(--danger)">●</span> 未配置 —— 点右上 ⚙︎`;
+  }catch(e){ $("aimodel").textContent = "根入口不可用：" + e.message; }
+
+  $("btnAI").onclick = () => toggleAI();
+  if($("btnDigestClose")) $("btnDigestClose").onclick = closeDigest;
+  if($("doverlay")) $("doverlay").onclick = closeDigest;
+  if($("btnDigestRefresh")) $("btnDigestRefresh").onclick = async () => {
+    const b = $("btnDigestRefresh");
+    b.disabled = true; b.textContent = "…";
+    try{ S.digest = null; await load(); toast("已重新汇总"); }
+    catch(e){ toast("失败：" + e.message); }
+    b.disabled = false; b.textContent = "↻";
+  };
+  document.addEventListener("keydown", e => {
+    if(e.key === "Escape" && S.digestOpen) closeDigest();
+    if((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "d"){
+      e.preventDefault();
+      S.digestOpen ? closeDigest() : openDigest();
+    }
+  });
+  if($("btnVision")) $("btnVision").onclick = showShots;
+  if($("btnShotClose")) $("btnShotClose").onclick = () => $("shotsheet").classList.remove("on");
+  if($("btnShotUpload")) $("btnShotUpload").onclick = pickImages;
+  if($("shotsheet")) $("shotsheet").addEventListener("click", e => {
+    if(e.target === $("shotsheet")) $("shotsheet").classList.remove("on"); });
+
+  // ⌘V 直接贴图 —— 手机截图同步过来、或者刚截的图，最顺手
+  document.addEventListener("paste", async e => {
+    const items = [...((e.clipboardData || {}).items || [])];
+    const img = items.find(x => x.type && x.type.startsWith("image/"));
+    if(!img) return;
+    e.preventDefault();
+    await stageBlob(img.getAsFile(), "粘贴-" + new Date().toTimeString().slice(0,8) + ".png");
+    toggleAI(true);
+    toast("图已收下，回车就让它看");
+  });
+  const body = $("aibody");
+  if(body){
+    ["dragenter","dragover"].forEach(ev => body.addEventListener(ev, e => {
+      e.preventDefault(); body.classList.add("drag");
+    }));
+    ["dragleave","drop"].forEach(ev => body.addEventListener(ev, e => {
+      e.preventDefault(); body.classList.remove("drag");
+    }));
+    body.addEventListener("drop", async e => {
+      const files = [...(e.dataTransfer.files || [])].filter(f => f.type.startsWith("image/"));
+      if(!files.length) return;
+      for(const f of files) await stageBlob(f, f.name);
+      toggleAI(true);
+      toast(`收了 ${files.length} 张图，回车就让它看`);
+    });
+  }
+  $("btnWatch").onclick = async () => {
+    try{
+      const w = await api("/api/watch");
+      const act = prompt(
+        `AI 值守${w.running ? "正在运行" : "已停止"}\n\n` +
+        `它每 ${w.interval} 秒看一轮，发现异常就自己去分析，结论进「今日关注」。\n` +
+        `监控规则：\n` +
+        Object.entries(w.rules || {}).map(([k,v]) => `· ${k}：${v}`).join("\n") +
+        `\n\n输入数字选一个：\n` +
+        `  1 = ${w.running ? "停止" : "启动"}值守\n` +
+        `  2 = 立刻跑一轮\n` +
+        `  3 = 清空历史发现（今日关注里那些 🤖 会消失）\n` +
+        `  4 = 什么都不做`, "2");
+      if(act === "1"){
+        const r = await post("/api/watch/toggle", {on: !w.running});
+        toast(r.message); checkWatch();
+        return;
+      }
+      if(act === "3"){
+        if(!confirm("清空历史发现？\n\n只清「AI 值守」记下的那些 —— " +
+          "功能自己的告警不受影响。")) return;
+        const r = await post("/api/watch/clear", {});
+        toast(`清掉了 ${r.removed} 条`);
+        S.digest = null; await load(); checkWatch();
+        return;
+      }
+      if(act !== "2") return;
+      toast("正在跑一轮…");
+      const r = await post("/api/watch/run", {});
+      if(r.found){
+        toast(`发现 ${r.found} 个问题，去看「今日关注」`);
+        S.digest = null; await load();
+      } else toast("这一轮没发现新问题");
+      checkWatch();
+    }catch(e){ toast("失败：" + e.message); }
+  };
+  $("btnAIClose").onclick = () => toggleAI(false);
+  $("btnAISet").onclick = () => { toggleAI(false); S.view="set"; render(); };
+  $("aisend").onclick = sendAI;
+  $("aiq").addEventListener("keydown", e => {
+    if(e.key === "Enter" && !e.shiftKey){ e.preventDefault(); sendAI(); }
+  });
+  $("aiq").addEventListener("input", () => {
+    const t = $("aiq"); t.style.height = "auto";
+    t.style.height = Math.min(t.scrollHeight, 150) + "px";
+  });
+}
+function toggleAI(force){
+  const on = force === undefined ? !$("ai").classList.contains("on") : force;
+  $("ai").classList.toggle("on", on);
+  if(on) setTimeout(()=>$("aiq").focus(), 180);
+}
+function addMsg(who, text){
+  const d = document.createElement("div");
+  d.className = "msg " + (who === "u" ? "u" : "a");
+  d.innerHTML = `<span class="av">${who==="u"?"我":"✦"}</span><div class="bd"></div>`;
+  d.querySelector(".bd").textContent = text;
+  $("aibody").appendChild(d);
+  $("aibody").scrollTop = $("aibody").scrollHeight;
+  return d.querySelector(".bd");
+}
+function md(t){
+  return esc(t).replace(/`([^`\n]+)`/g, "<code>$1</code>")
+    .replace(/```([\s\S]*?)```/g, (m,c) => "<pre>" + c + "</pre>")
+    .replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>");
+}
+
+async function sendAI(){
+  if(S.aiBusy) return;
+  const q = $("aiq").value.trim();
+  if(!q) return;
+  if((S.imgs || []).length) return askVision();
+  if($("agentmode") && $("agentmode").checked) return runAgent(q);
+  $("aiq").value = ""; $("aiq").style.height = "auto";
+  toggleAI(true);
+  addMsg("u", q);
+  const bd = addMsg("a", "");
+  S.aiBusy = true; $("aisend").disabled = true;
+  let text = "", tools = [];
+  try{
+    const resp = await fetch("/api/ai/chat", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({q, history: S.aiHistory.slice(-10)})});
+    if(!resp.ok){
+      const j = await resp.json().catch(()=>({}));
+      bd.innerHTML = `<span style="color:var(--danger)">${esc(j.error||("HTTP "+resp.status))}</span>`;
+      S.aiBusy = false; $("aisend").disabled = false; return;
+    }
+    const reader = resp.body.getReader();
+    const dec = new TextDecoder();
+    let buf = "";
+    while(true){
+      const {done, value} = await reader.read();
+      if(done) break;
+      buf += dec.decode(value, {stream:true});
+      const parts = buf.split("\n\n");
+      buf = parts.pop();
+      for(const p of parts){
+        const line = p.replace(/^data:\s*/, "");
+        if(!line) continue;
+        let ev; try{ ev = JSON.parse(line); }catch(e){ continue; }
+        if(ev.type === "text"){
+          text += ev.text; bd.innerHTML = md(text);
+          $("aibody").scrollTop = $("aibody").scrollHeight;
+        }else if(ev.type === "tools" && ev.tools && ev.tools.length){
+          tools = ev.tools;
+        }
+      }
+    }
+  }catch(e){
+    bd.innerHTML += `<div class="toolline bad">连接中断：${esc(e.message)}</div>`;
+  }
+  S.aiHistory.push({role:"user", content:q});
+  S.aiHistory.push({role:"assistant", content:text||"(空)"});
+
+  // 执行 AI 请求的工具
+  if(tools.length){
+    for(const t of tools){
+      let call; try{ call = JSON.parse(t); }catch(e){ continue; }
+      const line = document.createElement("div");
+      line.className = "toolline";
+      line.textContent = "🔧 " + (call.name||"?") + " " +
+        JSON.stringify(call.args||{}).slice(0, 160);
+      bd.appendChild(line);
+      try{
+        const r = await post("/api/ai/tool", {call});
+        line.className = "toolline " + (r.ok ? "ok" : "bad");
+        line.textContent = (r.ok ? "✅ " : "❌ ") + String(r.result).slice(0, 900);
+        if(r.ok && call.name !== "read_file" && call.name !== "list_files"){
+          toast("已改代码（可回滚）");
+          const c = await api("/api/ai/core");
+          $("aistat").innerHTML = `<span style="color:var(--ok)">●</span> 已就绪　
+            <span>备份 ${(c.backups||[]).length} 个（可回滚）</span>`;
+        }
+      }catch(e){
+        line.className = "toolline bad";
+        line.textContent = "❌ " + e.message;
+      }
+      $("aibody").scrollTop = $("aibody").scrollHeight;
+    }
+  }
+  S.aiBusy = false; $("aisend").disabled = false;
+}
+
+/* ── 自主模式 ── */
+async function runAgent(goal){
+  $("aiq").value = ""; $("aiq").style.height = "auto";
+  toggleAI(true);
+  addMsg("u", "【自主模式】" + goal);
+  const bd = addMsg("a", "");
+  S.aiBusy = true; $("aisend").disabled = true;
+  let say = "";
+  const paint = () => { bd.innerHTML = md(say); $("aibody").scrollTop = $("aibody").scrollHeight; };
+  try{
+    const resp = await fetch("/api/ai/agent", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({goal, max_rounds: 16})});
+    if(!resp.ok){
+      const j = await resp.json().catch(()=>({}));
+      bd.innerHTML = `<span style="color:var(--danger)">${esc(j.error||("HTTP "+resp.status))}</span>`;
+      S.aiBusy = false; $("aisend").disabled = false; return;
+    }
+    const reader = resp.body.getReader(), dec = new TextDecoder();
+    let buf = "";
+    while(true){
+      const {done, value} = await reader.read();
+      if(done) break;
+      buf += dec.decode(value, {stream:true});
+      const parts = buf.split("\n\n"); buf = parts.pop();
+      for(const p of parts){
+        const line = p.replace(/^data:\s*/, "");
+        if(!line) continue;
+        let ev; try{ ev = JSON.parse(line); }catch(e){ continue; }
+        if(ev.type === "round"){
+          say += `\n\n── 第 ${ev.n}/${ev.of} 轮 ──\n`;
+        }else if(ev.type === "say"){
+          say += ev.text;
+        }else if(ev.type === "tool"){
+          say += `\n🔧 ${ev.name} ${ev.ok ? "✅" : "❌"}  ${String(ev.result).slice(0,300)}\n`;
+        }else if(ev.type === "done"){
+          say += `\n\n✅ **完成**\n${ev.summary}`;
+          if((ev.changes||[]).length) say += `\n\n改过的文件：${ev.changes.join("、")}`;
+          say += `\n\n（改动都留了备份，设置页能回滚）`;
+          toast("自主任务完成");
+        }else if(ev.type === "give_up"){
+          say += `\n\n⚠️ **停下来了**\n${ev.reason}`;
+          toast("它卡住了 —— 看它说的原因");
+        }else if(ev.type === "limit"){
+          say += `\n\n⚠️ 到轮数上限就停了`;
+        }
+        paint();
+      }
+    }
+  }catch(e){
+    say += `\n\n❌ 连接中断：${e.message}`;
+    paint();
+  }
+  S.aiBusy = false; $("aisend").disabled = false;
+}
+
+
+/* ── 看图（多模态）── */
+function visionPaths(){ return (S.imgs || []).map(x => x.path); }
+
+function paintImgs(){
+  const bar = $("imgbar");
+  if(!bar) return;
+  bar.innerHTML = (S.imgs || []).map((x, i) =>
+    `<div class="thumb" title="${esc(x.name)}">
+       <img src="${x.url}" alt="">
+       <b data-rm="${i}">×</b></div>`).join("");
+  bar.querySelectorAll("[data-rm]").forEach(b => b.onclick = () => {
+    S.imgs.splice(+b.dataset.rm, 1); paintImgs();
+  });
+}
+
+async function showShots(){
+  $("shotsheet").classList.add("on");
+  const box = $("shotlist");
+  box.innerHTML = `<div style="color:var(--t3);font-size:13px">读取中…</div>`;
+  try{
+    const d = await api("/api/ai/shots");
+    if(!d.items.length){
+      box.innerHTML = `<div style="color:var(--t3);font-size:13px;grid-column:1/-1">
+        没找到图片。可以直接按 ⌘V 粘贴剪贴板里的图，或者点「从文件选」。</div>`;
+      return;
+    }
+    box.innerHTML = d.items.map((x, i) => `
+      <div class="shotcard" data-i="${i}" style="cursor:pointer;border:1px solid var(--line);
+        border-radius:9px;overflow:hidden;background:#0b0d11">
+        <img src="/api/ai/file?path=${encodeURIComponent(x.path)}" alt=""
+          style="width:100%;height:104px;object-fit:cover;display:block;background:#111">
+        <div style="padding:6px 8px;font-size:11.5px;line-height:1.5">
+          <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
+            title="${esc(x.name)}">${esc(x.name)}</div>
+          <div style="color:var(--t3)">${esc(x.src)} · ${esc(x.when)}</div>
+        </div>
+      </div>`).join("");
+    box.querySelectorAll("[data-i]").forEach(el => el.onclick = () => {
+      const x = d.items[+el.dataset.i];
+      S.imgs = [{path: x.path, name: x.name,
+                 url: "/api/ai/file?path=" + encodeURIComponent(x.path)}];
+      paintImgs();
+      $("shotsheet").classList.remove("on");
+      toggleAI(true);
+      $("aiq").focus();
+      toast("选好了，回车就让它看");
+    });
+  }catch(e){
+    box.innerHTML = `<div style="color:var(--danger);font-size:13px">${esc(e.message)}</div>`;
+  }
+}
+
+async function stageBlob(blob, name){
+  const reader = new FileReader();
+  const url = await new Promise(r => { reader.onload = e => r(e.target.result); reader.readAsDataURL(blob); });
+  const r = await post("/api/ai/stage", {name: name || "paste.png", data: url});
+  if(r.ok) S.imgs.push({path: r.path, name: name || "粘贴的图", url});
+  else toast(r.error || "存图失败");
+  paintImgs();
+}
+
+async function pickImages(){
+  // 用文件选择器选图；选完把路径记下来（Electron 才有 path，
+  // 浏览器里拿不到真实路径，所以走「上传给平台暂存」那条路）
+  const inp = document.createElement("input");
+  inp.type = "file"; inp.accept = "image/*"; inp.multiple = true;
+  inp.onchange = async () => {
+    for(const f of inp.files){
+      // 浏览器给不了本地路径 —— 传内容给平台，让它落到临时目录再读
+      const reader = new FileReader();
+      const url = await new Promise(r => { reader.onload = e => r(e.target.result); reader.readAsDataURL(f); });
+      try{
+        const r = await post("/api/ai/stage", {name: f.name, data: url});
+        if(r.ok){
+          S.imgs.push({path: r.path, name: f.name, url});
+        }else toast(r.error || "存图失败");
+      }catch(e){ toast("存图失败：" + e.message); }
+    }
+    paintImgs(); $("aiq").focus();
+  };
+  inp.click();
+}
+
+async function askVision(){
+  if(S.aiBusy) return;
+  if(!(S.imgs || []).length){ toast("先点 📷 选张图"); return pickImages(); }
+  const q = $("aiq").value.trim() || "看看这张图有什么问题";
+  $("aiq").value = ""; $("aiq").style.height = "auto";
+  addMsg("u", (q || "看看这张图") + "　📷 " + S.imgs.map(x => x.name).join("、"));
+  const bd = addMsg("a", "");
+  S.aiBusy = true; $("aisend").disabled = true;
+  let out = "";
+  const paint = () => { bd.innerHTML = md(out); $("aibody").scrollTop = $("aibody").scrollHeight; };
+  try{
+    const resp = await fetch("/api/ai/vision", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({paths: visionPaths(), q})});
+    if(!resp.ok){
+      const j = await resp.json().catch(()=>({}));
+      bd.innerHTML = `<span style="color:var(--danger)">${esc(j.error||("HTTP "+resp.status))}</span>`;
+    }else{
+      const reader = resp.body.getReader(), dec = new TextDecoder();
+      let buf = "";
+      while(true){
+        const {done, value} = await reader.read();
+        if(done) break;
+        buf += dec.decode(value, {stream:true});
+        const parts = buf.split("\n\n"); buf = parts.pop();
+        for(const p of parts){
+          const line = p.replace(/^data:\s*/, "");
+          if(!line) continue;
+          let ev; try{ ev = JSON.parse(line); }catch(e){ continue; }
+          if(ev.type === "text"){ out += ev.text; paint(); }
+          else if(ev.type === "error"){ out += "\n❌ " + ev.error; paint(); }
+          else if(ev.type === "done"){
+            toast("看完了");
+            // 看完给它一个"接着修"的入口 —— 把分析和图片路径一起交给自主模式
+            if(out && out.length > 60){
+              const bar = document.createElement("div");
+              bar.style.cssText = "margin-top:12px;display:flex;gap:9px;align-items:center;flex-wrap:wrap";
+              bar.innerHTML = `<button class="b pri" id="btnGoFix">让 AI 接着修</button>
+                <span style="color:var(--t3);font-size:12px">
+                  它会带着这张图和上面的分析，去读代码、改、再验证</span>`;
+              bd.appendChild(bar);
+              $("btnGoFix").onclick = () => {
+                const goal = "我发了一张截图，你之前看过并给出分析：\n\n" +
+                  out.slice(0, 2500) +
+                  "\n\n图片路径：" + visionPaths().join("、") +
+                  "\n\n请根据这个分析去定位并修复代码问题。" +
+                  "先用 look_at_image 再看一眼图确认，然后 search/read_file 找到相关代码，" +
+                  "改完用 check_syntax 或 run_command 验证。改不了的（比如需要后端配合）就说清楚。";
+                runAgent(goal);
+              };
+            }
+          }
+        }
+      }
+    }
+  }catch(e){ out += "\n❌ 连接中断：" + e.message; paint(); }
+  // 注意：**先别清 S.imgs** —— 「接着修」要用它的路径。
+  // 用户再发下一条消息时会自动清（见 sendAI 开头）。
+  S.aiBusy = false; $("aisend").disabled = false;
+}
+
+/* ── 命令面板 ── */
+function openPalette(){
+  $("overlay").classList.add("on"); $("pq").value = ""; $("pq").focus();
+  renderPalette("");
+}
+function closePalette(){ $("overlay").classList.remove("on"); }
+function renderPalette(q){
+  q = q.trim().toLowerCase();
+  const items = [];
+  for(const it of S.items){
+    const hay = (it.name + " " + (it.target||"") + " " + (it.description||"")).toLowerCase();
+    if(!q || hay.includes(q))
+      items.push({kind:it.custom?"item":"feature", id:it.id, name:it.name, icon:it.icon,
+                  hint:it.custom?it.kind:(it.status&&it.status.running?"在运行":"已停止")});
+  }
+  if(!q || "商店 store".includes(q))
+    items.push({kind:"go", id:"store", name:"功能商店", icon:"🏪", hint:""});
+  if(!q || "设置 ai".includes(q))
+    items.push({kind:"go", id:"set", name:"设置（AI / 身份）", icon:"⚙️", hint:""});
+  if(!q || "ai 助手".includes(q))
+    items.push({kind:"ai", id:"ai", name:"打开 AI 助手", icon:"✦", hint:"⌘I"});
+  items.push({kind:"cmd", id:"refresh", name:"刷新", icon:"🔄", hint:""});
+  S.pitems = items.slice(0, 14); S.pi = 0; paintPalette();
+}
+function paintPalette(){
+  $("plist").innerHTML = S.pitems.length ? S.pitems.map((it,i) => `
+    <div class="pitem ${i===S.pi?"on":""}" data-pi="${i}">
+      <span class="pic">${it.icon}</span><span class="pn">${esc(it.name)}</span>
+      <span class="pd">${esc(it.hint||"")}</span></div>`).join("")
+    : `<div style="padding:26px;text-align:center;color:var(--t3);font-size:13px">没有匹配</div>`;
+  document.querySelectorAll("[data-pi]").forEach(el => {
+    el.onclick = () => { S.pi = +el.dataset.pi; runPalette(); };
+    el.onmouseenter = () => { S.pi = +el.dataset.pi; paintPalette(); };
+  });
+}
+function runPalette(){
+  const it = S.pitems[S.pi]; if(!it) return;
+  closePalette();
+  if(it.kind === "ai") return toggleAI(true);
+  if(it.kind === "cmd"){ load(); return toast("已刷新"); }
+  if(it.kind === "go"){ S.view = it.id; render(); return; }
+  openItem(it.id, it.kind === "item" ? "custom" : "feature");
+}
+
+document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => {
+  S.view = b.dataset.v; localStorage.setItem("pf.view2", S.view); render();
+});
+$("btnPalette").onclick = openPalette;
+$("pq").addEventListener("input", () => renderPalette($("pq").value));
+$("overlay").addEventListener("click", e => { if(e.target === $("overlay")) closePalette(); });
+$("btnAddCancel").onclick = () => $("addsheet").classList.remove("on");
+$("addsheet").addEventListener("click", e => {
+  if(e.target === $("addsheet")) $("addsheet").classList.remove("on"); });
+$("btnPick").onclick = () => pick($("addtarget").value.trim() || "~");
+$("btnAddOk").onclick = async () => {
+  const target = $("addtarget").value.trim();
+  if(!target) return toast("填个路径或网址");
+  try{
+    const r = await post("/api/desktop/add", {kind: S.addKind, target,
+      name: $("addname").value.trim()});
+    toast(r.message);
+    if(r.ok){ $("addsheet").classList.remove("on"); await load(); }
+  }catch(e){ toast("失败：" + e.message); }
+};
+
+document.addEventListener("keydown", e => {
+  const mod = e.metaKey || e.ctrlKey;
+  if(mod && e.key.toLowerCase() === "k"){ e.preventDefault();
+    $("overlay").classList.contains("on") ? closePalette() : openPalette(); return; }
+  if(mod && e.key.toLowerCase() === "i"){ e.preventDefault(); toggleAI(); return; }
+  if(!$("overlay").classList.contains("on")) return;
+  if(e.key === "Escape") closePalette();
+  else if(e.key === "ArrowDown"){ e.preventDefault();
+    S.pi = Math.min(S.pi+1, S.pitems.length-1); paintPalette(); }
+  else if(e.key === "ArrowUp"){ e.preventDefault();
+    S.pi = Math.max(S.pi-1, 0); paintPalette(); }
+  else if(e.key === "Enter"){ e.preventDefault(); runPalette(); }
+});
+document.addEventListener("contextmenu", e => {
+  const ico = e.target.closest("[data-open]");
+  if(ico){ e.preventDefault(); openMenu(ico.dataset.open); }
+});
+
+boot();
+setInterval(() => { if(S.view === "desk" && !S.aiBusy) load(); }, 12000);
+</script>
+</body>
+</html>

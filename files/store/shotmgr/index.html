@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>截图管家</title>
+<style>
+  :root{--bg:#f6f7f9;--panel:#fff;--line:#e5e7eb;--soft:#f1f2f5;--text:#17191e;
+    --t2:#5a6472;--t3:#98a1ad;--brand:#0369a1;--brand-soft:#eff6fb;--brand-line:#cfe3f2;
+    --ok:#15803d;--ok-soft:#eafaf0;--danger:#c2410c;--warn:#a16207;--warn-soft:#fef9e7;
+    --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif}
+  *{box-sizing:border-box}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:#cfd3da;border:3px solid transparent;
+    background-clip:content-box;border-radius:8px}
+  body{margin:0;font:14px/1.6 var(--sans);background:var(--bg);color:var(--text)}
+  header{background:var(--panel);border-bottom:1px solid var(--line);
+    position:sticky;top:0;z-index:10}
+  .bar{display:flex;align-items:center;gap:10px;padding:0 20px;height:56px;
+    max-width:1280px;margin:0 auto;flex-wrap:wrap}
+  .brand{font-weight:650;font-size:15.5px;display:flex;align-items:center;gap:9px}
+  .brand .mk{width:25px;height:25px;border-radius:6px;display:flex;align-items:center;
+    justify-content:center;font-size:13px;background:var(--brand);color:#fff}
+  .spacer{flex:1}
+  .stat{color:var(--t3);font-size:12.5px;font-family:var(--mono)}
+  button.b{border:1px solid var(--line);background:var(--panel);border-radius:8px;
+    padding:7px 14px;cursor:pointer;font:inherit;font-size:13px;color:var(--text)}
+  button.b:hover{background:var(--brand-soft);border-color:var(--brand-line);color:var(--brand)}
+  button.b.pri{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:620}
+  button.b.danger{color:var(--danger);border-color:#f0cfc0}
+  button.b.danger:hover{background:#fdf2ec}
+  button.b:disabled{opacity:.45;cursor:not-allowed}
+  main{max-width:1280px;margin:22px auto 80px;padding:0 20px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:13px;
+    padding:18px 20px;margin-bottom:16px}
+  .row{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(196px,1fr));gap:14px}
+  .shot{border:1px solid var(--line);border-radius:11px;overflow:hidden;background:#0b0d11;
+    position:relative}
+  .shot.sel{outline:2px solid var(--brand);outline-offset:1px}
+  .shot img{width:100%;height:132px;object-fit:cover;object-position:top;display:block;
+    background:#111;cursor:zoom-in}
+  .shot .meta{padding:8px 10px;background:var(--panel);font-size:11.5px;line-height:1.55}
+  .shot .meta .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+    font-family:var(--mono);color:var(--t2)}
+  .shot .meta .ds{color:var(--text);margin-top:3px;min-height:2.6em}
+  .shot .meta .ds.none{color:var(--t3);font-style:italic}
+  .shot .pick{position:absolute;top:7px;left:7px;width:20px;height:20px;border-radius:5px;
+    background:rgba(255,255,255,.9);border:1px solid #ccc;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff}
+  .shot.sel .pick{background:var(--brand);border-color:var(--brand)}
+  .shot .dup{position:absolute;top:7px;right:7px;background:var(--warn);color:#fff;
+    font-size:10.5px;padding:2px 7px;border-radius:999px;font-weight:600}
+  .empty{text-align:center;padding:56px 20px;color:var(--t2)}
+  .empty .big{font-size:42px;opacity:.35;display:block;margin-bottom:12px}
+  .spin{display:inline-block;width:13px;height:13px;border:2px solid var(--line);
+    border-top-color:var(--brand);border-radius:50%;animation:sp .7s linear infinite;
+    vertical-align:-2px;margin-right:7px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .toast{position:fixed;bottom:26px;left:50%;transform:translate(-50%,10px);
+    background:#1c1f26;color:#fff;padding:10px 20px;border-radius:10px;opacity:0;
+    transition:all .2s;pointer-events:none;font-size:13px;z-index:99}
+  .toast.on{opacity:.97;transform:translate(-50%,0)}
+  .warnbox{background:var(--warn-soft);border:1px solid #f0e0b0;border-radius:9px;
+    padding:11px 14px;font-size:12.5px;color:var(--warn);line-height:1.75}
+  .bar2{position:fixed;bottom:0;left:0;right:0;background:var(--panel);
+    border-top:1px solid var(--line);padding:12px 20px;display:none;z-index:20}
+  .bar2.on{display:block}
+  .bar2 .in{max-width:1280px;margin:0 auto;display:flex;gap:10px;align-items:center;
+    flex-wrap:wrap}
+  .lb{position:fixed;inset:0;background:rgba(0,0,0,.85);display:none;z-index:50;
+    align-items:center;justify-content:center;cursor:zoom-out}
+  .lb.on{display:flex}
+  .lb img{max-width:94vw;max-height:92vh;object-fit:contain}
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <span class="brand"><span class="mk">🗂</span>截图管家</span>
+    <span class="stat" id="stat"></span>
+    <span class="spacer"></span>
+    <button class="b" id="btnAI">✦ 让 AI 看懂</button>
+    <button class="b" id="btnRescan">重新扫</button>
+  </div>
+</header>
+<main><div id="out"></div></main>
+<div class="bar2" id="bar2"><div class="in">
+  <b id="seln">已选 0 张</b>
+  <button class="b pri" id="btnArchive">归档到月份文件夹</button>
+  <button class="b danger" id="btnTrash">移到废纸篓</button>
+  <button class="b" id="btnAll">全选</button>
+  <button class="b" id="btnNone">取消选择</button>
+  <span style="color:var(--t3);font-size:12px" id="selhint"></span>
+</div></div>
+<div class="lb" id="lb"><img id="lbimg" alt=""></div>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+const S = { items: [], sel: new Set(), busy: false };
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g,
+  c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const api = async p => { const r = await fetch(p); if(!r.ok) throw new Error(r.status); return r.json(); };
+const post = async (p,b,t) => (await fetch(p, {method:"POST",
+  headers:{"Content-Type":"application/json"}, body: JSON.stringify(b||{})})).json();
+function toast(m){ const t=$("toast"); t.textContent=m; t.classList.add("on");
+  setTimeout(()=>t.classList.remove("on"),2600); }
+
+async function boot(){
+  $("btnRescan").onclick = load;
+  $("btnAI").onclick = describeSel;
+  $("btnArchive").onclick = doArchive;
+  $("btnTrash").onclick = doTrash;
+  $("btnAll").onclick = () => { S.items.forEach(x => S.sel.add(x.path)); paint(); };
+  $("btnNone").onclick = () => { S.sel.clear(); paint(); };
+  $("lb").onclick = () => $("lb").classList.remove("on");
+  await load();
+}
+
+async function load(){
+  $("out").innerHTML = `<div class="card"><span class="spin"></span>扫描中…</div>`;
+  try{
+    const d = await api("/api/scan?days=60");
+    S.items = d.items || [];
+    S.sel.clear();
+    $("stat").textContent = `${d.total} 张 · 近 60 天` +
+      (d.dups ? ` · ${d.dups} 张重复` : "");
+    paint(d);
+  }catch(e){
+    $("out").innerHTML = `<div class="card" style="color:var(--danger)">${esc(e.message)}</div>`;
+  }
+}
+
+function paint(d){
+  if(!S.items.length){
+    $("out").innerHTML = `<div class="empty"><span class="big">🗂</span>
+      <b>近 60 天没有截图</b>桌面和截图文件夹都看过了</div>`;
+    $("bar2").classList.remove("on");
+    return;
+  }
+  const described = S.items.filter(x => x.desc).length;
+  $("out").innerHTML = `
+    <div class="card">
+      <div class="row" style="margin-bottom:14px">
+        <span style="font-size:13px;color:var(--t2)">
+          ${S.items.length} 张截图，其中 <b>${described}</b> 张有 AI 说明</span>
+        <span class="spacer" style="flex:1"></span>
+        <span style="font-size:12.5px;color:var(--t3)">
+          点图看大图 · 点左上角勾选</span>
+      </div>
+      <div class="grid">
+        ${S.items.map((x, i) => `
+          <div class="shot ${S.sel.has(x.path) ? "sel" : ""}" data-i="${i}">
+            <div class="pick" data-pick="${i}">${S.sel.has(x.path) ? "✓" : ""}</div>
+            ${x.dup_of ? '<span class="dup">重复</span>' : ""}
+            <img src="/api/thumb?path=${encodeURIComponent(x.path)}" alt=""
+              data-big="${esc(x.path)}" loading="lazy">
+            <div class="meta">
+              <div class="nm" title="${esc(x.name)}">${esc(x.shot_at.slice(5, 16))}</div>
+              <div class="ds ${x.desc ? "" : "none"}">${esc(x.desc || "（还没看过）")}</div>
+            </div>
+          </div>`).join("")}
+      </div>
+    </div>
+    ${described < S.items.length ? `
+    <div class="card">
+      <div class="warnbox">AI 看内容会把截图发给 AI 服务商。
+        截图里可能有工号、聊天记录、客户信息 —— 介意就先别点，或只选几张。</div>
+    </div>` : ""}`;
+  document.querySelectorAll("[data-pick]").forEach(el => el.onclick = e => {
+    e.stopPropagation();
+    const p = S.items[+el.dataset.pick].path;
+    S.sel.has(p) ? S.sel.delete(p) : S.sel.add(p);
+    paint();
+  });
+  document.querySelectorAll("[data-big]").forEach(el => el.onclick = () => {
+    $("lbimg").src = "/api/thumb?path=" + encodeURIComponent(el.dataset.big);
+    $("lb").classList.add("on");
+  });
+  $("bar2").classList.toggle("on", S.sel.size > 0);
+  $("seln").textContent = `已选 ${S.sel.size} 张`;
+  const mb = S.items.filter(x => S.sel.has(x.path))
+    .reduce((a, x) => a + x.kb, 0) / 1024;
+  $("selhint").textContent = S.sel.size
+    ? `约 ${mb.toFixed(1)} MB · 删除走废纸篓，能捞回来` : "";
+}
+
+async function describeSel(){
+  // 没选就全看（最多一次 8 张），选了就只看选的
+  const targets = S.sel.size ? [...S.sel]
+    : S.items.filter(x => !x.desc).map(x => x.path);
+  if(!targets.length){ toast("都已经看过了"); return; }
+  const b = $("btnAI"); b.disabled = true;
+  try{
+    const r = await post("/api/describe", {paths: targets.slice(0, 8)});
+    toast(r.done ? `看了 ${r.done} 张` + (r.left ? `，还有 ${r.left} 张没看` : "")
+                 : (r.note || "没有要看的"));
+    await load();
+  }catch(e){ toast("失败：" + e.message); }
+  b.disabled = false;
+}
+
+async function doArchive(){
+  const paths = [...S.sel];
+  if(!paths.length) return;
+  try{
+    const p = await post("/api/archive", {paths, dry: true});
+    if(!confirm(`会把这 ${p.count} 张移到：\n${p.root}/年-月/\n\n` +
+      `例如：\n` + p.plan.slice(0, 3).map(x =>
+        `  ${x.from.split("/").pop()}\n  → ${x.month}/${x.to.split("/").pop()}`).join("\n") +
+      `\n\n原文件名不变，重名会自动加序号。继续吗？`)) return;
+    const r = await post("/api/archive", {paths, dry: false});
+    toast(`归档了 ${r.moved} 张到 ${r.root}`);
+    await load();
+  }catch(e){ toast("失败：" + e.message); }
+}
+
+async function doTrash(){
+  const paths = [...S.sel];
+  if(!paths.length) return;
+  if(!confirm(`把这 ${paths.length} 张移到废纸篓？\n\n` +
+    `不是永久删除 —— 反悔了去废纸篓拖回来就行。`)) return;
+  try{
+    const r = await post("/api/trash", {paths});
+    toast(r.moved ? `移到废纸篓 ${r.moved} 张` : "没动");
+    if((r.failed||[]).length) console.warn("跳过的：", r.failed);
+    await load();
+  }catch(e){ toast("失败：" + e.message); }
+}
+
+boot();
+</script>
+</body>
+</html>

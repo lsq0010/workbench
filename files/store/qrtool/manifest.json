@@ -1,0 +1,110 @@
+{
+  "manifest_version": 1,
+  "id": "qrtool",
+  "name": "二维码工具",
+  "description": "生成和识别二维码，全在本地。支持网址/文本/WiFi/名片/电话/短信/邮件/位置，能调尺寸颜色容错、中心放 logo，导出 PNG 和矢量 SVG，也能拖张图进来解出内容。",
+  "version": "0.1.0",
+  "author": "本机",
+  "type": "local",
+  "runtime": {
+    "entry": "main.py",
+    "requires": {
+      "python": ">=3.7"
+    },
+    "dependencies": [],
+    "optional_dependencies": {
+      "Pillow": "导出 PNG 和贴 logo 需要；没装时仍可导出 SVG",
+      "opencv-python": "识别二维码用（或用 pyzbar）",
+      "pyzbar": "识别二维码的备选解码器"
+    }
+  },
+  "ports": {
+    "web": 8911
+  },
+  "platform": {
+    "icon": "▦",
+    "color": "#111827",
+    "open": "http://127.0.0.1:{web}/",
+    "health": "http://127.0.0.1:{web}/api/status",
+    "start": [
+      "python3",
+      "main.py",
+      "start"
+    ],
+    "stop": [
+      "python3",
+      "main.py",
+      "stop"
+    ],
+    "note": "编码器是自己写的纯 Python（支持版本 1~40），生成不依赖任何第三方库。"
+  },
+  "permissions": [
+    {
+      "id": "fs.write.image",
+      "why": "「存到桌面」把生成的二维码写成 PNG",
+      "risk": "低：只在用户点按钮时写入，文件名自动去重不覆盖",
+      "mitigation": "只有点「存到桌面」才写文件；重名自动加 -2 -3；不写到桌面以外"
+    },
+    {
+      "id": "fs.open",
+      "why": "在访达里定位存好的图",
+      "risk": "低",
+      "mitigation": "只调用系统的 open 命令在访达里定位，不读文件内容、不修改、不删除；路径由用户从界面里选，不接受外部传入的任意路径"
+    }
+  ],
+  "data": {
+    "produces": [
+      {
+        "id": "qrcodes",
+        "file": "~/Desktop/二维码-*.png",
+        "kind": "files",
+        "desc": "用户主动保存的二维码图片"
+      }
+    ],
+    "consumes": []
+  },
+  "exposes": {
+    "base": "http://127.0.0.1:8911",
+    "endpoints": [
+      {
+        "path": "/api/status",
+        "desc": "服务状态 + 可用解码器",
+        "auth": "local-only"
+      },
+      {
+        "path": "/api/digest",
+        "desc": "无告警（占位，平台会调用）",
+        "auth": "local-only"
+      }
+    ],
+    "writes": [
+      {
+        "path": "/api/generate",
+        "desc": "生成一个二维码（返回 PNG/SVG）",
+        "auth": "local-only"
+      },
+      {
+        "path": "/api/decode",
+        "desc": "识别图片里的二维码",
+        "auth": "local-only"
+      },
+      {
+        "path": "/api/batch",
+        "desc": "批量生成",
+        "auth": "local-only"
+      },
+      {
+        "path": "/api/save",
+        "desc": "存到桌面",
+        "auth": "local-only"
+      }
+    ]
+  },
+  "ui": {
+    "entry": "index.html"
+  },
+  "store": {
+    "pricing": "free",
+    "license": "personal"
+  }
+}

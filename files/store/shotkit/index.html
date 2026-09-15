@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>上架截图工坊</title>
+<style>
+  :root{
+    --bg:#f4f5f7;--panel:#fff;--panel2:#fafbfc;--line:#e6e8ec;--soft:#f0f1f4;
+    --text:#16181d;--t2:#5b6472;--t3:#98a1ad;
+    --brand:#0ea5e9;--brand-soft:#e8f6fe;--brand-line:#bae3f8;
+    --ok:#12894f;--ok-soft:#e7f6ee;--warn:#a9670a;--warn-soft:#fdf3e3;--danger:#d23b3b;
+    --sh1:0 1px 2px rgba(16,24,40,.05);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB",sans-serif;
+  }
+  *{box-sizing:border-box}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:#cfd3da;border:3px solid transparent;
+    background-clip:content-box;border-radius:8px}
+  html,body{height:100%}
+  body{margin:0;font:14px/1.55 var(--sans);background:var(--bg);color:var(--text);
+       display:flex;flex-direction:column;overflow:hidden;-webkit-font-smoothing:antialiased}
+  header{flex:none;background:var(--panel);border-bottom:1px solid var(--line);box-shadow:var(--sh1)}
+  .bar{display:flex;align-items:center;gap:10px;padding:0 20px;height:56px}
+  .brand{font-weight:650;font-size:15.5px;display:flex;align-items:center;gap:9px;flex:none}
+  .brand .mk{width:24px;height:24px;border-radius:6px;display:flex;align-items:center;
+    justify-content:center;font-size:13px;background:#0ea5e9;color:#fff}
+  .spacer{flex:1}
+  .stat{color:var(--t3);font-size:12px;font-family:var(--mono)}
+  main{flex:1;display:flex;min-height:0;overflow:hidden}
+  #left{width:370px;flex:none;border-right:1px solid var(--line);background:var(--panel);
+    overflow:auto;padding:17px}
+  #right{flex:1;display:flex;flex-direction:column;min-height:0;overflow:auto;padding:22px;
+    background:var(--panel2)}
+  h4{margin:0 0 10px;font-size:12px;color:var(--t3);text-transform:uppercase;
+     letter-spacing:.06em;font-weight:700}
+  h4:not(:first-child){margin-top:19px}
+  .fld{margin-bottom:11px}
+  .fld label{display:block;font-size:12px;color:var(--t2);margin-bottom:5px}
+  input,select,textarea{width:100%;font:inherit;font-size:13px;border:1px solid var(--line);
+    border-radius:8px;padding:8px 11px;background:var(--panel);color:var(--text);outline:none}
+  input:focus,select:focus{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft)}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+  .seg{display:flex;gap:3px;background:#eceef2;padding:3px;border-radius:9px;margin-bottom:11px}
+  .seg button{flex:1;border:none;background:transparent;border-radius:6px;padding:6px 0;
+    font-size:12.5px;color:var(--t2);cursor:pointer;font-family:inherit;font-weight:500}
+  .seg button.on{background:var(--panel);color:var(--brand);font-weight:600;box-shadow:var(--sh1)}
+  .chk{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--t2);
+    margin-bottom:8px;cursor:pointer}
+  .chk input{width:auto;accent-color:var(--brand)}
+  .preset{display:flex;align-items:center;gap:9px;padding:8px 11px;border:1px solid var(--line);
+    border-radius:9px;margin-bottom:7px;cursor:pointer;font-size:12.5px;transition:all .12s}
+  .preset:hover{border-color:var(--brand-line);background:var(--brand-soft)}
+  .preset.on{border-color:var(--brand);background:var(--brand-soft)}
+  .preset .n{font-weight:600}
+  .preset .d{color:var(--t3);font-size:11px;font-family:var(--mono)}
+  .preset .c{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--t3)}
+  button.b{border:1px solid var(--line);background:var(--panel);border-radius:8px;
+    padding:8px 14px;cursor:pointer;font:inherit;font-size:13px;color:var(--text)}
+  button.b:hover{background:var(--brand-soft);border-color:var(--brand-line);color:var(--brand)}
+  button.b.pri{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:600}
+  button.b:disabled{opacity:.45;cursor:not-allowed}
+  .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  .preview{display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap}
+  .shot{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;
+    box-shadow:var(--sh1);text-align:center}
+  .shot img{max-height:460px;border-radius:6px;display:block;margin:0 auto;
+    box-shadow:0 2px 10px rgba(16,24,40,.12)}
+  .shot .cap{font-size:11.5px;color:var(--t3);font-family:var(--mono);margin-top:9px}
+  .kpis{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:11px 16px;
+    box-shadow:var(--sh1)}
+  .kpi .k{color:var(--t3);font-size:11.5px}
+  .kpi .v{font-size:19px;font-weight:650;font-family:var(--mono);margin-top:3px}
+  table{width:100%;border-collapse:collapse;font-size:12.5px;background:var(--panel);
+    border:1px solid var(--line);border-radius:11px;overflow:hidden}
+  th{text-align:left;color:var(--t3);font-weight:600;font-size:11.5px;padding:8px 13px;
+     background:var(--panel2);border-bottom:1px solid var(--line)}
+  td{padding:7px 13px;border-bottom:1px solid var(--soft);font-family:var(--mono)}
+  tr:last-child td{border-bottom:none}
+  .browser{position:fixed;z-index:30;background:var(--panel);border:1px solid var(--line);
+    border-radius:12px;box-shadow:0 10px 32px rgba(16,24,40,.12);width:min(560px,92vw);
+    max-height:440px;overflow:auto;display:none}
+  .browser .hd{padding:10px 14px;background:var(--panel2);border-bottom:1px solid var(--soft);
+    font-family:var(--mono);font-size:12px;position:sticky;top:0;display:flex;gap:8px;
+    align-items:center}
+  .browser .it{padding:8px 14px;border-bottom:1px solid var(--soft);cursor:pointer;font-size:13px}
+  .browser .it:hover{background:var(--brand-soft)}
+  .empty{text-align:center;padding:70px 20px;color:var(--t2);font-size:13px}
+  .empty .big{font-size:44px;opacity:.4;display:block;margin-bottom:13px}
+  .empty b{color:var(--text);display:block;font-size:15px;margin-bottom:7px}
+  .okbox{background:var(--ok-soft);border:1px solid #bfe6cf;color:#0d6b3e;border-radius:11px;
+    padding:12px 16px;font-size:13px;margin-bottom:14px}
+  .hist{font-size:11.5px;color:var(--t2);padding:5px 0;border-bottom:1px solid var(--soft)}
+  .toast{position:fixed;bottom:26px;left:50%;transform:translate(-50%,10px);
+    background:#1c1f26;color:#fff;padding:10px 20px;border-radius:10px;opacity:0;
+    transition:all .2s;pointer-events:none;font-size:13px;z-index:99}
+  .toast.on{opacity:.97;transform:translate(-50%,0)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="bar">
+    <span class="brand"><span class="mk">📱</span>上架截图工坊</span>
+    <span class="spacer"></span>
+    <span class="stat" id="stat"></span>
+  </div>
+</header>
+
+<main>
+  <aside id="left"></aside>
+  <div id="right"></div>
+</main>
+<div class="browser" id="browser"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+const S = { presets: [], folder: "", preset: "iphone-69", scan: null, sample: null };
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g,
+  c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const api = async p => { const r = await fetch(p); if(!r.ok) throw new Error(r.status); return r.json(); };
+const post = async (p,b) => (await fetch(p,{method:"POST",headers:{"Content-Type":"application/json"},
+  body:JSON.stringify(b||{})})).json();
+function toast(m){ const t=$("toast"); t.textContent=m; t.classList.add("on");
+  setTimeout(()=>t.classList.remove("on"),2400); }
+
+async function boot(){
+  const st = await api("/api/status");
+  S.presets = st.presets || [];
+  S.folders = st.folders || [];
+  S.jobs = st.jobs || [];
+  S.folder = S.folders[0] || "";
+  render();
+  if(S.folder) scan();
+}
+
+function opts(){
+  return {
+    preset: S.preset,
+    mode: $("mode") && $("mode").querySelector(".on").dataset.m || "contain",
+    bg: $("bg") ? $("bg").value : "#ffffff",
+    caption: $("cap") ? $("cap").value : "",
+    caption_color: $("capc") ? $("capc").value : "#111111",
+    caption_pos: $("cappos") && $("cappos").querySelector(".on").dataset.p || "top",
+    caption_size: $("capsz") ? +$("capsz").value / 100 : 0.06,
+    caption_bg: $("capbg") && $("capbg").checked ? ($("capbgc").value || "#ffffff") : "",
+    pad_ratio: $("pad") ? +$("pad").value / 100 : 0,
+  };
+}
+
+function render(){
+  $("left").innerHTML = `
+    <h4>① 图片从哪来</h4>
+    <div class="fld">
+      <input id="folder" value="${esc(S.folder)}" placeholder="/Users/you/Downloads/审核图片">
+      <div style="display:flex;gap:6px;margin-top:6px">
+        <button class="b" id="btnBrowse" style="flex:1">浏览…</button>
+        <button class="b" id="btnScan" style="flex:1">看尺寸</button>
+      </div>
+    </div>
+    <label class="chk"><input type="checkbox" id="rec"> 包含子目录</label>
+    <div id="scaninfo"></div>
+
+    <h4>② 输出成哪一档</h4>
+    <div id="plist">
+      ${S.presets.map(p => `<div class="preset ${S.preset===p.id?"on":""}" data-p="${p.id}">
+        <div><div class="n">${esc(p.name)}</div>
+          <div class="d">${esc(p.note)}</div></div>
+        <div class="c">${p.w}×${p.h}</div></div>`).join("")}
+    </div>
+
+    <h4>③ 怎么适配</h4>
+    <div class="seg" id="mode">
+      <button data-m="contain" class="on">留边（完整显示）</button>
+      <button data-m="cover">裁满（铺满）</button>
+    </div>
+    <div class="row2">
+      <div class="fld"><label>背景色（留边时可见）</label>
+        <input type="color" id="bg" value="#ffffff" style="height:36px;padding:2px"></div>
+      <div class="fld"><label>边距 <span id="padv">0</span>%</label>
+        <input type="range" id="pad" min="0" max="20" value="0"></div>
+    </div>
+
+    <h4>④ 标题（可选）</h4>
+    <div class="fld"><input id="cap" placeholder="例如：随时随地查看运单状态"></div>
+    <div class="row2">
+      <div class="fld"><label>字号 <span id="capszv">6</span>%</label>
+        <input type="range" id="capsz" min="3" max="12" value="6"></div>
+      <div class="fld"><label>文字颜色</label>
+        <input type="color" id="capc" value="#111111" style="height:36px;padding:2px"></div>
+    </div>
+    <div class="seg" id="cappos" style="margin-bottom:9px">
+      <button data-p="top" class="on">标题在上</button>
+      <button data-p="bottom">标题在下</button>
+    </div>
+    <label class="chk"><input type="checkbox" id="capbg" checked>
+      标题加背景条（压在界面上时更清楚）</label>
+    <div class="fld" id="capbgwrap"><input type="color" id="capbgc" value="#ffffff"
+      style="height:34px;padding:2px"></div>
+
+    <div class="actions">
+      <button class="b pri" id="btnPreview">预览一张</button>
+      <button class="b" id="btnBatch">批量导出</button>
+      <button class="b" id="btnOpen" disabled>打开输出目录</button>
+    </div>
+    <div style="color:var(--t3);font-size:11.5px;margin-top:10px;line-height:1.7">
+      导出到原目录下的「上架截图-&lt;档位&gt;/」，文件名自动加序号（App Store 要求有序）。
+      <b>不会改动你的原图。</b>
+    </div>
+    ${S.jobs.length ? `<h4>导出历史</h4>${S.jobs.map(j =>
+      `<div class="hist"><b>${esc(j.ts.slice(5,16))}</b> ${esc(j.preset)} · ${j.count} 张 ·
+       ${esc(j.outdir.split("/").pop())}</div>`).join("")}` : ""}`;
+  bind();
+  if(!S.scan) $("right").innerHTML = `<div class="empty"><span class="big">📱</span>
+    <b>选个目录，点「看尺寸」</b>
+    <span style="font-size:12.5px">先看你的图都是什么尺寸、哪些档位需要处理</span></div>`;
+}
+
+function bind(){
+  document.querySelectorAll("[data-p]").forEach(el => el.onclick = () => {
+    S.preset = el.dataset.p; render();
+  });
+  document.querySelectorAll("#mode button").forEach(b => b.onclick = () => {
+    document.querySelectorAll("#mode button").forEach(x =>
+      x.classList.toggle("on", x === b));
+  });
+  document.querySelectorAll("#cappos button").forEach(b => b.onclick = () => {
+    document.querySelectorAll("#cappos button").forEach(x =>
+      x.classList.toggle("on", x === b));
+  });
+  const pad = $("pad"), padv = $("padv");
+  if(pad) pad.oninput = () => padv.textContent = pad.value;
+  const capsz = $("capsz"), capszv = $("capszv");
+  if(capsz) capsz.oninput = () => capszv.textContent = capsz.value;
+  const capbg = $("capbg");
+  if(capbg) capbg.onchange = () => {
+    $("capbgwrap").style.display = capbg.checked ? "" : "none";
+  };
+  $("btnScan").onclick = () => { S.folder = $("folder").value.trim(); scan(); };
+  $("btnPreview").onclick = preview;
+  $("btnBatch").onclick = batch;
+  $("btnOpen").onclick = () => post("/api/reveal", {path: S.outdir || S.folder});
+  $("btnBrowse").onclick = async e => {
+    e.stopPropagation();
+    const b = $("browser");
+    b.style.display = "block"; b.style.left = "30px"; b.style.top = "90px";
+    await browse(S.folder || "/Users");
+  };
+}
+
+async function scan(){
+  if(!S.folder) return toast("先选个目录");
+  $("right").innerHTML = `<div class="empty">看尺寸中…</div>`;
+  try{
+    S.scan = await api("/api/scan?folder=" + encodeURIComponent(S.folder));
+    renderScan();
+  }catch(e){
+    $("right").innerHTML = `<div class="empty">${esc(e.message)}</div>`;
+  }
+}
+
+function renderScan(){
+  const d = S.scan;
+  $("stat").textContent = `${d.count} 张图`;
+  $("scaninfo").innerHTML = `<div style="color:var(--t3);font-size:11.5px;margin-bottom:4px">
+    ${d.count} 张图，出现的尺寸：</div>` +
+    d.sizes.map(s => `<div style="font-family:var(--mono);font-size:11.5px;color:var(--t2)">
+      ${s.w}×${s.h} ×${s.count}</div>`).join("");
+  const pre = S.presets.find(p => p.id === S.preset);
+  const need = d.need[S.preset];
+  let h = `<div class="kpis">
+    <div class="kpi"><div class="k">图片数</div><div class="v">${d.count}</div></div>
+    <div class="kpi"><div class="k">目标尺寸</div><div class="v">${pre.w}×${pre.h}</div></div>
+    <div class="kpi"><div class="k">需要处理</div>
+      <div class="v" style="color:${need?"var(--brand)":"var(--ok)"}">${need}</div></div>
+  </div>`;
+  if(need === 0){
+    h += `<div class="okbox">✅ 这些图已经都是 ${pre.name} 的尺寸了，不用处理。</div>`;
+  }
+  h += `<table><thead><tr><th style="width:52%">文件</th><th style="width:24%">当前尺寸</th>
+    <th style="width:24%">状态</th></tr></thead><tbody>
+    ${d.items.map(x => `<tr><td>${esc(x.name)}</td>
+      <td>${x.error ? "—" : x.w + "×" + x.h}</td>
+      <td style="font-family:var(--sans);color:${x.error?"var(--danger)":
+        ((x.w===pre.w&&x.h===pre.h)?"var(--ok)":"var(--t3)")}">
+        ${x.error ? esc(x.error) : ((x.w===pre.w&&x.h===pre.h) ? "已是目标尺寸" : "会处理")}</td>
+      </tr>`).join("")}
+  </tbody></table>
+  <div style="color:var(--t3);font-size:12px;margin-top:11px">
+    点左边「预览一张」看效果，满意再批量导出。</div>`;
+  $("right").innerHTML = h;
+  S.sample = (d.items.find(x => !x.error) || {}).path || "";
+}
+
+async function preview(){
+  if(!S.sample) return toast("先「看尺寸」");
+  $("right").innerHTML = `<div class="empty">处理中…</div>`;
+  const d = await post("/api/preview", Object.assign({path: S.sample}, opts()));
+  if(!d.ok){ $("right").innerHTML = `<div class="empty">${esc(d.error)}</div>`; return; }
+  const pre = S.presets.find(p => p.id === S.preset);
+  $("right").innerHTML = `<div class="okbox">预览（缩略图，实际导出是
+    ${pre.w}×${pre.h} 原尺寸）</div>
+    <div class="preview"><div class="shot">
+      <img src="${d.preview}">
+      <div class="cap">${esc(S.sample.split("/").pop())} → ${d.w}×${d.h}</div>
+    </div>
+    <div style="flex:1;min-width:220px">
+      <div style="font-size:13px;color:var(--t2);line-height:2">
+        <b>尺寸</b>：${pre.w}×${pre.h}（App Store 要求）<br>
+        <b>适配</b>：${opts().mode === "cover" ? "裁满（会裁掉边缘）" : "留边（完整显示）"}<br>
+        <b>标题</b>：${opts().caption ? esc(opts().caption) : "（无）"}<br>
+        <b>档位</b>：${esc(pre.name)}
+      </div>
+      <div style="margin-top:16px">
+        <button class="b pri" id="btnGoBatch">就用这个设置批量导出</button>
+      </div>
+    </div></div>`;
+  $("btnGoBatch").onclick = batch;
+}
+
+async function batch(){
+  if(!S.folder) return toast("先选目录");
+  $("btnBatch").disabled = true; $("btnBatch").textContent = "导出中…";
+  try{
+    const d = await post("/api/batch", Object.assign({folder: S.folder}, opts()));
+    if(!d.ok){ toast(d.error || "导出失败"); }
+    else{
+      S.outdir = d.outdir;
+      $("btnOpen").disabled = false;
+      $("right").innerHTML = `
+        <div class="okbox">✅ 导出 ${d.count}/${d.total} 张，尺寸 ${d.preset.w}×${d.preset.h}，
+          用时 ${d.seconds}s</div>
+        <div style="display:flex;gap:8px;margin-bottom:14px">
+          <button class="b pri" id="btnReveal">在访达打开输出目录</button>
+          <span style="color:var(--t3);font-size:12px;font-family:var(--mono);
+            align-self:center">${esc(d.outdir)}</span>
+        </div>
+        <div class="preview">${d.results.filter(x=>x.ok).slice(0,6).map(x => `
+          <div class="shot" style="padding:9px">
+            <div style="font-family:var(--mono);font-size:11px;color:var(--t2)">
+              ${esc(x.out.split("/").pop())}</div>
+            <div style="font-size:11px;color:var(--t3);margin-top:4px">
+              ${x.w}×${x.h}　${(x.bytes/1024).toFixed(0)} KB</div>
+          </div>`).join("")}</div>`;
+      $("btnReveal").onclick = () => post("/api/reveal", {path: d.outdir});
+      toast("导出完成");
+      // 刷新历史
+      const st = await api("/api/status");
+      S.jobs = st.jobs || [];
+    }
+  }catch(e){ toast("失败：" + e.message); }
+  $("btnBatch").disabled = false; $("btnBatch").textContent = "批量导出";
+}
+
+async function browse(path){
+  const b = $("browser");
+  try{
+    const d = await api("/api/folder?path=" + encodeURIComponent(path));
+    b.innerHTML = `<div class="hd">
+      <button class="b" id="bUp" style="padding:3px 9px;font-size:12px">↑</button>
+      <span style="flex:1;overflow:hidden;text-overflow:ellipsis">${esc(d.path)}</span>
+      <button class="b pri" id="bPick" style="padding:3px 10px;font-size:12px">用这个</button>
+    </div>` + (d.images_here ? `<div class="it" style="color:var(--t2)">
+        （本目录有 ${d.images_here} 张图）</div>` : "") +
+      (d.dirs.length ? d.dirs.map(x =>
+        `<div class="it" data-p="${esc(x.path)}">📁 ${esc(x.name)}
+          ${x.images ? `<span style="color:var(--t3);font-size:11.5px">${x.images} 张图</span>` : ""}
+        </div>`).join("") : `<div class="it" style="color:var(--t3)">（没有子目录）</div>`);
+    $("bUp").onclick = ev => { ev.stopPropagation(); browse(d.parent); };
+    $("bPick").onclick = ev => {
+      ev.stopPropagation(); S.folder = d.path; b.style.display = "none"; render(); scan();
+    };
+    b.querySelectorAll("[data-p]").forEach(el => el.onclick = ev => {
+      ev.stopPropagation(); browse(el.dataset.p);
+    });
+  }catch(err){
+    b.innerHTML = `<div class="it" style="color:var(--danger)">${esc(err.message)}</div>`;
+  }
+}
+document.addEventListener("click", e => {
+  const b = $("browser");
+  if(b.style.display === "block" && !b.contains(e.target) && e.target.id !== "btnBrowse")
+    b.style.display = "none";
+});
+
+boot();
+</script>
+</body>
+</html>

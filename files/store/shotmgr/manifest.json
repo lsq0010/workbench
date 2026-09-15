@@ -1,0 +1,84 @@
+{
+  "manifest_version": 1,
+  "id": "shotmgr",
+  "name": "截图管家",
+  "description": "把桌面散落的截图理清楚：按时间列全、用 AI 看懂每张是什么、一键归档到月份文件夹。删除走废纸篓，反悔能捞。",
+  "version": "0.1.0",
+  "author": "本机",
+  "type": "local",
+
+  "runtime": { "entry": "main.py", "requires": { "python": ">=3.7" }, "dependencies": [] },
+  "ports": { "web": 8921 },
+
+  "platform": {
+    "icon": "🗂",
+    "color": "#0369a1",
+    "open": "http://127.0.0.1:{web}/",
+    "health": "http://127.0.0.1:{web}/api/status",
+    "start": ["python3", "main.py", "start"],
+    "stop": ["python3", "main.py", "stop"],
+    "note": "默认只读。归档和删除都要你明确点，删除走废纸篓不是 rm。"
+  },
+
+  "permissions": [
+    {
+      "id": "fs.read.screenshots",
+      "why": "扫桌面和截图文件夹里的截图",
+      "risk": "低：只读图片文件和文件名，不读其他内容",
+      "mitigation": "只看文件名匹配「截屏/截图/Screenshot」的图片；不扫全盘、不读文档"
+    },
+    {
+      "id": "fs.move.archive",
+      "why": "把截图归档到 ~/Desktop/截图归档/年-月/",
+      "risk": "中：会移动你的文件",
+      "mitigation": "**先给预览**，点了「确认归档」才动；重名自动加序号不覆盖；原文件名不变"
+    },
+    {
+      "id": "fs.move.trash",
+      "why": "把不要的截图删掉",
+      "risk": "中：会移除文件",
+      "mitigation": "**走 macOS 废纸篓，不是 rm** —— 反悔了去废纸篓捞；只允许删「扫描识别出的截图」，不做成任意文件删除接口"
+    },
+    {
+      "id": "net.outbound.ai",
+      "why": "让 AI 看每张截图写一句说明",
+      "risk": "中：截图内容会离开本机",
+      "mitigation": "**只有你点「让 AI 看懂」才外发**；一次最多 8 张；界面上会提醒"
+    },
+    {
+      "id": "fs.write",
+      "why": "记录 AI 写过的说明",
+      "risk": "低：只写本功能自己的目录",
+      "mitigation": "只追加写 shots.jsonl，不覆盖"
+    }
+  ],
+
+  "data": {
+    "produces": [
+      { "id": "shots", "file": "shots.jsonl", "kind": "append-only",
+        "desc": "AI 给每张截图写的说明（带 user_id）" }
+    ],
+    "consumes": [
+      { "feature": "platform", "via": "http", "endpoints": ["/api/ai/vision"],
+        "desc": "用平台的看图能力写说明" }
+    ]
+  },
+
+  "exposes": {
+    "base": "http://127.0.0.1:8921",
+    "endpoints": [
+      { "path": "/api/status", "desc": "版本 + 归档目录 + 扫描源", "auth": "local-only" },
+      { "path": "/api/scan", "desc": "扫截图 ?days=", "auth": "local-only" },
+      { "path": "/api/thumb", "desc": "缩略图（只给识别出的截图）", "auth": "local-only" },
+      { "path": "/api/digest", "desc": "无告警（占位）", "auth": "local-only" }
+    ],
+    "writes": [
+      { "path": "/api/describe", "desc": "让 AI 看懂截图", "auth": "local-only" },
+      { "path": "/api/archive", "desc": "归档（dry=true 时只预览）", "auth": "local-only" },
+      { "path": "/api/trash", "desc": "移到废纸篓", "auth": "local-only" }
+    ]
+  },
+
+  "ui": { "entry": "index.html" },
+  "store": { "pricing": "free", "license": "personal" }
+}

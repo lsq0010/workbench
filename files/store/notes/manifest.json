@@ -1,0 +1,107 @@
+{
+  "manifest_version": 1,
+  "id": "notes",
+  "name": "便签 · 知识库",
+  "description": "把只存在于对话里的结论落到磁盘：命令、接口结论、临时 ID、待确认的问题。带标签和全文搜索，一条便签多次编辑会保留版本历史。存成纯文本 JSONL，别的工具和 AI 都能直接读。",
+  "version": "0.1.0",
+  "author": "本机",
+  "type": "local",
+  "runtime": {
+    "entry": "main.py",
+    "requires": {
+      "python": ">=3.7"
+    },
+    "dependencies": []
+  },
+  "ports": {
+    "web": 8902
+  },
+  "platform": {
+    "icon": "📝",
+    "color": "#d97706",
+    "open": "http://127.0.0.1:{web}/",
+    "health": "http://127.0.0.1:{web}/api/status",
+    "start": [
+      "python3",
+      "main.py",
+      "start"
+    ],
+    "stop": [
+      "python3",
+      "main.py",
+      "stop"
+    ],
+    "note": "改一条便签 = 追加一个新版本，不覆盖。历史永远能翻回来。"
+  },
+  "permissions": [
+    {
+      "id": "fs.write",
+      "why": "把便签写进本功能目录、导出 Markdown",
+      "scope": "feature-data-dir",
+      "risk": "中：会写入用户输入的便签内容；导出会在功能目录生成 Markdown",
+      "mitigation": "写入范围限制在功能目录内；改一条便签是**追加新版本**而不是覆盖，历史可回溯；导出文件带时间戳不覆盖旧的"
+    }
+  ],
+  "data": {
+    "produces": [
+      {
+        "id": "notes",
+        "file": "notes.jsonl",
+        "kind": "append-only",
+        "desc": "便签（改一条追加一个新版本，不覆盖历史；带 user_id）"
+      },
+      {
+        "id": "exports",
+        "file": "便签-*.md",
+        "kind": "files",
+        "desc": "导出的 Markdown"
+      }
+    ],
+    "consumes": [
+      {
+        "feature": "platform",
+        "via": "lib",
+        "desc": "用平台的共享身份（platform_lib.user_id）"
+      }
+    ]
+  },
+  "exposes": {
+    "base": "http://127.0.0.1:8902",
+    "endpoints": [
+      {
+        "path": "/api/status",
+        "desc": "条数 / 标签 / 身份",
+        "auth": "local-only"
+      },
+      {
+        "path": "/api/notes",
+        "desc": "便签列表 ?q=&tag=",
+        "auth": "local-only"
+      },
+      {
+        "path": "/api/export",
+        "desc": "导出 Markdown",
+        "auth": "local-only"
+      }
+    ],
+    "writes": [
+      {
+        "path": "/api/save",
+        "desc": "新建或更新便签（追加版本）",
+        "auth": "local-only"
+      },
+      {
+        "path": "/api/pin",
+        "desc": "切换置顶",
+        "auth": "local-only"
+      }
+    ]
+  },
+  "ui": {
+    "entry": "index.html"
+  },
+  "store": {
+    "pricing": "free",
+    "license": "personal"
+  }
+}

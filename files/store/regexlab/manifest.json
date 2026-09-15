@@ -1,0 +1,39 @@
+{
+  "manifest_version": 1,
+  "id": "regexlab",
+  "name": "正则实验室",
+  "description": "写正则时实时看匹配：高亮命中的片段、列出每个分组、替换预览、还能把正则拆成人话解释。用的是 Python re 语法，在这里调通的能直接拿去写脚本。",
+  "version": "0.1.0",
+  "author": "本机",
+  "type": "local",
+
+  "runtime": { "entry": "main.py", "requires": { "python": ">=3.7" }, "dependencies": [] },
+  "ports": { "web": 8909 },
+
+  "platform": {
+    "icon": "🧪",
+    "color": "#7c3aed",
+    "open": "http://127.0.0.1:{web}/",
+    "health": "http://127.0.0.1:{web}/api/status",
+    "start": ["python3", "main.py", "start"],
+    "stop": ["python3", "main.py", "stop"],
+    "note": "内置 10 个常用正则（手机号/邮箱/URL/运单号/JSON 键…），点一下就能试。"
+  },
+
+  "permissions": [],
+
+  "data": { "produces": [], "consumes": [] },
+
+  "exposes": {
+    "base": "http://127.0.0.1:8909",
+    "endpoints": [
+      { "path": "/api/status", "desc": "服务状态 + 常用正则 + Python 版本", "auth": "local-only" }
+    ],
+    "writes": [
+      { "path": "/api/run", "desc": "执行匹配/替换（无状态，不落盘）", "auth": "local-only" }
+    ]
+  },
+
+  "ui": { "entry": "index.html" },
+  "store": { "pricing": "free", "license": "personal" }
+}

@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>便签 · 知识库</title>
+<style>
+  :root{
+    --bg:#f4f5f7;--panel:#fff;--panel2:#fafbfc;--line:#e6e8ec;--soft:#f0f1f4;
+    --text:#16181d;--t2:#5b6472;--t3:#98a1ad;
+    --brand:#d97706;--brand-soft:#fef6e7;--brand-line:#fbe3b8;
+    --ok:#12894f;--ok-soft:#e7f6ee;--warn:#a9670a;--danger:#d23b3b;
+    --sh1:0 1px 2px rgba(16,24,40,.05);--sh2:0 2px 8px rgba(16,24,40,.07);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB",sans-serif;
+  }
+  *{box-sizing:border-box}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:#cfd3da;border:3px solid transparent;
+    background-clip:content-box;border-radius:8px}
+  html,body{height:100%}
+  body{margin:0;font:14px/1.55 var(--sans);background:var(--bg);color:var(--text);
+       display:flex;flex-direction:column;overflow:hidden;-webkit-font-smoothing:antialiased}
+  header{flex:none;background:var(--panel);border-bottom:1px solid var(--line);box-shadow:var(--sh1)}
+  .bar{display:flex;align-items:center;gap:9px;padding:0 16px;height:54px}
+  .brand{font-weight:650;font-size:15.5px;display:flex;align-items:center;gap:8px;flex:none}
+  .brand i{width:9px;height:9px;border-radius:3px;background:linear-gradient(135deg,#d97706,#fbbf24)}
+  .spacer{flex:1}
+  .stat{color:var(--t2);font-size:12.5px}
+  button{border:1px solid var(--line);background:var(--panel);border-radius:8px;
+    padding:6px 11px;cursor:pointer;font:inherit;font-size:12.5px;color:var(--text);transition:all .13s}
+  button:hover{background:#f7f8fa}
+  button.pri{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:600}
+  button.pri:hover{background:#b45309}
+  input,textarea{font:inherit;border:1px solid var(--line);border-radius:8px;padding:7px 11px;
+    background:var(--panel);color:var(--text);outline:none;width:100%}
+  input:focus,textarea:focus{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft)}
+  .q{flex:1;max-width:420px;display:flex;align-items:center;gap:6px;background:var(--panel2);
+    border:1px solid var(--line);border-radius:9px;padding:3px 4px 3px 12px}
+  .q:focus-within{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft);background:var(--panel)}
+  .q input{border:none;background:none;padding:4px 0;font-size:13.5px}
+  .q input:focus{box-shadow:none}
+
+  main{flex:1;display:flex;min-height:0;overflow:hidden}
+  #list{width:322px;flex:none;border-right:1px solid var(--line);background:var(--panel);overflow:auto}
+  #tags{padding:10px 13px;border-bottom:1px solid var(--soft);display:flex;gap:5px;flex-wrap:wrap;
+    background:var(--panel2)}
+  .tg{font-size:11.5px;background:var(--panel);border:1px solid var(--line);border-radius:999px;
+    padding:2px 10px;cursor:pointer;color:var(--t2)}
+  .tg:hover{border-color:var(--brand-line);color:var(--brand)}
+  .tg.on{background:var(--brand-soft);border-color:var(--brand-line);color:var(--brand);font-weight:600}
+  .nt{padding:11px 14px;border-bottom:1px solid var(--soft);cursor:pointer;transition:background .1s}
+  .nt:hover{background:#fafbfc}
+  .nt.on{background:var(--brand-soft);border-left:3px solid var(--brand);padding-left:11px}
+  .nt .t1{font-weight:620;font-size:13.5px;display:flex;align-items:center;gap:6px}
+  .nt .t2{color:var(--t3);font-size:11.5px;margin-top:3px;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .nt .t3{color:var(--t3);font-size:11px;margin-top:4px;font-family:var(--mono)}
+  .nt .tagz{display:inline-block;background:var(--brand-soft);color:var(--brand);border-radius:4px;
+    padding:0 6px;font-size:10.5px;margin-right:4px}
+
+  #edit{flex:1;display:flex;flex-direction:column;min-height:0;min-width:0}
+  .ehead{display:flex;align-items:center;gap:8px;padding:11px 18px;border-bottom:1px solid var(--soft);
+    background:var(--panel2);flex:none;flex-wrap:wrap}
+  .ebody{flex:1;display:flex;flex-direction:column;padding:16px 18px;gap:10px;overflow:auto;min-height:0}
+  #title{font-size:17px;font-weight:650;border:none;border-bottom:1px solid var(--line);
+    border-radius:0;padding:6px 0}
+  #title:focus{box-shadow:none;border-color:var(--brand)}
+  #body{flex:1;font-family:var(--mono);font-size:13px;line-height:1.7;resize:none;min-height:240px}
+  .meta{color:var(--t3);font-size:11.5px;display:flex;gap:12px;flex-wrap:wrap}
+  .empty{text-align:center;padding:80px 24px;color:var(--t2)}
+  .empty .big{font-size:44px;opacity:.4;display:block;margin-bottom:13px}
+  .empty b{color:var(--text);display:block;font-size:15px;margin-bottom:7px}
+  .toast{position:fixed;bottom:24px;left:50%;transform:translate(-50%,10px);
+    background:#1c1f26;color:#fff;padding:10px 20px;border-radius:10px;opacity:0;
+    transition:all .2s;pointer-events:none;font-size:13px;z-index:99}
+  .toast.on{opacity:.97;transform:translate(-50%,0)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="bar">
+    <span class="brand"><i></i>便签 · 知识库</span>
+    <div class="q">
+      <input id="q" placeholder="搜标题 / 正文 / 标签（⌘K 聚焦）" autocomplete="off">
+      <button id="btnClearQ" style="border:none;background:none;color:var(--t3)">✕</button>
+    </div>
+    <span class="spacer"></span>
+    <span class="stat" id="stat"></span>
+    <button id="btnExport">导出 Markdown</button>
+    <button class="pri" id="btnNew">新建 ⌘N</button>
+  </div>
+</header>
+
+<main>
+  <aside id="list">
+    <div id="tags"></div>
+    <div id="items"></div>
+  </aside>
+  <div id="edit"></div>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+const S = { notes: [], cur: null, tag: "", q: "", dirty: false, allTags: [] };
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g,
+  c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const api = async p => { const r = await fetch(p); if(!r.ok) throw new Error(r.status); return r.json(); };
+const post = async (p,b) => (await fetch(p,{method:"POST",headers:{"Content-Type":"application/json"},
+  body:JSON.stringify(b||{})})).json();
+function toast(m){ const t=$("toast"); t.textContent=m; t.classList.add("on");
+  setTimeout(()=>t.classList.remove("on"),1800); }
+
+async function boot(){
+  await loadTags();
+  await load();
+}
+
+async function loadTags(){
+  const st = await api("/api/status");
+  S.allTags = st.tags || [];
+  $("stat").textContent = `${st.count} 条便签`
+    + (st.pinned ? ` · ${st.pinned} 条置顶` : "")
+    + (st.user_id ? ` · ${st.user_id}` : "");
+  $("tags").innerHTML = S.allTags.length
+    ? `<span class="tg ${S.tag?"":"on"}" data-tag="">全部</span>` +
+      S.allTags.map(([t, c]) => `<span class="tg ${S.tag===t?"on":""}" data-tag="${esc(t)}">
+        ${esc(t)} <span style="color:var(--t3)">${c}</span></span>`).join("")
+    : `<span style="color:var(--t3);font-size:11.5px">还没有标签</span>`;
+  document.querySelectorAll(".tg").forEach(el => el.onclick = () => {
+    S.tag = el.dataset.tag; loadTags(); load();
+  });
+}
+
+async function load(){
+  const p = new URLSearchParams();
+  if(S.q) p.set("q", S.q);
+  if(S.tag) p.set("tag", S.tag);
+  const d = await api("/api/notes?" + p);
+  S.notes = d.notes || [];
+  $("items").innerHTML = S.notes.length ? S.notes.map(n => `
+    <div class="nt ${S.cur && S.cur.id===n.id?"on":""}" data-id="${esc(n.id)}">
+      <div class="t1">${n.pinned ? "📌" : ""} ${esc(n.title)}</div>
+      <div class="t2">${esc((n.body||"").split("\n").slice(0,2).join(" ")).slice(0,90) || "（空）"}</div>
+      <div class="t3">${esc((n.updated||"").slice(5,16))}
+        ${(n.tags||[]).map(t => `<span class="tagz">#${esc(t)}</span>`).join("")}</div>
+    </div>`).join("")
+    : `<div class="empty" style="padding:50px 18px"><span class="big">📝</span>
+        <b>${S.q||S.tag ? "没有匹配的便签" : "还没有便签"}</b>
+        <span style="font-size:12.5px">${S.q||S.tag ? "换个词试试" : "点右上「新建」开始记"}</span></div>`;
+  document.querySelectorAll(".nt").forEach(el => el.onclick = () => {
+    const n = S.notes.find(x => x.id === el.dataset.id);
+    if(S.dirty && !confirm("当前有未保存的修改，确定切换？")) return;
+    openNote(n);
+  });
+}
+
+function openNote(n){
+  S.cur = n ? JSON.parse(JSON.stringify(n)) : { id:null, title:"", body:"", tags:[], pinned:false };
+  S.dirty = false;
+  if(!n) $("items").querySelectorAll(".nt").forEach(x => x.classList.remove("on"));
+  paintEditor();
+  load().then(() => {
+    document.querySelectorAll(".nt").forEach(el =>
+      el.classList.toggle("on", S.cur.id && el.dataset.id === S.cur.id));
+  });
+}
+
+function paintEditor(){
+  const n = S.cur;
+  $("edit").innerHTML = `
+    <div class="ehead">
+      <button class="pri" id="btnSave">保存 ⌘S</button>
+      ${n.id ? `<button id="btnPin">${n.pinned ? "取消置顶" : "📌 置顶"}</button>
+                <button id="btnDel" style="color:var(--danger)">删除</button>` : ""}
+      <span class="spacer" style="flex:1"></span>
+      <span class="meta" id="meta">${n.id
+        ? `更新 ${esc(n.updated||"")} · v${n.version||1} · ${esc(n.id)}`
+        : "新便签"}</span>
+    </div>
+    <div class="ebody">
+      <input id="title" placeholder="标题" value="${esc(n.title||"")}">
+      <input id="tags" placeholder="标签（逗号分隔，例如：录单,接口）" value="${esc((n.tags||[]).join(", "))}">
+      <textarea id="body" placeholder="正文。可以贴命令、接口结论、待确认的问题…">${esc(n.body||"")}</textarea>
+      <div class="meta">
+        <span id="cnt"></span>
+        <span style="flex:1"></span>
+        <span>存在 <code style="font-family:var(--mono)">notes.jsonl</code> —— 纯文本，别的工具和 AI 都能直接读</span>
+      </div>
+    </div>`;
+  const upd = () => {
+    S.dirty = true;
+    const b = $("body").value;
+    $("cnt").textContent = `${b.length} 字符 / ${b.split("\n").length} 行`;
+  };
+  ["title","tags","body"].forEach(id => $(id).addEventListener("input", upd));
+  upd(); S.dirty = false;
+  $("btnSave").onclick = save;
+  if($("btnPin")) $("btnPin").onclick = async () => {
+    await post("/api/pin", {id: S.cur.id});
+    await loadTags(); await load();
+    const fresh = S.notes.find(x => x.id === S.cur.id);
+    if(fresh) openNote(fresh);
+    toast("已切换置顶");
+  };
+  if($("btnDel")) $("btnDel").onclick = async () => {
+    if(!confirm("删掉这条便签？（文件里会追加一条删除记录，不改写历史）")) return;
+    await post("/api/save", {id: S.cur.id, deleted: true});
+    S.cur = null; S.dirty = false;
+    $("edit").innerHTML = `<div class="empty"><span class="big">📝</span>
+      <b>已删除</b><span style="font-size:12.5px">选左边一条，或新建</span></div>`;
+    await loadTags(); await load(); toast("已删除");
+  };
+}
+
+async function save(){
+  if(!S.cur) return;
+  const title = $("title").value.trim();
+  const body = $("body").value;
+  const tags = $("tags").value.split(/[,，]/).map(s => s.trim()).filter(Boolean);
+  if(!title && !body) return toast("标题和正文都是空的");
+  const r = await post("/api/save", {id: S.cur.id, title, body, tags});
+  if(!r.ok) return toast("保存失败");
+  S.dirty = false;
+  toast(r.note.version > 1 ? `已保存（第 ${r.note.version} 版）` : "已保存");
+  await loadTags(); await load();
+  S.cur = r.note;
+  document.querySelectorAll(".nt").forEach(el =>
+    el.classList.toggle("on", el.dataset.id === S.cur.id));
+  $("meta").textContent = `更新 ${r.note.updated} · v${r.note.version} · ${r.note.id}`;
+}
+
+$("btnNew").onclick = () => {
+  if(S.dirty && !confirm("当前有未保存的修改，确定新建？")) return;
+  openNote(null);
+  $("title").focus();
+};
+$("btnExport").onclick = async () => {
+  const r = await api("/api/export");
+  toast(r.ok ? "已导出：" + r.path.split("/").pop() : "导出失败");
+};
+let qt = null;
+$("q").addEventListener("input", () => {
+  clearTimeout(qt);
+  qt = setTimeout(() => { S.q = $("q").value.trim(); load(); }, 200);
+});
+$("btnClearQ").onclick = () => { $("q").value = ""; S.q = ""; load(); };
+
+document.addEventListener("keydown", e => {
+  const mod = e.metaKey || e.ctrlKey;
+  if(mod && e.key.toLowerCase() === "s"){ e.preventDefault(); save(); }
+  if(mod && e.key.toLowerCase() === "n"){ e.preventDefault(); $("btnNew").click(); }
+  if(mod && e.key.toLowerCase() === "k"){ e.preventDefault(); $("q").focus(); $("q").select(); }
+});
+window.addEventListener("beforeunload", e => {
+  if(S.dirty){ e.preventDefault(); e.returnValue = ""; }
+});
+
+boot().then(() => {
+  $("edit").innerHTML = `<div class="empty"><span class="big">📝</span>
+    <b>选一条便签，或新建</b>
+    <span style="font-size:12.5px">把只存在于对话里的结论落下来 —— 关掉浏览器也还在</span></div>`;
+  if(S.notes.length) openNote(S.notes[0]);
+});
+</script>
+</body>
+</html>

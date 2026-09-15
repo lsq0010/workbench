@@ -1,0 +1,54 @@
+{
+  "manifest_version": 1,
+  "id": "jsondiff",
+  "name": "报文对比",
+  "description": "两份 JSON 的结构化差异：逐路径列出「只在A / 只在B / 值不同 / 类型不同」。能直接从抓包数据挑报文来比，也能按路径取值（data.list[].waybillCode）。",
+  "version": "0.1.0",
+  "author": "本机",
+  "type": "local",
+
+  "runtime": { "entry": "main.py", "requires": { "python": ">=3.7" }, "dependencies": [] },
+  "ports": { "web": 8895 },
+
+  "platform": {
+    "icon": "🔬",
+    "color": "#e0533d",
+    "open": "http://127.0.0.1:{web}/",
+    "health": "http://127.0.0.1:{web}/api/status",
+    "start": ["python3", "main.py", "start"],
+    "stop": ["python3", "main.py", "stop"],
+    "note": "抓包没启动也能用 —— 手动粘贴 JSON 即可对比。"
+  },
+
+  "permissions": [
+    {
+      "id": "net.local.read",
+      "why": "可选地从抓包工作台读取报文，方便直接挑两条来比",
+      "risk": "低：只读本机 127.0.0.1，不联网",
+      "mitigation": "不读文件、不改数据；抓包没跑时功能不受影响，只是不能「从抓包选」"
+    }
+  ],
+
+  "data": { "produces": [], "consumes": [
+    { "feature": "capture", "via": "http",
+      "endpoints": ["/api/flows", "/api/flow"],
+      "desc": "可选：从抓到的报文里挑数据来对比" }
+  ] },
+
+  "exposes": {
+    "base": "http://127.0.0.1:8895",
+    "endpoints": [
+      { "path": "/api/status", "desc": "服务状态 + 抓包数据源可用性", "auth": "local-only" },
+      { "path": "/api/flows", "desc": "可选报文列表 ?q=关键字", "auth": "local-only" },
+      { "path": "/api/flow", "desc": "取某条报文的请求体或响应体 ?id=&side=req|resp", "auth": "local-only" }
+    ],
+    "writes": [
+      { "path": "/api/diff", "desc": "对比两份 JSON（无状态，不落盘）", "auth": "local-only" },
+      { "path": "/api/format", "desc": "格式化 JSON", "auth": "local-only" },
+      { "path": "/api/query", "desc": "按路径取值", "auth": "local-only" }
+    ]
+  },
+
+  "ui": { "entry": "index.html" },
+  "store": { "pricing": "free", "license": "personal" }
+}

@@ -1,0 +1,76 @@
+{
+  "manifest_version": 1,
+  "id": "crashlab",
+  "name": "崩溃日志符号化",
+  "description": "把崩溃日志里那串十六进制地址变成函数名+文件名+行号。按 UUID 在归档里找对应 dSYM，找不到就明说，不用别的版本糊弄。",
+  "version": "0.1.0",
+  "author": "本机",
+  "type": "local",
+
+  "runtime": { "entry": "main.py", "requires": { "python": ">=3.7" }, "dependencies": [] },
+  "ports": { "web": 8922 },
+
+  "platform": {
+    "icon": "💥",
+    "color": "#be123c",
+    "open": "http://127.0.0.1:{web}/",
+    "health": "http://127.0.0.1:{web}/api/status",
+    "start": ["python3", "main.py", "start"],
+    "stop": ["python3", "main.py", "stop"],
+    "note": "全程只读：不改崩溃日志、不改 dSYM、不改工程。dSYM 索引会缓存 7 天（UUID 不会变）。"
+  },
+
+  "permissions": [
+    {
+      "id": "fs.read.crashes",
+      "why": "读崩溃日志（.ips / .crash）",
+      "risk": "低：只读，不改",
+      "mitigation": "只读用户指定的文件或诊断报告目录里的崩溃日志"
+    },
+    {
+      "id": "fs.read.dsym",
+      "why": "扫 Xcode 归档里的 dSYM 建 UUID 索引",
+      "risk": "低：只读文件头拿 UUID",
+      "mitigation": "只读 Mach-O 头部 64KB（拿 LC_UUID），不读符号表全量；索引缓存 7 天"
+    },
+    {
+      "id": "process.exec.atos",
+      "why": "调 atos 做实际的符号化",
+      "risk": "低：atos 是只读的地址转换工具",
+      "mitigation": "只传 -o（目标二进制）和 -l（加载地址），不写任何文件"
+    },
+    {
+      "id": "fs.write",
+      "why": "符号化记录落盘",
+      "risk": "低：只写本功能目录",
+      "mitigation": "只追加写 results.jsonl"
+    }
+  ],
+
+  "data": {
+    "produces": [
+      { "id": "results", "file": "results.jsonl", "kind": "append-only",
+        "desc": "每次符号化的结果摘要（带 user_id）" },
+      { "id": "dsymindex", "file": "dsym_index.json", "kind": "cache",
+        "desc": "dSYM 的 UUID 索引（7 天过期，可随时删）" }
+    ],
+    "consumes": []
+  },
+
+  "exposes": {
+    "base": "http://127.0.0.1:8922",
+    "endpoints": [
+      { "path": "/api/status", "desc": "版本 + 找到的崩溃日志", "auth": "local-only" },
+      { "path": "/api/parse", "desc": "只解析不符号化 ?path=", "auth": "local-only" },
+      { "path": "/api/dsym", "desc": "dSYM 索引统计", "auth": "local-only" },
+      { "path": "/api/digest", "desc": "无告警（占位）", "auth": "local-only" }
+    ],
+    "writes": [
+      { "path": "/api/symbolicate", "desc": "符号化一个崩溃日志", "auth": "local-only" },
+      { "path": "/api/reveal", "desc": "在访达中显示", "auth": "local-only" }
+    ]
+  },
+
+  "ui": { "entry": "index.html" },
+  "store": { "pricing": "free", "license": "personal" }
+}

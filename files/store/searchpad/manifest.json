@@ -1,0 +1,110 @@
+{
+  "manifest_version": 1,
+  "id": "searchpad",
+  "name": "代码搜索",
+  "description": "跨多个仓库/目录搜内容，带行号上下文，按文件类型过滤，自动跳过 Pods/build/DerivedData 这些噪音目录。结果按文件分组、命中行高亮。",
+  "version": "0.1.0",
+  "author": "本机",
+  "type": "local",
+  "runtime": {
+    "entry": "main.py",
+    "requires": {
+      "python": ">=3.7"
+    },
+    "dependencies": []
+  },
+  "ports": {
+    "web": 8898
+  },
+  "platform": {
+    "icon": "🔍",
+    "color": "#c2410c",
+    "open": "http://127.0.0.1:{web}/",
+    "health": "http://127.0.0.1:{web}/api/status",
+    "start": [
+      "python3",
+      "main.py",
+      "start"
+    ],
+    "stop": [
+      "python3",
+      "main.py",
+      "stop"
+    ],
+    "note": "首次启动自动把桌面上的 git 仓库设为搜索范围。用的是系统自带 grep。"
+  },
+  "permissions": [
+    {
+      "id": "fs.read.search",
+      "why": "在用户指定的目录里搜索文件内容",
+      "risk": "中：会读取这些目录下的文本文件；只读，不改任何文件",
+      "mitigation": "范围由用户显式管理；自动跳过 .git/Pods/build/DerivedData/node_modules 等目录；不读取也不上传任何内容到网络"
+    },
+    {
+      "id": "fs.open",
+      "why": "「打开目录」在访达里定位命中文件所在目录",
+      "risk": "低：只调用 open",
+      "mitigation": "只调用系统的 open 命令在访达里定位，不读文件内容、不修改、不删除；路径由用户从界面里选，不接受外部传入的任意路径"
+    }
+  ],
+  "data": {
+    "produces": [
+      {
+        "id": "searches",
+        "file": "searches.jsonl",
+        "kind": "append-only",
+        "desc": "搜索历史（只记关键词和命中数，不记文件内容）"
+      }
+    ],
+    "consumes": []
+  },
+  "exposes": {
+    "base": "http://127.0.0.1:8898",
+    "endpoints": [
+      {
+        "path": "/api/status",
+        "desc": "服务状态 + 范围 + 文件类型预设",
+        "auth": "local-only"
+      },
+      {
+        "path": "/api/discover",
+        "desc": "自动发现可搜索的仓库",
+        "auth": "local-only"
+      },
+      {
+        "path": "/api/history",
+        "desc": "最近搜索",
+        "auth": "local-only"
+      },
+      {
+        "path": "/api/file",
+        "desc": "读单个文件内容 ?path=",
+        "auth": "local-only"
+      }
+    ],
+    "writes": [
+      {
+        "path": "/api/search",
+        "desc": "执行搜索",
+        "auth": "local-only"
+      },
+      {
+        "path": "/api/config",
+        "desc": "保存搜索范围",
+        "auth": "local-only"
+      },
+      {
+        "path": "/api/reveal",
+        "desc": "在访达里打开目录",
+        "auth": "local-only"
+      }
+    ]
+  },
+  "ui": {
+    "entry": "index.html"
+  },
+  "store": {
+    "pricing": "free",
+    "license": "personal"
+  }
+}

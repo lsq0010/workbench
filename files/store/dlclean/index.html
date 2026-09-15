@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>下载夹管家</title>
+<style>
+  :root{
+    --bg:#f4f5f7;--panel:#fff;--panel2:#fafbfc;--line:#e6e8ec;--soft:#f0f1f4;
+    --text:#16181d;--t2:#5b6472;--t3:#98a1ad;
+    --brand:#0369a1;--brand-soft:#e8f4fb;--brand-line:#b8dcf0;
+    --ok:#12894f;--ok-soft:#e7f6ee;--warn:#a9670a;--warn-soft:#fdf3e3;--danger:#d23b3b;
+    --sh1:0 1px 2px rgba(16,24,40,.05);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB",sans-serif;
+  }
+  *{box-sizing:border-box}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:#cfd3da;border:3px solid transparent;
+    background-clip:content-box;border-radius:8px}
+  html,body{height:100%}
+  body{margin:0;font:14px/1.55 var(--sans);background:var(--bg);color:var(--text);
+       display:flex;flex-direction:column;overflow:hidden;-webkit-font-smoothing:antialiased}
+  header{flex:none;background:var(--panel);border-bottom:1px solid var(--line);box-shadow:var(--sh1)}
+  .bar{display:flex;align-items:center;gap:10px;padding:0 20px;height:56px;flex-wrap:wrap}
+  .brand{font-weight:650;font-size:15.5px;display:flex;align-items:center;gap:9px;flex:none}
+  .brand .mk{width:24px;height:24px;border-radius:6px;display:flex;align-items:center;
+    justify-content:center;font-size:13px;background:#0369a1;color:#fff}
+  .spacer{flex:1}
+  .stat{color:var(--t3);font-size:12px;font-family:var(--mono)}
+  button.b{border:1px solid var(--line);background:var(--panel);border-radius:8px;
+    padding:7px 14px;cursor:pointer;font:inherit;font-size:13px;color:var(--text)}
+  button.b:hover{background:var(--brand-soft);border-color:var(--brand-line);color:var(--brand)}
+  button.b.pri{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:600}
+  button.b.danger{background:var(--danger);border-color:var(--danger);color:#fff;font-weight:600}
+  button.b:disabled{opacity:.45;cursor:not-allowed}
+  main{flex:1;overflow:auto;padding:20px 24px 60px}
+  .wrap{max-width:1120px;margin:0 auto}
+  .kpis{display:flex;gap:11px;flex-wrap:wrap;margin-bottom:18px}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 18px;
+    box-shadow:var(--sh1);min-width:130px}
+  .kpi .k{color:var(--t3);font-size:11.5px}
+  .kpi .v{font-size:21px;font-weight:650;font-family:var(--mono);margin-top:3px}
+  .bar2{height:8px;background:var(--soft);border-radius:4px;overflow:hidden;margin:14px 0 20px}
+  .bar2 i{display:block;height:100%;background:linear-gradient(90deg,#0369a1,#38bdf8)}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:13px;
+    margin-bottom:16px;overflow:hidden;box-shadow:var(--sh1)}
+  .card>summary{padding:13px 17px;cursor:pointer;font-weight:620;font-size:14px;
+    background:var(--panel2);list-style:none;display:flex;align-items:center;gap:10px}
+  .card>summary::-webkit-details-marker{display:none}
+  .card>summary::before{content:"▸";color:var(--t3);font-size:11px;transition:transform .15s}
+  .card[open]>summary::before{transform:rotate(90deg)}
+  .card .body{padding:0}
+  .grp{border-bottom:1px solid var(--soft);padding:12px 17px}
+  .grp:last-child{border-bottom:none}
+  .grp .h{display:flex;align-items:center;gap:9px;margin-bottom:8px;flex-wrap:wrap}
+  .grp .sz{font-family:var(--mono);font-weight:650;color:var(--brand)}
+  .waste{background:var(--ok-soft);color:var(--ok);border-radius:999px;padding:2px 10px;
+    font-size:11.5px;font-weight:600}
+  .fl{display:flex;align-items:center;gap:9px;padding:5px 0;font-size:12.5px}
+  .fl input{accent-color:var(--danger);width:auto}
+  .fl .nm{font-family:var(--mono);word-break:break-all;flex:1}
+  .fl .dt{color:var(--t3);font-size:11.5px;white-space:nowrap}
+  .keep{background:var(--ok-soft);color:var(--ok);border-radius:5px;padding:1px 7px;
+    font-size:10.5px;font-weight:600}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th{text-align:left;color:var(--t3);font-weight:600;font-size:11.5px;padding:9px 17px;
+     background:var(--panel2);border-bottom:1px solid var(--line)}
+  td{padding:8px 17px;border-bottom:1px solid var(--soft)}
+  tr:last-child td{border-bottom:none}
+  .mono{font-family:var(--mono);word-break:break-all}
+  .tag{font-size:10.5px;border-radius:5px;padding:2px 8px;font-weight:600;white-space:nowrap}
+  .t-ok{background:var(--ok-soft);color:var(--ok)}
+  .t-warn{background:var(--warn-soft);color:var(--warn)}
+  .t-gray{background:#f1f3f6;color:var(--t3)}
+  .selbar{position:sticky;bottom:0;background:var(--panel);border-top:1px solid var(--line);
+    padding:12px 20px;display:flex;align-items:center;gap:12px;box-shadow:0 -2px 8px rgba(16,24,40,.06)}
+  .empty{text-align:center;padding:70px 20px;color:var(--t2)}
+  .empty .big{font-size:44px;opacity:.4;display:block;margin-bottom:13px}
+  .empty b{color:var(--text);display:block;font-size:15px;margin-bottom:7px}
+  .safe{background:var(--ok-soft);border:1px solid #bfe6cf;color:#0d6b3e;border-radius:12px;
+    padding:15px 18px;font-size:13.5px;line-height:1.8}
+  .hist{font-size:11.5px;color:var(--t2);padding:5px 0;border-bottom:1px solid var(--soft)}
+  .toast{position:fixed;bottom:26px;left:50%;transform:translate(-50%,10px);
+    background:#1c1f26;color:#fff;padding:10px 20px;border-radius:10px;opacity:0;
+    transition:all .2s;pointer-events:none;font-size:13px;z-index:99}
+  .toast.on{opacity:.97;transform:translate(-50%,0)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="bar">
+    <span class="brand"><span class="mk">🧹</span>下载夹管家</span>
+    <span class="spacer"></span>
+    <span class="stat" id="stat"></span>
+    <button class="b" id="btnReveal">在访达打开</button>
+    <button class="b pri" id="btnScan">重新扫描</button>
+  </div>
+</header>
+
+<main><div class="wrap" id="view">
+  <div class="empty"><span class="big">🧹</span><b>点「重新扫描」开始</b>
+    <span style="font-size:12.5px">只看不动 —— 扫描不会删任何东西</span></div>
+</div></main>
+
+<div class="selbar" id="selbar" style="display:none">
+  <span id="selinfo" style="font-size:13px"></span>
+  <span class="spacer" style="flex:1"></span>
+  <button class="b" id="btnClearSel">取消选择</button>
+  <button class="b danger" id="btnTrash">移到废纸篓</button>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+const S = { data: null, sel: new Set(), folder: "" };
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g,
+  c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const api = async p => { const r = await fetch(p); if(!r.ok) throw new Error(r.status); return r.json(); };
+const post = async (p,b) => (await fetch(p,{method:"POST",headers:{"Content-Type":"application/json"},
+  body:JSON.stringify(b||{})})).json();
+function toast(m){ const t=$("toast"); t.textContent=m; t.classList.add("on");
+  setTimeout(()=>t.classList.remove("on"),2600); }
+function human(n){ for(const u of ["B","KB","MB","GB","TB"]){
+  if(n<1024) return (u==="B"?n.toFixed(0):n.toFixed(1))+" "+u; n/=1024;} return n.toFixed(1)+" PB"; }
+
+async function boot(){
+  const st = await api("/api/status");
+  S.folder = st.downloads;
+  $("btnReveal").onclick = () => post("/api/reveal", {path: S.folder});
+  $("btnScan").onclick = scan;
+  $("btnClearSel").onclick = () => { S.sel.clear(); render(); };
+  $("btnTrash").onclick = doTrash;
+  if(st.trash && st.trash.length) S.hist = st.trash;
+  scan();
+}
+
+async function scan(){
+  $("view").innerHTML = `<div class="empty">扫描中…（要算哈希，稍等）</div>`;
+  $("btnScan").disabled = true;
+  S.sel.clear();
+  try{
+    S.data = await api("/api/scan?folder=" + encodeURIComponent(S.folder));
+    render();
+  }catch(e){
+    $("view").innerHTML = `<div class="empty">扫描失败：${esc(e.message)}</div>`;
+  }
+  $("btnScan").disabled = false;
+}
+
+function render(){
+  const d = S.data;
+  if(!d || d.error){ $("view").innerHTML = `<div class="empty">${esc(d?.error||"没有数据")}</div>`; return; }
+  $("stat").textContent = `${d.file_count} 个文件 · ${d.total_h} · ${d.seconds}s`;
+
+  const pct = d.total ? Math.round(d.reclaim / d.total * 100) : 0;
+  let h = `<div class="kpis">
+    <div class="kpi"><div class="k">文件数</div><div class="v">${d.file_count}</div></div>
+    <div class="kpi"><div class="k">总占用</div><div class="v">${d.total_h}</div></div>
+    <div class="kpi"><div class="k">可回收</div>
+      <div class="v" style="color:var(--ok)">${d.reclaim_h}</div></div>
+    <div class="kpi"><div class="k">占比</div><div class="v">${pct}%</div></div>
+  </div>
+  <div class="bar2"><i style="width:${pct}%"></i></div>`;
+
+  if(!d.dups.length && !d.installers.filter(i=>i.removable).length && !d.incomplete.length){
+    h += `<div class="safe">✅ 没什么可清的 —— 没有重复文件，也没有能删的安装包。</div>`;
+  }
+
+  /* 重复文件 */
+  if(d.dups.length){
+    h += `<details class="card" open><summary>🔁 重复文件
+      <span style="color:var(--t3);font-weight:400">${d.dups.length} 组 ·
+      能省 ${human(d.dups.reduce((a,g)=>a+g.waste,0))}</span>
+      <span style="flex:1"></span>
+      <button class="b" data-seldup style="font-size:12px;padding:4px 11px">全选多余的那份</button>
+    </summary><div class="body">`;
+    d.dups.forEach((g, gi) => {
+      h += `<div class="grp"><div class="h">
+        <span class="sz">${g.size_h} × ${g.files.length} 份</span>
+        <span class="waste">能省 ${human(g.waste)}</span>
+        <span style="color:var(--t3);font-size:11.5px">保留最早的那个</span></div>`;
+      g.files.forEach((f, fi) => {
+        const keep = fi === 0;
+        h += `<label class="fl">
+          ${keep ? `<span class="keep">保留</span>`
+                 : `<input type="checkbox" data-p="${esc(f.path)}">`}
+          <span class="nm">${esc(f.name)}</span>
+          <span class="dt">${esc(f.mtime_h)}　${f.age_days} 天前</span></label>`;
+      });
+      h += `</div>`;
+    });
+    h += `</div></details>`;
+  }
+
+  /* 安装包 */
+  const inst = d.installers;
+  const rem = inst.filter(i => i.removable);
+  if(inst.length){
+    h += `<details class="card" ${rem.length?"open":""}><summary>📦 安装包
+      <span style="color:var(--t3);font-weight:400">${inst.length} 个 ·
+      其中 ${rem.length} 个可清（${human(rem.reduce((a,i)=>a+i.size,0))}）</span>
+      <span style="flex:1"></span>
+      <button class="b" data-selinst style="font-size:12px;padding:4px 11px">全选可清的</button>
+    </summary><div class="body"><table><thead><tr>
+      <th style="width:5%"></th><th style="width:48%">文件</th><th style="width:13%">大小</th>
+      <th style="width:11%">日期</th><th style="width:23%">为什么可清</th>
+    </tr></thead><tbody>`;
+    inst.forEach(i => {
+      h += `<tr>
+        <td>${i.removable
+          ? `<input type="checkbox" data-p="${esc(i.path)}">`
+          : `<span title="没判断出可以删，不动它">—</span>`}</td>
+        <td class="mono">${esc(i.name)}</td>
+        <td class="mono">${esc(i.size_h)}</td>
+        <td class="mono">${esc(i.mtime_h)}</td>
+        <td>${i.removable
+          ? `<span class="tag ${i.installed?"t-ok":"t-warn"}">${esc(i.reason)}</span>`
+          : `<span class="tag t-gray">留着</span>`}</td></tr>`;
+    });
+    h += `</tbody></table></div></details>`;
+  }
+
+  /* 没下完 */
+  if(d.incomplete.length){
+    h += `<details class="card" open><summary>⏸ 没下完的
+      <span style="color:var(--t3);font-weight:400">${d.incomplete.length} 个 ·
+      ${human(d.incomplete.reduce((a,i)=>a+i.size,0))}</span>
+      <span style="flex:1"></span>
+      <button class="b" data-selinc style="font-size:12px;padding:4px 11px">全选</button>
+    </summary><div class="body"><table><tbody>`;
+    d.incomplete.forEach(i => {
+      h += `<tr><td style="width:5%"><input type="checkbox" data-p="${esc(i.path)}"></td>
+        <td class="mono">${esc(i.name)}</td>
+        <td class="mono" style="width:13%">${esc(i.size_h)}</td>
+        <td class="mono" style="width:14%">${esc(i.mtime_h)}</td>
+        <td style="width:24%"><span class="tag t-warn">下载中断，装不了也用不了</span></td></tr>`;
+    });
+    h += `</tbody></table></div></details>`;
+  }
+
+  /* 大文件 */
+  if(d.big.length){
+    h += `<details class="card"><summary>📊 大文件（>100MB）
+      <span style="color:var(--t3);font-weight:400">${d.big.length} 个</span>
+    </summary><div class="body"><table><tbody>`;
+    d.big.forEach(f => {
+      h += `<tr><td class="mono">${esc(f.name)}</td>
+        <td class="mono" style="width:13%">${esc(f.size_h)}</td>
+        <td class="mono" style="width:14%">${esc(f.mtime_h)}</td>
+        <td style="width:16%;color:var(--t3)">${f.age_days} 天前</td></tr>`;
+    });
+    h += `</tbody></table></div></details>`;
+  }
+
+  /* 按类型 */
+  if(d.by_ext.length){
+    h += `<details class="card"><summary>🗂 按类型
+      <span style="color:var(--t3);font-weight:400">${d.by_ext.length} 种</span>
+    </summary><div class="body"><table><thead><tr><th style="width:40%">类型</th>
+      <th style="width:20%">数量</th><th style="width:40%">占用</th></tr></thead><tbody>
+      ${d.by_ext.map(x => `<tr><td class="mono">${esc(x.ext)}</td>
+        <td class="mono">${x.count}</td>
+        <td class="mono">${esc(x.size_h)}</td></tr>`).join("")}
+    </tbody></table></div></details>`;
+  }
+
+  if(S.hist && S.hist.length){
+    h += `<details class="card"><summary>🕘 清理历史
+      <span style="color:var(--t3);font-weight:400">最近 ${S.hist.length} 次</span>
+    </summary><div class="body" style="padding:12px 17px">
+      ${S.hist.map(x => `<div class="hist">
+        <b>${esc(x.ts)}</b> · 移了 ${x.count} 个到废纸篓</div>`).join("")}
+      <div style="color:var(--t3);font-size:11.5px;margin-top:9px">
+        都在废纸篓里，右键能「放回原处」。</div>
+    </div></details>`;
+  }
+
+  $("view").innerHTML = h;
+  bindSel();
+  updateSelBar();
+}
+
+function bindSel(){
+  document.querySelectorAll("[data-p]").forEach(el => {
+    el.checked = S.sel.has(el.dataset.p);
+    el.onchange = () => {
+      if(el.checked) S.sel.add(el.dataset.p); else S.sel.delete(el.dataset.p);
+      updateSelBar();
+    };
+  });
+  const d = S.data;
+  const sel = (attr, paths) => {
+    document.querySelectorAll(`[${attr}]`).forEach(b => b.onclick = e => {
+      e.preventDefault(); e.stopPropagation();
+      paths.forEach(p => S.sel.add(p));
+      bindSel(); render(); 
+    });
+  };
+  if(document.querySelector("[data-seldup]"))
+    sel("data-seldup", d.dups.flatMap(g => g.files.slice(1).map(f => f.path)));
+  if(document.querySelector("[data-selinst]"))
+    sel("data-selinst", d.installers.filter(i => i.removable).map(i => i.path));
+  if(document.querySelector("[data-selinc]"))
+    sel("data-selinc", d.incomplete.map(i => i.path));
+}
+
+function selSize(){
+  const all = [...(S.data.dups.flatMap(g => g.files.map(f => ({p:f.path, s:g.size})))),
+               ...S.data.installers.map(i => ({p:i.path, s:i.size})),
+               ...S.data.incomplete.map(i => ({p:i.path, s:i.size}))];
+  let n = 0;
+  all.forEach(x => { if(S.sel.has(x.p)) n += x.s; });
+  return n;
+}
+
+function updateSelBar(){
+  const n = S.sel.size;
+  $("selbar").style.display = n ? "flex" : "none";
+  $("selinfo").innerHTML = n
+    ? `选中 <b>${n}</b> 个文件，共 <b>${human(selSize())}</b>`
+    : "";
+}
+
+async function doTrash(){
+  const n = S.sel.size;
+  if(!n) return;
+  if(!confirm(`把选中的 ${n} 个文件（${human(selSize())}）移到废纸篓？\n\n` +
+              `· 不是直接删除，在废纸篓里能「放回原处」\n` +
+              `· 移完可以再扫一次看省了多少`)) return;
+  $("btnTrash").disabled = true;
+  try{
+    const r = await post("/api/trash", {paths: [...S.sel]});
+    toast(`已移 ${r.moved} 个到废纸篓` + (r.failed?.length ? `，${r.failed.length} 个跳过` : ""));
+    S.sel.clear();
+    await scan();
+  }catch(e){ toast("失败：" + e.message); }
+  $("btnTrash").disabled = false;
+}
+
+boot();
+</script>
+</body>
+</html>

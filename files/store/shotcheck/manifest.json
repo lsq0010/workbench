@@ -1,0 +1,76 @@
+{
+  "manifest_version": 1,
+  "id": "shotcheck",
+  "name": "上架材料检查",
+  "description": "提交 App Store 前先过一遍：尺寸/格式/数量对着 Apple 规格表逐张核，再用 AI 看内容有没有测试数据、真实工号、误导性 UI、报错弹窗。",
+  "version": "0.1.0",
+  "author": "本机",
+  "type": "local",
+
+  "runtime": { "entry": "main.py", "requires": { "python": ">=3.7" }, "dependencies": [] },
+  "ports": { "web": 8920 },
+
+  "platform": {
+    "icon": "🧾",
+    "color": "#b45309",
+    "open": "http://127.0.0.1:{web}/",
+    "health": "http://127.0.0.1:{web}/api/status",
+    "start": ["python3", "main.py", "start"],
+    "stop": ["python3", "main.py", "stop"],
+    "note": "尺寸规格是离线内置的（对着 Apple 官方表），不联网也能用；只有「让 AI 看内容」那步会联网。"
+  },
+
+  "permissions": [
+    {
+      "id": "fs.read.images",
+      "why": "读你指定文件夹里的截图，检查尺寸和内容",
+      "risk": "低：只读图片文件本身",
+      "mitigation": "只在用户点「检查」时读，且只读指定文件夹；不扫全盘、不改任何文件"
+    },
+    {
+      "id": "process.exec.sips",
+      "why": "读图片尺寸（没有 PIL 时用 macOS 自带的 sips 兜底）",
+      "risk": "低：只读图片元信息",
+      "mitigation": "只调用 sips 的 -g（get）参数，不做任何写入"
+    },
+    {
+      "id": "net.outbound.ai",
+      "why": "把截图发给 AI 看内容",
+      "risk": "中：截图上可能有真实工号、站点名等内部信息，会离开本机",
+      "mitigation": "**只有用户点「让 AI 看内容」才外发**；尺寸检查完全在本地做；界面上会提醒先脱敏"
+    },
+    {
+      "id": "fs.write",
+      "why": "检查记录落盘",
+      "risk": "低：只写本功能自己的目录",
+      "mitigation": "只追加写 checks.jsonl，不覆盖历史"
+    }
+  ],
+
+  "data": {
+    "produces": [
+      { "id": "checks", "file": "checks.jsonl", "kind": "append-only",
+        "desc": "每次 AI 审查的结果（带 user_id）" }
+    ],
+    "consumes": [
+      { "feature": "platform", "via": "http", "endpoints": ["/api/ai/vision"],
+        "desc": "用平台的看图能力审内容" }
+    ]
+  },
+
+  "exposes": {
+    "base": "http://127.0.0.1:8920",
+    "endpoints": [
+      { "path": "/api/status", "desc": "Apple 规格表 + 扫到的候选文件夹", "auth": "local-only" },
+      { "path": "/api/check", "desc": "检查文件夹 ?folder=", "auth": "local-only" },
+      { "path": "/api/digest", "desc": "无告警（占位）", "auth": "local-only" }
+    ],
+    "writes": [
+      { "path": "/api/review", "desc": "让 AI 看内容", "auth": "local-only" },
+      { "path": "/api/reveal", "desc": "在访达中打开", "auth": "local-only" }
+    ]
+  },
+
+  "ui": { "entry": "index.html" },
+  "store": { "pricing": "free", "license": "personal" }
+}

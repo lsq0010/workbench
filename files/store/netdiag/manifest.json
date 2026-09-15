@@ -1,0 +1,108 @@
+{
+  "manifest_version": 1,
+  "id": "netdiag",
+  "name": "网络诊断",
+  "description": "连不上时按顺序查一遍：本机网络 → 出口 → DNS → 目标可达 → 目标端口 → 局域网扫描。并给出「哪一步断了」的结论。抓包抓不到设备时先跑这个。",
+  "version": "0.1.0",
+  "author": "本机",
+  "type": "local",
+  "runtime": {
+    "entry": "main.py",
+    "requires": {
+      "python": ">=3.7"
+    },
+    "dependencies": []
+  },
+  "ports": {
+    "web": 8908
+  },
+  "platform": {
+    "icon": "🩺",
+    "color": "#0369a1",
+    "open": "http://127.0.0.1:{web}/",
+    "health": "http://127.0.0.1:{web}/api/status",
+    "start": [
+      "python3",
+      "main.py",
+      "start"
+    ],
+    "stop": [
+      "python3",
+      "main.py",
+      "stop"
+    ],
+    "note": "会用 ping/dig/nc 等方式主动探测目标 —— 只在用户点按钮时执行。"
+  },
+  "permissions": [
+    {
+      "id": "net.read.local",
+      "why": "读本机网络配置（ifconfig / route / scutil --dns）",
+      "risk": "低：只读本机配置",
+      "mitigation": "只执行 ifconfig / route / scutil --dns 这类只读命令读本机配置；不抓包、不修改网络设置、不对外发送任何数据"
+    },
+    {
+      "id": "net.probe",
+      "why": "ping 目标、查 DNS、连目标端口、扫同网段、traceroute",
+      "risk": "中：会向目标发探测包；扫网段会 ping 254 个地址",
+      "mitigation": "只在用户点按钮时执行；局域网扫描前会说明；不会后台自动跑"
+    }
+  ],
+  "data": {
+    "produces": [],
+    "consumes": []
+  },
+  "exposes": {
+    "base": "http://127.0.0.1:8908",
+    "endpoints": [
+      {
+        "path": "/api/status",
+        "desc": "服务状态 + 本机网络配置",
+        "auth": "local-only"
+      },
+      {
+        "path": "/api/local",
+        "desc": "本机网卡/IP/网关/DNS",
+        "auth": "local-only"
+      },
+      {
+        "path": "/api/lan",
+        "desc": "扫同网段 ?subnet=",
+        "auth": "local-only"
+      },
+      {
+        "path": "/api/trace",
+        "desc": "路由追踪 ?host=",
+        "auth": "local-only"
+      }
+    ],
+    "writes": [
+      {
+        "path": "/api/diagnose",
+        "desc": "一键按顺序诊断（可带 target/port）",
+        "auth": "local-only"
+      },
+      {
+        "path": "/api/ping",
+        "desc": "ping 一个主机",
+        "auth": "local-only"
+      },
+      {
+        "path": "/api/port",
+        "desc": "测一个端口能否连上",
+        "auth": "local-only"
+      },
+      {
+        "path": "/api/dns",
+        "desc": "解析一个域名",
+        "auth": "local-only"
+      }
+    ]
+  },
+  "ui": {
+    "entry": "index.html"
+  },
+  "store": {
+    "pricing": "free",
+    "license": "personal"
+  }
+}
