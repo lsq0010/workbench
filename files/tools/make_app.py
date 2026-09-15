@@ -191,9 +191,27 @@ JSON
 say ""
 say "  [$(date '+%H:%M:%S')] 启动工作平台…（$WORKBENCH，端口 $PORT）"
 
-# ── 已经在跑就只开窗口 ──
+# ── 已经有这个应用的窗口吗 ──
+# Chrome 的 --app 模式有个坑：同一个 user-data-dir 已经开着窗口时，
+# 再执行一次同样的命令**什么都不做**（不新开、不报错、也不保证切到前台）。
+# 用户看到的就是"点了没反应"。实测连点两次，窗口数一直是 1。
+#
+# 所以：有旧窗口就先关掉，再开一个新的 —— 保证点了就一定看到。
+# 工作台的状态都在服务端，关窗口不丢任何东西。
+APPWIN="$(pgrep -f "user-data-dir=$APP_SUPPORT/chrome" 2>/dev/null | head -5)"
+if [ -n "$APPWIN" ]; then
+  say "  关掉旧窗口重开（Chrome 不会自己新开）"
+  # shellcheck disable=SC2086
+  kill $APPWIN 2>/dev/null
+  for _ in $(seq 1 20); do
+    sleep 0.25
+    pgrep -f "user-data-dir=$APP_SUPPORT/chrome" >/dev/null 2>&1 || break
+  done
+fi
+
+# ── 平台没跑就拉起来 ──
 if curl -s -m 2 "$URL/api/desktop" 2>/dev/null | grep -q '"items"'; then
-  say "  已经在跑，直接打开"
+  say "  平台已经在跑"
 else
   cd "$WORKBENCH" || exit 1
   "$PY" platform.py start --port "$PORT" >>"$LOG" 2>&1
