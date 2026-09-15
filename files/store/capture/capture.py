@@ -383,6 +383,33 @@ def unknown_clients():
     return {"requests": n, "first": first, "last": last}
 
 
+def traffic_devices():
+    """从抓到的流量里统计出有哪些设备。
+
+    **设备 = 真的发过请求的 client**，不看网段、不 ping、不管在不在线。
+    用户要的就是这个：连上并抓到东西了才叫设备。
+
+    返回按最后活跃时间倒序（最近在用的排前面）。
+    """
+    my_ip = lan_ip()
+    self_ips = set(LOCALHOST) | {my_ip}
+    stats = {}
+    for r in load_flows():
+        c = norm_client(r)
+        if c in self_ips or c == UNKNOWN:
+            continue                        # 本机和早期无主记录单独处理
+        e = stats.setdefault(c, {"client": c, "requests": 0,
+                                 "first": None, "last": None})
+        e["requests"] += 1
+        ts = r.get("ts")
+        if ts:
+            e["first"] = e["first"] or ts
+            e["last"] = ts
+    rows = list(stats.values())
+    rows.sort(key=lambda x: (x.get("last") or "", x["requests"]), reverse=True)
+    return rows
+
+
 def device_label(client):
     """给一个 IP 配上人看得懂的名字（图标留给前端决定）"""
     if client == UNKNOWN:
@@ -401,74 +428,52 @@ def device_label(client):
     return "设备"
 
 
-def assemble_devices(limit_lan=60):
-    """工作台「设备」页要的全部设备：物理设备 + 本机 + 同网段机器。
+def assemble_devices():
+    """工作台「设备」页要的设备 —— **只列真抓到过流量的**。
 
-    每台都带 monitored 标记 —— 前端据此画绿点（绿 = 正在监听）。
+    不扫网段、不读 ARP、不 ping 判断在线。
+    设备就是"发过请求的那个 IP"，来龙去脉看最后一条流的时间。
     """
     mon = monitored_set()
-    my_ip = lan_ip()
-    # 从本机自己发出去、但走的是 LAN IP 的流量（比如把代理填成 192.168.x.x）
-    # 本质还是这台机器自己，不能算成"另一台设备"，否则设备列表里会出现一个
-    # 和「本机」重复的影子条目。
-    self_ips = set(LOCALHOST) | {my_ip}
-    devs = [d for d in detect_devices() if d["client"] not in self_ips]
-    conn_ips = {d["client"] for d in devs}
 
     def base(ip, requests, first, last, source):
         return {"client": ip, "requests": requests, "first": first, "last": last,
                 "source": source, "title": device_label(ip),
                 "monitored": ip in mon}
 
-    rows = []
-    for d in devs:
-        r = base(d["client"], d.get("requests", 0), d.get("first"), d.get("last"),
-                 "device")
-        for k in ("platform", "probe", "probe_host", "browser", "app_version",
-                  "country", "site", "timezone", "lang", "model"):
-            if d.get(k):
-                r[k] = d[k]
-        rows.append(r)
+    rows = [base(d["client"], d["requests"], d["first"], d["last"], "device")
+            for d in traffic_devices()]
 
-    # 没有归属设备的早期记录：单独一项，能点绿才看得到
+    # 本机：只要抓过流量就列出来（它是最常被抓的那台）
+    loc = local_clients()
+    if loc["requests"]:
+        r = base("127.0.0.1", loc["requests"], loc["first"], loc["last"], "local")
+        r["local"] = True
+        r["pointing_here"] = bool(local_proxy_state().get("pointing_here"))
+        rows.insert(0, r)
+
+    # 早期没有 client 字段的记录：单独归一项
     unk = unknown_clients()
     if unk["requests"]:
-        r = base(UNKNOWN, unk["requests"], unk["first"], unk["last"], "unknown")
-        r["online"] = True
-        rows.append(r)
+        rows.append(base(UNKNOWN, unk["requests"], unk["first"], unk["last"], "unknown"))
 
-    # 本机：永远列出来（哪怕还没抓过一条），它是最常被监听的那台
-    loc = local_clients()
-    local_row = base("127.0.0.1", loc["requests"], loc["first"], loc["last"], "local")
-    local_row["local"] = True
-    local_row["pointing_here"] = bool(local_proxy_state().get("pointing_here"))
-    rows.append(local_row)
-
-    for h in lan_hosts():
-        if h["ip"] in conn_ips:
-            continue
-        r = base(h["ip"], 0, None, None, "lan")
-        r["mac"] = h.get("mac")
-        rows.append(r)
-
-    for r in rows:
-        if r.get("local"):
-            r["online"] = True
-            r["presence_age"] = 0
-            continue
-        p = presence_of(r["client"])
-        if p and p.get("online") is not None:
-            r["online"] = bool(p["online"])
-            r["presence_age"] = round(time.time() - (p.get("checked") or 0), 1)
-        else:
-            r["online"] = None
-
-    # 排序：本机 / 未知来源 → 已监听 → 抓过流量的 → 其余
-    rows.sort(key=lambda r: (not (r.get("local") or r["client"] == UNKNOWN),
-                             not r.get("monitored"),
-                             -(r.get("requests") or 0), r["client"]))
+    # 排序：本机永远第一，其余按最后活跃时间倒序（最近在用的排前面）。
+    # 一次 sort 排完 —— 叠三次容易看晕，也容易把顺序弄反。
+    rows.sort(key=lambda r: (0 if r.get("local") else 1,
+                             _neg_ts(r.get("last"))))
     return rows
 
+
+def _neg_ts(ts):
+    """把时间戳转成"越大越小"的排序键，好让最新的排前面。
+
+    没有时间戳的排最后。
+    """
+    if not ts:
+        return ""
+    # ts 是 ISO 字符串（2026-09-15T17:14:33），按字符倒序不可行，
+    # 用一个取反的数值：把所有字符的码位取负
+    return tuple(-ord(c) for c in ts)
 
 def lan_ip():
     try:
@@ -1446,8 +1451,7 @@ class WebHandler(BaseHTTPRequestHandler):
                 "identity": {"user_id": user_id()},
                 "connected": devs,
                 "monitored": sorted(monitored_set()),
-                "on_lan": [h for h in hosts if h["ip"] not in dev_ips][:30],
-                "on_lan_total": len(hosts),
+
                 "usb": usb_devices(),
                 "guide": connect_steps(plats),
             }, ensure_ascii=False))

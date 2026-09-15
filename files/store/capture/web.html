@@ -235,7 +235,7 @@
   .dotc{width:9px;height:9px;border-radius:50%;flex:none;background:#d6dae1;
         display:inline-block;box-shadow:inset 0 0 0 1px rgba(0,0,0,.06)}
   .dotc.live{background:var(--ok)}
-  /* 没在监听：轻微弱化（不是"离线"那种淡出），仍清晰可点 */
+  /* 本机没在抓：轻微弱化，仍清晰可点 */
   .dev.idle{opacity:.74}
   .dev.idle:hover{opacity:1;background:var(--panel-2)}
   /* 绿点 = 正在监听（.mon，别和顶部"实时"指示灯的 .dot 撞名） */
@@ -469,8 +469,7 @@
 
     <div class="dbody">
 
-    <div class="box"><h3>设备 <span class="badge" id="devCount">—</span>
-      <button class="dclose" id="devShowAll" style="font-size:11.5px;margin-left:auto;color:var(--blue)">显示全部</button></h3>
+    <div class="box"><h3>设备 <span class="badge" id="devCount">—</span></h3>
       <div class="hint" style="margin:0 0 8px">设备<b>一连上就自动抓</b>，不用点任何开关。点<b>整行</b> = 只看它的日志。</div>
       <div id="devList"><div class="hint">加载中…</div></div>
     </div>
@@ -858,7 +857,7 @@ function qrEncode(text, opts) {
 "use strict";
 const S = { flows: [], selected: null, timer: null, detail: null, dev: null,
             device: "", devMap: {}, mode: "live", status: null, live: false,
-            monitored: new Set(), devAll: false, selfIps: new Set(["127.0.0.1","::1"]) };
+            monitored: new Set(), selfIps: new Set(["127.0.0.1","::1"]) };
 const ONLINE_SEC = 180;
 
 const $ = id => document.getElementById(id);
@@ -951,7 +950,7 @@ function visible(){
   // 结果界面上写着"点圆点变绿才开始监听"，其实流量一直在落盘。
   // 现在一律显示。
   return S.flows.filter(f=>{
-    if(S.mode === "live" && !online.has(f.client)) return false;
+    // 不再按在线过滤 —— 设备就是发过流量的，没有在线/离线这回事
     if(dev && f.client !== dev) return false;
     if(!noise && f.noise) return false;
     if(host && f.host!==host) return false;
@@ -969,11 +968,6 @@ function renderListEmpty(){
       <b>还没有抓到任何请求</b>
       <span style="font-size:12.5px;max-width:360px">把设备的 Wi-Fi 代理填成上面显示的地址，它一连上就会自动开始抓，不用做别的</span>
       <button onclick="toggleDrawer(true)">看怎么连</button></div>`;
-  if(S.mode === "live")
-    return `<div class="empty"><span class="big">💤</span>
-      <b>当前没有在线设备的流量</b>
-      <span style="font-size:12.5px;max-width:360px">设备断开后，它的日志会从「当前」移除（数据没丢，仍在「历史」里）</span>
-      <button onclick="setMode('all')">切到「历史」看全部</button></div>`;
   return `<div class="empty"><span class="big">🔍</span>
     <b>没有匹配的请求</b>
     <span style="font-size:12.5px">换个关键字，或把筛选条件放宽一点</span></div>`;
@@ -1006,11 +1000,11 @@ function updateStat(){
   // 监听状态直接写在顶栏：绿点到底有没有真的生效，一眼可查
   const nm = S.monitored.size;
   const listen = nm
-    ? `<span class="badge b-ok">📡 ${nm} 台设备在线</span>`
-    : `<span class="badge b-off">📡 没有设备在线</span>`;
+    ? `<span class="badge b-ok">📡 ${nm} 台设备</span>`
+    : `<span class="badge b-off">📡 还没有设备</span>`;
   $("stat").innerHTML = `${badge} ${listen} <span class="vsep"></span><span>${visible().length} 条${devLabel}</span>`;
   const dp = $("devPill");
-  if(dp) dp.textContent = online.size ? `🟢 ${online.size} 台在线` : "⚪️ 无设备在线";
+  if(dp) dp.textContent = online.size ? `📡 ${online.size} 台设备` : "📡 还没有设备";
 }
 
 /* ── 详情 ─────────────────────────────────────── */
@@ -1113,47 +1107,33 @@ function renderDrawer(d){
   showGuide(gt.querySelector("button.on")?.dataset.g || keys[0]);
 
   // 设备：点圆点 = 开始/停止监听（绿 = 正在监听）
-  // 默认只列「在线」的 —— 离线/从没抓到流量的机器堆在这里只会淹没有用的信息。
-  // 想看全部就点标题右边的「显示全部」。
-  const online = onlineClients(), last = clientLastSeen();
+  // 列表就是后端给的 —— 只含真抓到过流量的设备。
+
+  const last = clientLastSeen();
+  // 设备列表 = 后端给的（只含真抓到过流量的），不再按"在线"筛、不再分页
   const all = v.connected;
-  const shown = S.devAll ? all : all.filter(d => onlineState(d.client) !== false);
-  const hidden = all.length - shown.length;
-  const nMon = all.filter(d=>isMonitored(d.client)).length;
-  const nOnline = all.filter(d=>onlineState(d.client) !== false).length;
-  $("devCount").textContent = `${nOnline} 台在线 · 自动抓取`;
-  $("devCount").className = "badge " + (nOnline ? "b-ok" : "b-off");
-  const btnAll = $("devShowAll");
-  btnAll.style.display = (hidden || S.devAll) ? "" : "none";
-  btnAll.textContent = S.devAll ? "只显示在线" : `显示全部（+${hidden} 台离线）`;
-  $("devList").innerHTML = shown.length ? shown.map(d=>{
+  $("devCount").textContent = `${all.length} 台设备`;
+  $("devCount").className = "badge " + (all.length ? "b-ok" : "b-off");
+  $("devList").innerHTML = all.length ? all.map(d=>{
     const meta = devMeta(d.client);
     const mon = isMonitored(d.client);
-    const isOn = onlineState(d.client);
-    // 在线状态用文字，不再用绿色 —— 绿色在全界面只表示"正在监听"
-    const badge = isOn === null ? '<span class="badge b-idle">探测中</span>'
-                : isOn ? '<span class="dot" style="width:6px;height:6px;box-shadow:none"></span><span style="color:var(--ok);font-size:11.5px">在线</span>'
-                : '<span class="badge b-off">离线</span>';
     const bits = [];
-    if(d.source === "lan") bits.push("同网段 · 代理未指向本机 " + (d.mac||""));
-    if(d.source === "local" && !d.pointing_here) bits.push("系统代理未指向本工具 —— 点绿即自动接上");
+    if(d.source === "local" && !d.pointing_here) bits.push("系统代理未指向本工具");
     if(d.app_version) bits.push("App "+d.app_version);
     if(d.country) bits.push(d.country);
     if(d.site) bits.push("网点 "+d.site);
-    const tip = mon ? "点击停止监听（数据仍保留）" : "点击开始监听这台设备";
-    const line = d.requests ? `${esc(d.client)}　${d.requests} 条　最后活动 ${ageText(last[d.client])}`
-                            : `${esc(d.client)}　还没抓到流量`;
-    return `<div class="dev${mon?"":" idle"}" data-ip="${esc(d.client)}">
+    const tip = mon ? "点击停止抓本机（数据仍保留）" : "点击开始抓本机";
+    const line = `${esc(d.client)}　${d.requests || 0} 条　最后活动 ${ageText(last[d.client]) || (d.last || "").slice(11, 19) || "—"}`;
+    return `<div class="dev" data-ip="${esc(d.client)}">
       ${isLocal(d.client)
         ? `<span class="mon${mon?" on":""}" data-toggle="${esc(d.client)}" title="${tip}"></span>`
-        : `<span class="dotc${isOn?" live":""}" title="${isOn?"在线":"离线"}"></span>`}
+        : `<span class="dotc" title="抓到过流量"></span>`}
       <div class="ico">${meta.icon}</div>
-      <div style="flex:1"><div class="t1">${esc(d.title||meta.title)} ${badge}</div>
+      <div style="flex:1"><div class="t1">${esc(d.title||meta.title)}</div>
         <div class="t2">${line}</div>
         ${bits.length?`<div class="t2">${esc(bits.join(" · "))}</div>`:""}</div></div>`;
-  }).join("") : `<div class="hint">没有在线设备。${
-      hidden ? `（有 ${hidden} 台离线，点上面「显示全部」可看）<br>` : ""
-    }让设备连上来：按下面「让手机连上这里」把 Wi-Fi 代理填成 ${esc((v.proxy||{}).host||"")}:${esc((v.proxy||{}).port||"")}。</div>`;
+  }).join("") : `<div class="hint">还没有设备。让设备连上来：按下面「让手机连上这里」把 Wi-Fi 代理填成 ${
+      esc((v.proxy||{}).host||"")}:${esc((v.proxy||{}).port||"")}。抓到一个请求它就会出现。</div>`;
 
   // USB
   if(v.usb && v.usb.length){
@@ -1218,41 +1198,24 @@ document.querySelectorAll("#modeTabs button").forEach(b => b.onclick = () => set
 let devSig = "";
 function renderDeviceOptions(){
   const sel = $("fDevice");
+  // 下拉框 = 所有抓到过流量的设备（含本机）。不再看"监听"状态 ——
+  // 设备就是从流量来的，抓到过就在列表里。
   const counts = {};
   S.flows.forEach(f => { if(f.client) counts[f.client] = (counts[f.client] || 0) + 1; });
-  const online = onlineClients();
-  // 下拉框只是"在已监听的设备里挑一台看"，它不决定监听谁 —— 那个由绿点决定
-  let ips = [...S.monitored];
-  if(S.mode === "live") ips = ips.filter(ip => online.has(ip));
-  ips.sort((a,b) => (counts[b]||0) - (counts[a]||0));
-  const sig = S.mode + "|" + ips.join(",") + "|" + Object.keys(S.devMap).join(",") + "|" + counts[ips[0]];
+  const ips = Object.keys(counts).sort((a,b) => (counts[b]||0) - (counts[a]||0));
+  const sig = ips.join(",") + "|" + counts[ips[0]];
   if(sig === devSig) return;
   devSig = sig;
   const cur = S.device || localStorage.getItem("cap.device") || "";
-  sel.innerHTML = (ips.length
-      ? `<option value="">全部监听设备（${ips.length} 台）</option>`
-      : `<option value="">未监听设备</option>`)
+  sel.innerHTML = `<option value="">全部设备（${ips.length} 台）</option>`
     + ips.map(ip => {
       const m = devMeta(ip);
-      const dot = online.has(ip) ? "🟢" : "⚪️";
-      return `<option value="${esc(ip)}">${dot} ${m.icon} ${esc(m.title)} · ${counts[ip]||0} 条</option>`;
+      return `<option value="${esc(ip)}">${m.icon} ${esc(m.title)} · ${counts[ip]||0} 条</option>`;
     }).join("");
-  // 还有点不绿的设备时，在下拉框里直接给个入口，省得用户找不到抽屉
-  const unmon = (S.dev && S.dev.connected ? S.dev.connected : []).filter(x=>!isMonitored(x.client));
-  if(unmon.length){
-    const o = new Option(`⚪️ 还有 ${unmon.length} 台未监听 —— 点这里去开`, "__pick__");
-    sel.add(o);
-  }
   sel.value = ips.includes(cur) ? cur : "";
   S.device = sel.value;
 }
 function pickDevice(ip){
-  if(ip && S.mode === "live" && !onlineClients().has(ip)){
-    S.mode = "all";
-    localStorage.setItem("cap.mode", "all");
-    document.querySelectorAll("#modeTabs button").forEach(b => b.classList.toggle("on", b.dataset.m === "all"));
-    devSig = "";
-  }
   S.device = ip;
   localStorage.setItem("cap.device", ip);
   S.selected = null; S.detail = null;
@@ -1260,7 +1223,7 @@ function pickDevice(ip){
 }
 function applyMonitored(list){
   S.monitored = new Set(list || []);
-  pickDevice("");          // 清掉可能指向"已停止监听"那台的下拉选择
+  pickDevice("");          // 清掉可能指向已消失设备的下拉选择
   devSig = "";
   renderDeviceOptions();
 }
@@ -1419,11 +1382,6 @@ $("fDevice").addEventListener("change", () => {
   pickDevice(v);
 });
 $("btnRefresh").onclick = refresh;
-$("devShowAll").onclick = () => {
-  S.devAll = !S.devAll;
-  localStorage.setItem("cap.devAll", S.devAll ? "1" : "0");
-  renderDrawer();
-};
 $("q").addEventListener("input", () => { renderList(); updateStat(); });
 $("qClear").onclick = () => { $("q").value = ""; renderList(); updateStat(); $("q").focus(); };
 document.addEventListener("keydown", e => {
@@ -1756,7 +1714,6 @@ window.toggleDrawer = function(force){
   }catch(e){}
   S.device = localStorage.getItem("cap.device") || "";
   S.mode = localStorage.getItem("cap.mode") || "live";
-  S.devAll = localStorage.getItem("cap.devAll") === "1";
   document.querySelectorAll("#modeTabs button").forEach(b => b.classList.toggle("on", b.dataset.m === S.mode));
   // 抽屉默认收起，只有用户点按钮才展开（记忆上次状态）
   toggleDrawer(localStorage.getItem("cap.drawer") === "1");
