@@ -463,6 +463,27 @@ ALLOWED_CMDS = {
     "curl":        ["curl"],                # 只允许本机（下面单独检查）
 }
 
+# 只在 macOS 上存在的命令 —— 别的系统上放行也没用（会报"找不到命令"），
+# 不如直接摘掉，让 AI 一眼看出"这台机器上没这个工具"
+import sys as _sys
+if _sys.platform != "darwin":
+    # portability-ok: 下面是"要摘掉的命令名"，不是调用
+    for _c in ("plutil", "lsof", "networksetup", "sips", "open", "pbcopy",
+               "mdfind", "sw_vers", "osascript", "codesign", "security"):
+        ALLOWED_CMDS.pop(_c, None)
+    # Windows / Linux 上补几个等价的只读查询命令
+    if _sys.platform == "win32":
+        ALLOWED_CMDS.update({
+            "tasklist": ["tasklist"],       # 等价于 ps
+            "netstat":  ["netstat"],        # 等价于 lsof
+            "where":    ["where"],          # 等价于 which
+        })
+    else:
+        ALLOWED_CMDS.update({
+            "ss":    ["ss"],                # 等价于 lsof
+            "uname": ["uname"],
+        })
+
 # git 只允许这些子命令（别把 reset --hard 交出去）
 GIT_READONLY = {"status", "log", "diff", "branch", "show", "rev-parse", "ls-files",
                 "stash", "remote", "config", "describe", "tag", "shortlog",

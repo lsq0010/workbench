@@ -11,6 +11,11 @@
 
 ## 装
 
+### 方式一：npm（macOS / Windows 都能用）
+
+> **Windows 用户**：需要先装 [Python 3.7+](https://www.python.org/downloads/)
+> （勾上 Add Python to PATH）。macOS 一般自带。
+
 ### 方式一：npm（开发者推荐）
 
 ```bash

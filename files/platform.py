@@ -112,6 +112,147 @@ def load_registry():
     return d
 
 
+# ══════════════════════════════════════════════════════════════
+# 跨平台的小工具
+# ══════════════════════════════════════════════════════════════
+# 平台本体只有下面这几处跟系统绑得比较紧。集中在这里，
+# 而不是散落一堆 if is_win —— 那样加一个平台就得满文件找分支。
+IS_WIN = sys.platform == "win32"
+IS_MAC = sys.platform == "darwin"
+
+
+def sys_open(target):
+    """用系统默认程序打开网址或文件。"""
+    if IS_WIN:
+        # Windows 的 start 是 cmd 内建命令，必须借 cmd 调。
+        # 那个空标题 "" 不能省 —— 少了它，带引号的路径会被 start 当成窗口标题吞掉。
+        subprocess.Popen(["cmd", "/c", "start", "", target],
+                         stdin=subprocess.DEVNULL,
+                         creationflags=0x08000000)   # CREATE_NO_WINDOW
+    elif IS_MAC:
+        subprocess.Popen(["open", target])
+    else:
+        subprocess.Popen(["xdg-open", target],
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
+def sys_reveal(path):
+    """在文件管理器里定位一个文件（不是打开它）。"""
+    if IS_WIN:
+        if os.path.exists(path):
+            subprocess.Popen(["explorer", "/select,", os.path.normpath(path)])
+        else:
+            subprocess.Popen(["explorer", os.path.dirname(path)])
+    elif IS_MAC:
+        subprocess.Popen(["open", "-R", path])
+    else:
+        subprocess.Popen(["xdg-open", os.path.dirname(path)],
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
+def sys_pids_on_port(port):
+    """监听这个端口的进程 PID 集合。"""
+    pids = set()
+    try:
+        if IS_WIN:
+            r = subprocess.run(["netstat", "-ano", "-p", "TCP"],
+                               capture_output=True, text=True, timeout=15,
+                               creationflags=0x08000000)
+            for line in (r.stdout or "").splitlines():
+                #   TCP    127.0.0.1:8880    0.0.0.0:0    LISTENING    23184
+                m = re.match(r"^\s*TCP\s+\S+:(\d+)\s+\S+\s+LISTENING\s+(\d+)",
+                             line, re.I)
+                if m and int(m.group(1)) == int(port):
+                    pids.add(int(m.group(2)))
+        else:
+            r = subprocess.run(["lsof", "-nP", "-iTCP:%d" % int(port), "-sTCP:LISTEN", "-t"],
+                               capture_output=True, text=True, timeout=10)
+            for tok in (r.stdout or "").split():
+                if tok.strip().isdigit():
+                    pids.add(int(tok.strip()))
+    except Exception:
+        pass
+    return pids
+
+
+def sys_cmdline(pid):
+    """进程的完整命令行（用来确认这进程是不是自家功能起的）。"""
+    try:
+        if IS_WIN:
+            r = subprocess.run(
+                ["powershell", "-NoProfile", "-Command",
+                 "(Get-CimInstance Win32_Process -Filter 'ProcessId=%d').CommandLine" % int(pid)],
+                capture_output=True, text=True, timeout=12,
+                creationflags=0x08000000)
+            return (r.stdout or "").strip()
+        r = subprocess.run(["ps", "-p", str(pid), "-o", "command="],
+                           capture_output=True, text=True, timeout=10)
+        return (r.stdout or "").strip()
+    except Exception:
+        return ""
+
+
+def sys_alive(pid):
+    """进程还活着吗。
+
+    **不能直接用 os.kill(pid, 0)** —— Windows 上这个调用不是"探测"，
+    它会真的去动那个进程，语义和 POSIX 完全不同。
+    """
+    if not pid:
+        return False
+    try:
+        if IS_WIN:
+            import ctypes
+            # 能拿到句柄就是活着；拒绝访问（权限不够）也说明它存在
+            h = ctypes.windll.kernel32.OpenProcess(0x1000, False, int(pid))
+            if h:
+                ctypes.windll.kernel32.CloseHandle(h)
+                return True
+            return ctypes.windll.kernel32.GetLastError() == 5   # ACCESS_DENIED
+        os.kill(pid, 0)
+        return True
+    except OSError as exc:
+        # EPERM 说明进程在、只是没权限动它
+        return getattr(exc, "errno", None) == 1
+    except Exception:
+        return False
+
+
+def sys_kill(pid, hard=False):
+    """结束进程。hard=True 表示普通信号没效果，强杀。"""
+    try:
+        if IS_WIN:
+            if hard:
+                subprocess.run(["taskkill", "/F", "/PID", str(pid)],
+                               capture_output=True, timeout=15,
+                               creationflags=0x08000000)
+            else:
+                # Windows 上 taskkill 不带 /F 就是"请求结束"
+                subprocess.run(["taskkill", "/PID", str(pid)],
+                               capture_output=True, timeout=15,
+                               creationflags=0x08000000)
+        else:
+            os.kill(pid, signal.SIGKILL if hard else signal.SIGTERM)
+        return True
+    except Exception:
+        return False
+
+
+def sys_detached_kwargs():
+    """让子进程脱离父进程（关掉终端它也活着）的 Popen 参数。"""
+    if IS_WIN:
+        # Windows 没有 setsid，用 creationflags 达到同样效果
+        # DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW
+        return {"creationflags": 0x00000008 | 0x00000200 | 0x08000000}
+    return {"start_new_session": True}
+
+
+def sys_tmpdir():
+    """系统的临时目录（Windows 上是 %TEMP%，不是 /tmp）。"""
+    import tempfile
+    return tempfile.gettempdir()
+
+
 BACKUP_DIR = os.path.join(HOME, "backups")
 DESKTOP_FILE = os.path.join(HOME, "desktop.json")
 
@@ -291,11 +432,11 @@ def open_desktop_item(fid):
     kind, target = it.get("kind"), it.get("target", "")
     try:
         if kind == "url":
-            subprocess.Popen(["open", target])
+            sys_open(target)
         elif kind in ("folder", "file", "app"):
             if not os.path.exists(target):
                 return False, "路径不在了：%s" % target, ""
-            subprocess.Popen(["open", target])
+            sys_open(target)
         else:
             return False, "不认识的类型：%s" % kind, ""
         return True, "已打开", target
@@ -598,7 +739,7 @@ def _run(cmd, cwd, wait=0):
     logf = open(LOGFILE, "a")
     try:
         p = subprocess.Popen(cmd, cwd=cwd, stdout=logf, stderr=subprocess.STDOUT,
-                             stdin=subprocess.DEVNULL, start_new_session=True)
+                             stdin=subprocess.DEVNULL, **sys_detached_kwargs())
         if wait:
             time.sleep(wait)
         return p, None
@@ -631,14 +772,7 @@ def _pids_on_ports(ports):
     """
     pids = set()
     for port in ports or []:
-        try:
-            r = subprocess.run(["lsof", "-nP", "-iTCP:%d" % int(port), "-sTCP:LISTEN",
-                                "-t"], capture_output=True, text=True, timeout=10)
-            for line in (r.stdout or "").split():
-                if line.strip().isdigit():
-                    pids.add(int(line.strip()))
-        except Exception:
-            continue
+        pids |= sys_pids_on_port(port)
     return pids
 
 
@@ -648,9 +782,7 @@ def _own_process(pid, path):
     看它的命令行里有没有这个功能的路径。
     """
     try:
-        r = subprocess.run(["ps", "-p", str(pid), "-o", "command="],
-                           capture_output=True, text=True, timeout=10)
-        cmd = (r.stdout or "").strip()
+        cmd = sys_cmdline(pid)
         if not cmd:
             return False
         # 路径可能是软链/相对路径，比对功能目录名和主文件名
@@ -681,15 +813,12 @@ def stop_feature(f):
     for pid in pids:
         if _own_process(pid, f["path"]):
             try:
-                os.kill(pid, signal.SIGTERM)
+                sys_kill(pid)
                 time.sleep(0.3)
-                try:
-                    os.kill(pid, 0)
-                    os.kill(pid, signal.SIGKILL)     # 还不走就强杀
-                except OSError:
-                    pass
+                if sys_alive(pid):
+                    sys_kill(pid, hard=True)          # 还不走就强杀
                 killed.append(pid)
-            except OSError:
+            except Exception:
                 pass
         else:
             refused.append(pid)                      # 不是自家的，不碰
@@ -995,8 +1124,9 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(400, b"no path", "text/plain")
             ap = os.path.abspath(path)
             root = os.path.abspath(HOME)
+            tmp = os.path.abspath(sys_tmpdir())
             ok_dir = (ap.startswith(root + os.sep)
-                      or ap.startswith("/tmp/")
+                      or ap.startswith(tmp + os.sep)
                       or ap.startswith(os.path.expanduser("~/Desktop") + os.sep))
             if not ok_dir or not os.path.isfile(ap):
                 return self._send(404, b"not found", "text/plain")
@@ -1546,11 +1676,9 @@ def running_pid():
         return 0
     if not pid:
         return 0
-    try:
-        os.kill(pid, 0)
+    if sys_alive(pid):
         return pid
-    except Exception:
-        return 0
+    return 0
 
 
 def _ai_core():
@@ -1603,12 +1731,19 @@ def args_port():
     try:
         pid = running_pid()
         if pid:
-            import subprocess as _sp
-            out = _sp.run(["lsof", "-nP", "-iTCP", "-sTCP:LISTEN", "-a", "-p", str(pid)],
-                          capture_output=True, text=True, timeout=5).stdout
-            m = re.search(r":(\d+)\s*\(LISTEN\)", out)
+            out = sys_cmdline(pid)     # 命令行里带着 --port N
+            m = re.search(r"--port\s+(\d+)", out or "")
             if m:
                 return int(m.group(1))
+            if IS_MAC:
+                # 命令行没写端口（用了默认值），退回按进程查端口
+                import subprocess as _sp
+                o2 = _sp.run(["lsof", "-nP", "-iTCP", "-sTCP:LISTEN", "-a",
+                              "-p", str(pid)],
+                             capture_output=True, text=True, timeout=5).stdout
+                m2 = re.search(r":(\d+)\s*\(LISTEN\)", o2)
+                if m2:
+                    return int(m2.group(1))
     except Exception:
         pass
     return DEFAULT_PORT
@@ -1654,7 +1789,7 @@ def cmd_start(args):
     subprocess.Popen([sys.executable, os.path.realpath(__file__), "serve",
                       "--port", str(port)],
                      stdout=logf, stderr=subprocess.STDOUT,
-                     stdin=subprocess.DEVNULL, start_new_session=True, cwd=HOME)
+                     stdin=subprocess.DEVNULL, cwd=HOME, **sys_detached_kwargs())
     for _ in range(30):
         time.sleep(0.2)
         if running_pid():
