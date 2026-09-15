@@ -11,16 +11,19 @@
 
 ## 装
 
-**一行命令**（推荐）：
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/lsq0010/workbench/main/install.sh | bash
-```
-
-拉不下来就用 CDN（国内 `raw.githubusercontent.com` 常被墙）：
+**一行命令**：
 
 ```bash
 curl -fsSL https://cdn.jsdelivr.net/gh/lsq0010/workbench@main/install.sh | bash
+```
+
+> 用的是 jsDelivr CDN。**别用 `raw.githubusercontent.com`** —— 国内实测连不上
+> （HTTP 000）。装的时候脚本内部也会自动试好几个源下载代码包。
+
+备选（CDN 也不通时）：
+
+```bash
+curl -fsSL https://gh-proxy.com/https://raw.githubusercontent.com/lsq0010/workbench/main/install.sh | bash
 ```
 
 装完会**自动启动**并打开浏览器，桌面也会多一个「工作平台」图标。

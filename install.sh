@@ -1,11 +1,9 @@
 #!/usr/bin/env bash
 # 工作台 —— 一行命令安装
 #
-#   curl -fsSL https://raw.githubusercontent.com/lsq0010/workbench/main/install.sh | bash
-#
-# 如果上面那条拉不下来（国内 raw.githubusercontent 常被墙），用这条：
-#
 #   curl -fsSL https://cdn.jsdelivr.net/gh/lsq0010/workbench@main/install.sh | bash
+#
+# （别用 raw.githubusercontent.com —— 国内实测连不上）
 #
 # 做的事：
 #   1. 检查系统（macOS + Python 3.7+）
