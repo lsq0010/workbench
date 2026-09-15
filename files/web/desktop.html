@@ -283,6 +283,61 @@
     transition:all .2s;pointer-events:none;font-size:13px;z-index:99;max-width:74vw;
     text-align:center;box-shadow:var(--sh3)}
   .toast.on{opacity:1;transform:translate(-50%,0)}
+
+  /* 快捷桌面：添加、搜索、排序 */
+  [hidden]{display:none!important}
+  button:disabled{cursor:default;opacity:.55}
+  button:focus-visible,[role="button"]:focus-visible{outline:3px solid #92b5ff;outline-offset:3px}
+  .ico.dragging{opacity:.35}
+  .ico.drop-before{box-shadow:inset 3px 0 var(--brand);background:var(--brand-soft)}
+  .ico.drop-after{box-shadow:inset -3px 0 var(--brand);background:var(--brand-soft)}
+  .ico:focus-within .menu{opacity:1}
+  .desk-head{display:flex;align-items:center;gap:12px;margin-bottom:24px}
+  .desk-head h1{margin:0;font-size:21px;font-weight:650;letter-spacing:-.03em}
+  .desk-head p{margin:4px 0 0;color:var(--t2);font-size:12.5px}
+  .desk-tip{margin:28px 0;color:var(--t3);font-size:12px;text-align:center}
+  #addsheet .box{width:min(650px,94vw)}
+  #addsheet .hd{justify-content:space-between}
+  #addsheet .kinds{grid-template-columns:repeat(4,1fr)}
+  #addsheet .bd{min-height:300px}
+  .add-search{display:block;width:100%;padding:11px 13px;border:1px solid var(--line);
+    border-radius:10px;font:inherit;outline:none;background:var(--panel2);margin:0 0 12px}
+  .add-search:focus{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft)}
+  .tool-list{display:flex;flex-direction:column;gap:7px}
+  .tool-row{display:flex;gap:12px;align-items:center;padding:12px;border:1px solid var(--line);
+    border-radius:12px;background:#fff;min-width:0}
+  .tool-row .tool-icon{display:flex;align-items:center;justify-content:center;flex:none;
+    width:42px;height:42px;background:var(--soft);border-radius:11px;font-size:23px}
+  .tool-row .tool-copy{flex:1;min-width:0}
+  .tool-row strong{font-weight:600;font-size:13.5px}
+  .tool-row small{display:block;font-size:12px;color:var(--t2);margin-top:3px;
+    overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:break-word}
+  .tool-row .btn{flex:none;padding:7px 11px}
+  .hint{font-size:12px;line-height:1.6;color:var(--t2)}
+  .picker-actions{display:flex;gap:10px;margin:6px 0 17px;flex-wrap:wrap}
+  .picker-actions .btn{padding:13px 18px}
+  .inline-error{color:var(--danger);font-size:12.5px;line-height:1.6;margin-top:10px}
+  .add-preview{display:flex;align-items:center;gap:12px;background:var(--panel2);
+    border:1px solid var(--line);padding:14px;border-radius:12px;margin:15px 0 0}
+  .add-preview .preview-icon{font-size:29px}
+  .add-preview .preview-copy{min-width:0;flex:1;word-break:break-word}
+  .add-preview strong{display:block;font-size:13.5px}
+  .add-preview small{color:var(--t2);display:block;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .library-search{max-width:460px}
+  .library-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:10px}
+  .toast.on{pointer-events:auto}
+  @media(max-width:720px){
+    .bar{padding:8px 12px;height:auto;flex-wrap:wrap;gap:8px}
+    .brand{font-size:14px}.tabs button{padding:6px 10px}
+    #btnWatch{display:none}.aibtn{padding:7px 10px}
+    main{padding:20px 16px 70px}.desk-head{align-items:flex-start}
+    .desk{grid-template-columns:repeat(auto-fill,minmax(100px,1fr))}
+    .library-grid{grid-template-columns:1fr}.ico .menu{opacity:1}
+    .sheet .box{max-height:90vh}.sheet .bd{padding:14px}
+    .frow input{min-width:0}.frow label{width:100%}
+    #addsheet .kinds button{font-size:11px;padding:10px 0}
+  }
+
 </style>
 </head>
 <body>
@@ -294,7 +349,7 @@
     <span class="spacer"></span>
     <div class="tabs" id="tabs">
       <button data-v="desk" class="on">桌面</button>
-      <button data-v="store">功能商店</button>
+      <button data-v="store">工具库</button>
       <button data-v="set">设置</button>
     </div>
     <button class="iconbtn" id="btnWatch" title="AI 值守：后台主动发现问题">
@@ -372,25 +427,40 @@
   </div>
 </div>
 
-<!-- 添加桌面项 -->
-<div class="sheet" id="addsheet">
+<!-- 统一添加入口 -->
+<div class="sheet" id="addsheet" role="dialog" aria-modal="true" aria-labelledby="addtitle">
   <div class="box">
-    <div class="hd">＋ 加到桌面</div>
+    <div class="hd"><span id="addtitle">添加到桌面</span>
+      <button class="iconbtn" id="btnAddClose" aria-label="关闭添加窗口">✕</button></div>
     <div class="bd">
-      <div class="kinds" id="kinds"></div>
-      <div class="frow"><label>位置</label>
-        <input id="addtarget" placeholder="选一个，或直接粘路径 / 网址"></div>
-      <div class="frow"><label>名字</label>
-        <input id="addname" placeholder="留空就用文件名"></div>
-      <div style="display:flex;gap:8px;margin-top:4px">
-        <button class="btn" id="btnPick">浏览…</button>
-        <span style="font-size:12px;color:var(--t3);align-self:center" id="pickinfo"></span>
-      </div>
-      <div class="picklist" id="picklist" style="display:none"></div>
+      <div class="kinds" id="kinds" role="tablist" aria-label="添加内容类型"></div>
+      <section id="addtools">
+        <input class="add-search" id="toolquery" aria-label="搜索工具" placeholder="搜索工具，例如 抓包、二维码、JSON" autocomplete="off">
+        <div class="tool-list" id="addtoollist"></div>
+      </section>
+      <section id="addapps" hidden>
+        <input class="add-search" id="appquery" aria-label="搜索本机应用" placeholder="搜索本机应用，例如 Xcode、Chrome" autocomplete="off">
+        <div class="picker-actions"><button class="btn" id="btnPickApp">选择其他应用…</button></div>
+        <div class="tool-list" id="applist"></div>
+      </section>
+      <section id="addlocation" hidden>
+        <div id="fileactions" class="picker-actions">
+          <button class="btn pri" id="btnPickFolder">📁 选择文件夹…</button>
+          <button class="btn" id="btnPickFile">📄 选择文件…</button>
+        </div>
+        <p class="hint" id="locationhint">选择后直接添加，也可以在下面粘贴路径。</p>
+        <div class="frow"><label for="addtarget" id="targetlabel">位置</label>
+          <input id="addtarget" placeholder="粘贴文件路径或网址" autocomplete="off" spellcheck="false"></div>
+        <div class="frow"><label for="addname">名称（可选）</label>
+          <input id="addname" placeholder="自动填写，可稍后修改" autocomplete="off" maxlength="120"></div>
+        <div class="add-preview" id="addpreview" hidden></div>
+      </section>
+      <div class="inline-error" id="adderror" role="alert"></div>
     </div>
     <div class="ft">
-      <button class="btn" id="btnAddCancel">取消</button>
-      <button class="btn pri" id="btnAddOk">加到桌面</button>
+      <span class="hint" style="flex:1;align-self:center">桌面空白处也可以直接粘贴网址</span>
+      <button class="btn" id="btnAddCancel">完成</button>
+      <button class="btn pri" id="btnAddOk" hidden>添加到桌面</button>
     </div>
   </div>
 </div>
@@ -416,13 +486,14 @@
     </div>
   </div>
 </div>
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
 "use strict";
 const S = { imgs: [], view: localStorage.getItem("pf.view2") || "desk", items: [], kinds: {},
-            digest: null, settings: null, aiHistory: [], addKind: "folder",
-            pickPath: "", menuItem: null, aiBusy: false };
+            digest: null, settings: null, aiHistory: [], addKind: "tools",
+            menuItem: null, aiBusy: false, appRows: null, libraryQuery: "", dragId: null,
+            previewSeq: 0, nameEdited: false, nativeBusy: false, addBusy: false, launching: new Set() };
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"]/g,
   c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -434,8 +505,12 @@ const post = async (p,b) => {
   if(!r.ok) throw new Error(j.error || j.message || ("HTTP "+r.status));
   return j;
 };
-function toast(m){ const t=$("toast"); t.textContent=m; t.classList.add("on");
-  setTimeout(()=>t.classList.remove("on"),2200); }
+let toastTimer;
+function toast(m){
+  clearTimeout(toastTimer);
+  const t=$("toast"); t.textContent=m; t.classList.add("on");
+  toastTimer=setTimeout(()=>t.classList.remove("on"),3000);
+}
 
 async function boot(){
   await load();
@@ -485,13 +560,16 @@ async function checkWatch(){
   }catch(e){}
 }
 
-async function load(){
+async function load(force=true){
   try{
-    const [d, st] = await Promise.all([api("/api/desktop"), api("/api/store")]);
+    const [d, st] = await Promise.all([api("/api/desktop"), api("/api/desktop/tools")]);
+    const changed = force || !S.loaded || JSON.stringify([S.items,S.store]) !== JSON.stringify([d.items||[],st.items||[]]);
     S.items = d.items || []; S.kinds = d.kinds || {}; S.store = st.items || [];
-    api("/api/digest").then(x => { S.digest = x; if(S.view === "desk") render(); });
-    render();
+    api("/api/digest").then(x => { S.digest = x; renderAttention(); }).catch(()=>{});
+    if(changed) render();
+    S.loaded = true;
   }catch(e){
+    S.loaded = false;
     $("view").innerHTML = `<div class="empty"><span class="big">🔌</span>
       <b>连不上平台服务</b>${esc(e.message)}</div>`;
   }
@@ -500,6 +578,15 @@ async function load(){
 function render(){
   document.querySelectorAll("#tabs button").forEach(b =>
     b.classList.toggle("on", b.dataset.v === S.view));
+  renderAttention();
+
+  if(S.view === "desk") renderDesk();
+  else if(S.view === "store") renderStore();
+  else renderSettings();
+  bind();
+}
+
+function renderAttention(){
   const d = S.digest;
   if(d && d.count){
     const crit = d.critical > 0;
@@ -518,10 +605,6 @@ function render(){
   else $("alertslot").innerHTML = "";
   paintDigest();
 
-  if(S.view === "desk") renderDesk();
-  else if(S.view === "store") renderStore();
-  else renderSettings();
-  bind();
 }
 
 /* ── 今日关注抽屉 ── */
@@ -611,85 +694,49 @@ function closeDigest(){
 }
 
 function renderDesk(){
-
-  // 今日关注不再内联在桌面上（7 张卡片会把图标挤出屏幕），
-  // 改成左侧抽屉 —— 见 paintDigest() 和 openDigest()
-  let h = "";
-  const feats = S.items.filter(x => !x.custom);
-  const mine = S.items.filter(x => x.custom);
-  h += `<h2 class="sec">桌面
-    <span>${S.items.length} 项 · 点图标打开 · 长按/右键出菜单 · ⌘K 搜索</span></h2>
-    <div class="desk" id="desk">`;
-  for(const it of S.items) h += iconHTML(it);
-  h += `<div class="ico add" data-add="1">
-      <div class="glyph">＋</div><div class="nm">添加</div></div>`;
-  h += `</div>`;
-
-  h += `<div style="color:var(--t3);font-size:12px;margin-top:26px;line-height:1.9;
-    text-align:center">
-    桌面上的东西由你决定 —— 文件夹、文件、App、网址都能放上来。<br>
-    <b>✦ AI 助手</b> 是平台自带的，删不掉也改不坏：万一平台被改出问题，它能帮你修回来。</div>`;
-  $("view").innerHTML = h;
+  $("view").innerHTML = `<div class="desk-head"><div>
+    <h1>我的桌面</h1><p>常用工具、文件夹和网页，放在顺手的地方。</p>
+    </div><span class="spacer"></span><button class="btn pri" data-add="1">＋ 添加</button></div>
+    <div class="desk" id="desk">${S.items.map(iconHTML).join("")}
+      <div class="ico add" data-add="1" role="button" tabindex="0" aria-label="添加到桌面">
+        <div class="glyph">＋</div><div class="nm">添加</div></div>
+    </div><div class="desk-tip">拖动排列 · 右键编辑 · ⌘V 粘贴网址或路径 · ⌘K 搜索</div>`;
 }
 
 function iconHTML(it){
-  // 「今日关注」是内置工具项：有角标、点了开抽屉、不能删
-  if(it.kind === "digest"){
-    const n = it.badge || 0;
-    const crit = (it.critical || 0) > 0;
-    return `<div class="ico" data-digest="1" title="${esc(it.note||"")}">
-      <div class="glyph" style="background:${esc(it.color)}22;box-shadow:var(--sh2)">
-        <span>${it.icon}</span>
-        <span class="dot ${n?"on":"off"}"></span>
-        ${n?`<span class="badge" style="${crit?"background:var(--danger)":""}">${n}</span>`:""}
-      </div>
-      <div class="nm">${esc(it.name)}</div>
-      <button class="menu" data-menu="${esc(it.id)}">⋯</button></div>`;
-  }
-  if(it.kind === "feature"){
-    const st = it.status || {};
-    const dot = it.broken ? "bad" : (st.running ? "on" : "off");
-    const alerts = (it.alerts || []).length;
-    return `<div class="ico" data-open="${esc(it.id)}" data-kind="feature">
-      <div class="glyph" style="background:${esc(it.color)}22;box-shadow:var(--sh2)">
-        <span>${it.icon}</span>
-        <span class="dot ${dot}" title="${st.running?"在运行":"已停止"}"></span>
-        ${alerts?`<span class="badge">${alerts}</span>`:""}
-        ${it.pinned?`<span class="pin">★</span>`:""}
-      </div>
-      <div class="nm">${esc(it.name)}</div>
-      <button class="menu" data-menu="${esc(it.id)}">⋯</button></div>`;
-  }
-  const missing = it.exists === false;
-  return `<div class="ico" data-open="${esc(it.id)}" data-kind="${esc(it.kind)}">
-    <div class="glyph" style="background:${esc(it.color)}22;
-      ${missing?"opacity:.45":""}">
-      <span>${it.icon}</span>
-      ${missing?`<span class="dot bad" title="路径不在了"></span>`:""}</div>
-    <div class="nm" style="${missing?"opacity:.55":""}">${esc(it.name)}</div>
-    <button class="menu" data-menu="${esc(it.id)}">⋯</button></div>`;
+  const missing = it.exists === false || it.broken;
+  return `<div class="ico" data-open="${esc(it.id)}" data-kind="${esc(it.kind)}"
+      draggable="true" tabindex="0" role="button" aria-label="打开 ${esc(it.name)}" title="${esc(it.name)}">
+    <div class="glyph" style="background:${esc(it.color)}22;${missing?"opacity:.55":""}">
+      <span>${esc(it.icon)}</span>${missing?`<span class="dot bad" title="入口不可用"></span>`:""}</div>
+    <div class="nm">${esc(it.name)}</div>
+    <button class="menu" data-menu="${esc(it.id)}" aria-label="管理 ${esc(it.name)}">⋯</button>
+  </div>`;
+}
+
+function toolRows(q){
+  const query = q.trim().toLowerCase();
+  const rows = (S.store || []).filter(it =>
+    [it.name,it.description,it.id].join(" ").toLowerCase().includes(query));
+  return rows.length ? rows.map(it => `<div class="tool-row">
+    <span class="tool-icon">${esc(it.icon || "🧩")}</span><div class="tool-copy">
+      <strong>${esc(it.name)}</strong><small>${esc(it.description || "")}</small></div>
+    <button class="btn ${it.on_desktop?"":"pri"}" data-add-feature="${esc(it.id)}"
+      aria-label="${it.on_desktop?"已添加":"添加"} ${esc(it.name)}" ${it.on_desktop?"disabled":""}>
+      ${it.on_desktop?"已添加":"＋ 添加"}</button></div>`).join("")
+    : `<p class="hint">没有匹配的工具，试试其他名称。</p>`;
 }
 
 function renderStore(){
-  if(!S.store.length)
-    return $("view").innerHTML = `<div class="empty"><span class="big">🏪</span>
-      <b>商店还是空的</b></div>`;
-  $("view").innerHTML = `<h2 class="sec">功能商店
-    <span>本地 · ${S.store.length} 个</span></h2>` +
-    S.store.map(it => `<div class="card" style="display:flex;align-items:center;gap:15px;
-        padding:15px 18px;margin-bottom:11px">
-      <div style="width:44px;height:44px;border-radius:12px;flex:none;display:flex;
-        align-items:center;justify-content:center;font-size:22px;
-        background:${esc(it.color)}22">${it.icon}</div>
-      <div style="flex:1;min-width:0">
-        <div style="font-weight:620;font-size:14.5px">${esc(it.name)}
-          <span style="color:var(--t3);font-family:var(--mono);font-size:11.5px">v${esc(it.version)}</span>
-          ${it.installed?`<span class="pill ok" style="margin-left:7px;display:inline-flex">已装</span>`:""}</div>
-        <div style="color:var(--t2);font-size:12.5px;margin-top:2px">${esc(it.description)}</div>
-        ${it.perms.length?`<div class="mono" style="margin-top:4px">权限：${it.perms.map(esc).join(" · ")}</div>`:""}
-      </div>
-      ${it.installed?"":`<button class="btn pri" data-install="${esc(it.id)}">安装</button>`}
-    </div>`).join("");
+  $("view").innerHTML = `<div class="desk-head"><div><h1>工具库</h1>
+    <p>需要哪个，就把哪个添加到桌面。</p></div><span class="spacer"></span>
+    <button class="btn" data-add="1">添加文件夹或网页</button></div>
+    <input class="add-search library-search" id="libraryquery" aria-label="搜索工具库"
+      placeholder="搜索工具…" value="${esc(S.libraryQuery)}">
+    <div class="library-grid" id="librarylist">${toolRows(S.libraryQuery)}</div>`;
+  $("libraryquery").oninput = e => {
+    S.libraryQuery=e.target.value; $("librarylist").innerHTML=toolRows(S.libraryQuery); bindFeatureButtons();
+  };
 }
 
 async function renderSettings(){
@@ -775,34 +822,28 @@ async function renderSettings(){
 }
 
 function bind(){
-  /* 今日关注图标 —— 点了直接开抽屉 */
-  document.querySelectorAll("[data-digest]").forEach(el => {
-    el.onclick = e => {
-      if(e.target.closest("[data-menu]")) return;
-      openDigest();
-    };
-  });
-  /* 桌面图标 */
   document.querySelectorAll("[data-open]").forEach(el => {
     el.onclick = e => {
-      if(e.target.closest("[data-menu]")) return;
+      if(e.target.closest("[data-menu]") || S.dragId || Date.now() < (S.dragEnded || 0) + 150) return;
       openItem(el.dataset.open, el.dataset.kind);
+    };
+    el.onkeydown = e => {
+      if(e.target !== el) return;
+      if(e.key === "Enter" || e.key === " "){e.preventDefault();openItem(el.dataset.open,el.dataset.kind);}
+      if(e.key === "F2"){e.preventDefault();editItem(S.items.find(it=>it.id===el.dataset.open));}
     };
   });
   document.querySelectorAll("[data-menu]").forEach(b => {
     b.onclick = e => { e.stopPropagation(); openMenu(b.dataset.menu); };
   });
-  document.querySelectorAll("[data-add]").forEach(el => el.onclick = openAddSheet);
-  // 旧的内联块已移到抽屉里（bindDigestItems）
-  document.querySelectorAll("[data-install]").forEach(b => {
-    b.onclick = async () => {
-      b.disabled = true; b.textContent = "安装中…";
-      try{ const r = await post("/api/install", {id: b.dataset.install});
-        toast(r.message || "已安装"); }
-      catch(e){ toast("失败：" + e.message); }
-      await load();
+  document.querySelectorAll("[data-add]").forEach(el => {
+    el.onclick=()=>openAddSheet();
+    if(el.tagName !== "BUTTON") el.onkeydown=e=>{
+      if(e.key === "Enter" || e.key === " "){e.preventDefault();openAddSheet();}
     };
   });
+  bindFeatureButtons();
+  bindDesktopDrag();
 
   if(S.view === "set"){
     const save = async (clear) => {
@@ -858,173 +899,293 @@ function bind(){
 async function openItem(id, kind){
   const it = S.items.find(x => x.id === id);
   if(!it) return;
-  if(it.kind === "digest" || kind === "digest") return openDigest();
   if(kind === "feature"){
-    if(it.broken) return toast("这个功能坏了：" + it.broken);
-    if(!it.open_url) return toast("这个功能没声明打开方式");
-    post("/api/opened", {id}).catch(()=>{});
-    window.open(it.open_url, "_blank");
+    if(S.launching.has(id)) return;
+    if(it.broken) return toast("工具入口不可用，请查看工具详情");
+    const win = window.open("about:blank", "_blank");
+    if(!win) return toast("请允许此页面打开新窗口，然后再试一次");
+    win.opener=null;
+    win.document.title="正在打开「"+it.name+"」";
+    win.document.body.textContent="正在启动「"+it.name+"」，请稍候…";
+    win.document.body.style.cssText="font:16px system-ui;padding:40px;color:#5b6472";
+    S.launching.add(id);
+    try{
+      const r=await post("/api/desktop/launch",{id});
+      if(!r.ok) throw new Error(r.message);
+      if(!win.closed) win.location.replace(r.url);
+    }catch(e){if(!win.closed) win.close();toast(e.message);}
+    finally{S.launching.delete(id);}
     return;
   }
-  if(it.exists === false) return toast("路径不在了：" + it.target);
+  if(it.exists === false) return toast("位置已变化，右键此图标可以修改入口");
   try{
-    const r = await post("/api/desktop/open", {id});
-    toast(r.message + (r.target && !r.target.startsWith("http") ? "" : ""));
-  }catch(e){ toast("打不开：" + e.message); }
+    const r=await post("/api/desktop/open",{id});
+    if(!r.ok) toast(r.message || "打不开这个入口");
+  }catch(e){toast("打不开："+e.message);}
 }
 
 function openMenu(id){
-  const it = S.items.find(x => x.id === id);
+  const it=S.items.find(x=>x.id===id);
   if(!it) return;
-  const _ft = document.querySelector("#menusheet .ft");
-  if(_ft) _ft.style.display = "";      // 恢复自带底部（askRemove 会临时隐藏它）
-  S.menuItem = it;
-  $("menutitle").textContent = it.name;
-  const rows = [];
-  if(it.kind === "digest"){
-    // 内置项不能删、不能卸载 —— 它是平台的一部分，不是装出来的功能
-    rows.push(`<button class="btn" data-act="open">打开今日关注</button>`);
-    rows.push(`<div style="font-size:12px;color:var(--t3);line-height:1.7">
-      它是平台把各功能的汇报汇总出来的，不是装出来的功能，所以不能卸载。</div>`);
-    $("menubody").innerHTML = rows.join("");
-    $("btnMenuCancel").onclick = () => $("menusheet").classList.remove("on");
-    $("menusheet").classList.add("on");
-    document.querySelectorAll("#menubody [data-act]").forEach(b => {
-      b.onclick = () => { $("menusheet").classList.remove("on"); openDigest(); };
-    });
-    return;
+  $("menutitle").textContent=it.name;
+  $("menusheet").querySelector(".ft").hidden=false;
+  $("menubody").innerHTML=`
+    <button class="btn" data-action="open">打开</button>
+    <button class="btn" data-action="edit">${it.kind==="feature"?"重命名":"编辑名称与入口"}</button>
+    ${it.custom && it.kind!=="url"?'<button class="btn" data-action="reveal">在文件管理器中显示</button>':""}
+    <div style="display:flex;gap:8px"><button class="btn" data-action="earlier" style="flex:1">向前移</button>
+      <button class="btn" data-action="later" style="flex:1">向后移</button></div>
+    <button class="btn" data-action="remove">从桌面移除</button>
+    <div class="hint">${it.kind==="feature"?"移除只隐藏图标，工具仍保留在工具库中。":"只移除快捷入口，原文件保留。"}</div>
+    ${it.kind==="feature"?'<details><summary class="hint" style="cursor:pointer">工具详情</summary><div id="toolDetails" class="hint"></div></details>':""}`;
+  if(it.kind==="feature"){
+    $("toolDetails").textContent=(it.description || "")+" · 版本 "+(it.version || "—")+
+      " · "+(it.status && it.status.running?"正在运行":"打开时自动启动");
   }
-  if(it.kind === "feature"){
-    rows.push(`<button class="btn" data-act="open">打开</button>`);
-    if(it.has_start && !it.status.running)
-      rows.push(`<button class="btn" data-act="start">启动</button>`);
-    if(it.has_stop && it.status.running)
-      rows.push(`<button class="btn" data-act="stop">停止</button>`);
-    rows.push(`<button class="btn" data-act="pin">${it.pinned?"取消置顶":"置顶到最前"}</button>`);
-  }else{
-    rows.push(`<button class="btn" data-act="open">打开</button>`);
-    if(it.kind !== "url" && it.exists !== false)
-      rows.push(`<button class="btn" data-act="reveal">在访达中显示</button>`);
-    // 不是危险操作 —— 只摘掉入口，文件原样不动。用红色会让人以为要删数据。
-    rows.push(`<button class="btn" data-act="remove">从桌面移除（不动文件）</button>`);
-  }
-  rows.push(`<div class="mono" style="margin-top:4px">${esc(it.target||"")}</div>`);
-  $("menubody").innerHTML = rows.join("");
-  $("btnMenuCancel").onclick = () => $("menusheet").classList.remove("on");
   $("menusheet").classList.add("on");
-  document.querySelectorAll("#menubody [data-act]").forEach(b => {
-    b.onclick = async () => {
-      const act = b.dataset.act;
-      $("menusheet").classList.remove("on");
-      try{
-        if(act === "open") return openItem(it.id, it.kind);
-        if(act === "pin"){ const r = await post("/api/pin", {id: it.id});
-          toast(r.pinned?"已置顶":"已取消置顶"); return load(); }
-        if(act === "start" || act === "stop"){
-          const r = await post("/api/"+act, {id: it.id});
-          toast(r.message||"完成"); return load(); }
-        if(act === "reveal"){
-          return post("/api/reveal", {path: it.target}); }
-        if(act === "remove") return askRemove(it);
-      }catch(e){ toast("失败：" + e.message); }
-    };
+  $("btnMenuCancel").onclick=()=>$("menusheet").classList.remove("on");
+  $("menubody").querySelectorAll("[data-action]").forEach(b=>b.onclick=async()=>{
+    const action=b.dataset.action;
+    $("menusheet").classList.remove("on");
+    if(action==="open") return openItem(id,it.kind);
+    if(action==="edit") return editItem(it);
+    if(action==="remove") return removeItem(it);
+    if(action==="earlier" || action==="later"){
+      const order=S.items.map(x=>x.id), i=order.indexOf(id), j=i+(action==="earlier"?-1:1);
+      if(j<0 || j>=order.length) return toast("已经在最"+(j<0?"前":"后")+"面了");
+      [order[i],order[j]]=[order[j],order[i]];
+      return saveOrder(order);
+    }
+    try{const r=await post("/api/reveal",{id});if(!r.ok) toast(r.message);}
+    catch(e){toast(e.message);}
   });
+  $("menubody").querySelector("button").focus();
 }
 
-/* ── 从桌面移除（带确认和撤销）──
-   故意做成两步：这操作虽然不动文件，但用户从界面上看不出来，
-   所以要把"文件还在哪"明明白白写出来，并给一次后悔的机会。 */
-function askRemove(it){
-  const target = it.target || "";
-  const showPath = !!target && it.kind !== "url";
-  $("menutitle").textContent = "从桌面移除";
-  $("menubody").innerHTML = `
-    <div style="font-size:14px;font-weight:600;margin-bottom:10px">
-      把「${esc(it.name)}」从桌面拿走？</div>
-    <div style="background:var(--ok-soft);border:1px solid #bfe6cf;border-radius:10px;
-      padding:12px 14px;font-size:13px;line-height:1.8;color:var(--ok)">
-      <b>只移除入口，不会删任何文件</b>
-      ${showPath ? `<div style="margin-top:8px;color:var(--t2);font-size:12px">
-        文件还在：<br><span class="mono" style="word-break:break-all">${esc(target)}</span>
-      </div>` : ""}
-    </div>
-    <div style="font-size:12px;color:var(--t3);margin-top:10px;line-height:1.8">
-      想加回来的话：「添加」→ 再选一次就行。</div>
-    <div style="display:flex;gap:9px;margin-top:14px">
-      <button class="btn" id="rmCancel" style="flex:1">取消</button>
-      <button class="btn" id="rmOk" style="flex:1;background:var(--brand);
-        border-color:var(--brand);color:#fff;font-weight:620">从桌面移除</button>
-    </div>`;
-  // 弹层自带的底部「取消」在这儿是多余的 —— 我上面画了并排的取消+确认。
-  // 不隐藏会出现两个取消按钮（截图里看出来的）。
-  const ft = document.querySelector("#menusheet .ft");
-  if(ft) ft.style.display = "none";
+function editItem(it){
+  if(!it) return;
+  $("menutitle").textContent="编辑入口";
+  $("menusheet").querySelector(".ft").hidden=true;
+  $("menubody").innerHTML=`<label class="hint" for="editname">名称</label>
+    <input class="add-search" id="editname" maxlength="120" value="${esc(it.name)}">
+    ${it.custom?`<label class="hint" for="edittarget">${it.kind==="url"?"网址":"位置"}</label>
+      <input class="add-search" id="edittarget" value="${esc(it.target)}">
+      ${it.kind!=="url"?'<button class="btn" id="editpick">选择新位置…</button>':""}`:""}
+    <div id="editerror" class="inline-error" role="alert"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn" id="editcancel">取消</button>
+      <button class="btn pri" id="editsave">保存</button></div>`;
   $("menusheet").classList.add("on");
-  $("rmCancel").onclick = () => $("menusheet").classList.remove("on");
-  $("rmOk").onclick = async () => {
-    $("menusheet").classList.remove("on");
+  $("editcancel").onclick=()=>$("menusheet").classList.remove("on");
+  $("editsave").onclick=async()=>{
+    const b=$("editsave");b.disabled=true;
     try{
-      const r = await post("/api/desktop/remove", {id: it.id});
-      if(!r.ok){ toast(r.message || "移除失败"); return; }
-      await load();
-      toastUndo("已从桌面移除（文件没动）", async () => {
-        const rr = await post("/api/desktop/add", {kind: it.kind, name: it.name,
-          target: it.target, icon: it.icon, color: it.color, note: it.note});
-        toast(rr.ok ? "已加回桌面" : (rr.message || "加不回去"));
-        await load();
-      });
-    }catch(e){ toast("失败：" + e.message); }
+      const r=await post("/api/desktop/edit",{id:it.id,name:$("editname").value,
+        ...(it.custom?{target:$("edittarget").value}:{})});
+      if(!r.ok) throw new Error(r.message);
+      $("menusheet").classList.remove("on");await load();toast("已保存");
+    }catch(e){$("editerror").textContent=e.message;}
+    finally{b.disabled=false;}
+  };
+  if($("editpick")) $("editpick").onclick=async()=>{
+    const b=$("editpick");b.disabled=true;
+    try{
+      const r=await post("/api/desktop/pick",{kind:it.kind});
+      if(!r.ok) throw new Error(r.message);
+      if(r.paths && r.paths[0]) $("edittarget").value=r.paths[0];
+    }catch(e){$("editerror").textContent=e.message;}
+    finally{b.disabled=false;}
+  };
+  [$("editname"),$("edittarget")].filter(Boolean).forEach(el=>el.onkeydown=e=>{
+    if(e.key==="Enter"){e.preventDefault();$("editsave").click();}
+  });
+  $("editname").focus();$("editname").select();
+}
+
+async function removeItem(it){
+  try{
+    const r=await post("/api/desktop/remove",{id:it.id});
+    if(!r.ok) throw new Error(r.message);
+    await load();
+    toastUndo("已移除「"+it.name+"」", async()=>{
+      const restored=await post("/api/desktop/restore",{token:r.undo});
+      if(!restored.ok) throw new Error(restored.message);
+      await load();toast(restored.message);
+    });
+  }catch(e){toast(e.message);}
+}
+
+function toastUndo(msg,onUndo){
+  clearTimeout(toastTimer);
+  const t=$("toast");
+  t.innerHTML=esc(msg)+'　<button class="btn" id="undoBtn" style="padding:3px 10px">撤销</button>';
+  t.classList.add("on");
+  $("undoBtn").onclick=async()=>{
+    clearTimeout(toastTimer);$("undoBtn").disabled=true;
+    try{await onUndo();}catch(e){toast(e.message);}
+  };
+  toastTimer=setTimeout(()=>t.classList.remove("on"),12000);
+}
+
+async function saveOrder(order){
+  try{
+    const r=await post("/api/desktop/reorder",{order});
+    if(!r.ok) throw new Error(r.message);
+    S.items.sort((a,b)=>order.indexOf(a.id)-order.indexOf(b.id));render();
+  }catch(e){toast(e.message);await load();}
+}
+
+function bindDesktopDrag(){
+  const desk=$("desk");if(!desk) return;
+  const clear=()=>desk.querySelectorAll(".drop-before,.drop-after").forEach(el=>el.classList.remove("drop-before","drop-after"));
+  desk.querySelectorAll("[data-open]").forEach(el=>{
+    el.ondragstart=e=>{
+      if(e.target.closest("button")){e.preventDefault();return;}
+      S.dragId=el.dataset.open;e.dataTransfer.effectAllowed="move";
+      e.dataTransfer.setData("text/plain",S.dragId);el.classList.add("dragging");
+    };
+    el.ondragend=()=>{S.dragId=null;S.dragEnded=Date.now();el.classList.remove("dragging");clear();};
+  });
+  desk.ondragover=e=>{
+    if(!S.dragId) return;e.preventDefault();e.dataTransfer.dropEffect="move";clear();
+    const target=e.target.closest("[data-open]");
+    if(target && target.dataset.open!==S.dragId){
+      const r=target.getBoundingClientRect();target.classList.add(e.clientX>r.x+r.width/2?"drop-after":"drop-before");
+    }
+  };
+  desk.ondrop=e=>{
+    if(!S.dragId) return;e.preventDefault();
+    const id=S.dragId,target=e.target.closest("[data-open]");
+    if(target && target.dataset.open===id) return;
+    const order=S.items.map(it=>it.id).filter(x=>x!==id);
+    if(target){const i=order.indexOf(target.dataset.open);order.splice(i+(target.classList.contains("drop-after")?1:0),0,id);}
+    else order.push(id);
+    S.dragId=null;S.dragEnded=Date.now();clear();saveOrder(order);
   };
 }
 
-/* 带「撤销」的提示条 */
-let _undoTimer = null;
-function toastUndo(msg, onUndo){
-  const t = $("toast");
-  t.innerHTML = esc(msg) + '　<button id="undoBtn" style="background:rgba(255,255,255,.18);'
-    + 'border:1px solid rgba(255,255,255,.35);color:#fff;border-radius:6px;'
-    + 'padding:3px 11px;cursor:pointer;font:inherit;font-size:12.5px">撤销</button>';
-  t.classList.add("on");
-  clearTimeout(_undoTimer);
-  const close = () => { t.classList.remove("on"); clearTimeout(_undoTimer); };
-  $("undoBtn").onclick = () => { close(); onUndo(); };
-  _undoTimer = setTimeout(close, 8000);
+/* ── 添加到桌面 ── */
+const addKinds={tools:["🧰","工具"],folder:["📁","文件与文件夹"],url:["🔗","网页"],app:["🚀","应用"]};
+let previewTimer;
+function closeAddSheet(){
+  if(S.nativeBusy || S.addBusy) return;
+  S.previewSeq++;clearTimeout(previewTimer);$("addsheet").classList.remove("on");
+  const button=document.querySelector("[data-add]");if(button) button.focus();
 }
-
-/* ── 添加桌面项 ── */
-function openAddSheet(){
-  $("kinds").innerHTML = Object.entries(S.kinds).map(([k,v]) =>
-    `<button data-k="${k}" class="${S.addKind===k?"on":""}">
-      <span class="e">${v.icon}</span>${esc(v.name)}</button>`).join("");
-  $("addtarget").value = ""; $("addname").value = "";
-  $("picklist").style.display = "none"; $("pickinfo").textContent = "";
-  $("addsheet").classList.add("on");
-  $("addtarget").focus();
-  document.querySelectorAll("#kinds button").forEach(b => b.onclick = () => {
-    S.addKind = b.dataset.k;
-    document.querySelectorAll("#kinds button").forEach(x =>
-      x.classList.toggle("on", x === b));
-    $("addtarget").placeholder = S.addKind === "url" ? "https://…" : "选一个，或直接粘路径";
+function openAddSheet(kind="tools",target=""){
+  if(typeof kind!=="string") kind="tools";
+  S.addKind=kind;S.nameEdited=false;S.previewSeq++;
+  $("addtarget").value=target;$("addname").value="";$("toolquery").value="";$("appquery").value="";
+  $("adderror").textContent="";$("addpreview").hidden=true;
+  $("addsheet").classList.add("on");paintAddKind();
+  if(target) schedulePreview();
+}
+function paintAddKind(){
+  $("kinds").innerHTML=Object.entries(addKinds).map(([k,v])=>`<button role="tab"
+    aria-selected="${S.addKind===k}" data-k="${k}" class="${S.addKind===k?"on":""}">
+    <span class="e">${v[0]}</span>${v[1]}</button>`).join("");
+  $("kinds").querySelectorAll("[data-k]").forEach(b=>b.onclick=()=>{
+    if(S.nativeBusy || S.addBusy) return;
+    S.addKind=b.dataset.k;$("adderror").textContent="";paintAddKind();
+  });
+  const location=["folder","url"].includes(S.addKind);
+  $("addtools").hidden=S.addKind!=="tools";$("addapps").hidden=S.addKind!=="app";
+  $("addlocation").hidden=!location;$("btnAddOk").hidden=!location;
+  $("fileactions").hidden=S.addKind!=="folder";
+  $("targetlabel").textContent=S.addKind==="url"?"网址":"位置";
+  $("addtarget").placeholder=S.addKind==="url"?"粘贴网址，例如 https://example.com":"也可以直接粘贴完整路径";
+  $("locationhint").textContent=S.addKind==="url"?"粘贴网址后回车添加，名称会自动填写。":"在系统窗口中选择后直接添加，支持一次选择多个。";
+  $("btnAddOk").disabled=!$("addtarget").value.trim();
+  if(S.addKind==="tools"){paintAddTools();$("toolquery").focus();}
+  else if(S.addKind==="app"){paintApps();$("appquery").focus();}
+  else $("addtarget").focus();
+}
+function paintAddTools(){
+  $("addtoollist").innerHTML=toolRows($("toolquery").value);bindFeatureButtons();
+}
+function bindFeatureButtons(){
+  document.querySelectorAll("[data-add-feature]").forEach(b=>b.onclick=async()=>{
+    if(S.addBusy) return;S.addBusy=true;b.disabled=true;b.textContent="添加中…";
+    try{
+      const r=await post("/api/desktop/feature",{id:b.dataset.addFeature});
+      if(!r.ok) throw new Error(r.message);
+      await load();if($("addsheet").classList.contains("on")) paintAddTools();toast("已添加到桌面");
+    }catch(e){toast(e.message);b.disabled=false;b.textContent="＋ 添加";}
+    finally{S.addBusy=false;}
   });
 }
-async function pick(path){
+async function paintApps(){
+  if(!S.appRows){
+    $("applist").innerHTML='<p class="hint">正在读取本机应用…</p>';
+    try{S.appRows=(await api("/api/desktop/apps")).items || [];}
+    catch(e){$("applist").innerHTML='<p class="inline-error">读取应用失败，请使用“选择其他应用”。</p>';return;}
+  }
+  const q=$("appquery").value.trim().toLowerCase();
+  const rows=S.appRows.filter(x=>x.name.toLowerCase().includes(q));
+  $("applist").innerHTML=rows.length?rows.map((it,i)=>{
+    const added=S.items.some(x=>x.target===it.target);
+    return `<div class="tool-row"><span class="tool-icon">🚀</span><div class="tool-copy">
+      <strong>${esc(it.name)}</strong><small>${esc(it.target)}</small></div>
+      <button class="btn ${added?"":"pri"}" data-app-index="${i}" ${added?"disabled":""}
+        aria-label="${added?"已添加":"添加"} ${esc(it.name)}">${added?"已添加":"＋ 添加"}</button></div>`;
+  }).join(""):'<p class="hint">没有找到应用，可以点击“选择其他应用”。</p>';
+  $("applist").querySelectorAll("[data-app-index]").forEach(b=>b.onclick=async()=>{
+    if(S.addBusy) return;S.addBusy=true;b.disabled=true;
+    try{await addTargets([rows[+b.dataset.appIndex].target]);await paintApps();}
+    catch(e){$("adderror").textContent=e.message;b.disabled=false;}
+    finally{S.addBusy=false;}
+  });
+}
+async function addTargets(paths){
+  let added=0;const errors=[];
+  for(const target of paths){
+    try{const r=await post("/api/desktop/add",{target});if(r.ok) added++;else errors.push(r.message);}
+    catch(e){errors.push(e.message);}
+  }
+  if(added){await load();toast(added===1?"已添加到桌面":`已添加 ${added} 个入口`);}
+  $("adderror").textContent=[...new Set(errors)].join("；");
+  return added;
+}
+async function pickNative(kind){
+  if(S.nativeBusy || S.addBusy) return;
+  S.nativeBusy=true;$("adderror").textContent="";
+  const buttons=["btnPickFolder","btnPickFile","btnPickApp"].map($);
+  buttons.forEach(b=>b.disabled=true);
   try{
-    const d = await api("/api/pick?path=" + encodeURIComponent(path) +
-                        "&files=" + (S.addKind === "url" ? "0" : "1"));
-    S.pickPath = d.path;
-    $("pickinfo").textContent = d.path;
-    let h = `<div class="it" data-up="1">⬆︎ 上一级</div>`;
-    for(const x of d.dirs) h += `<div class="it" data-p="${esc(x.path)}">📁 ${esc(x.name)}</div>`;
-    for(const x of d.files) h += `<div class="it" data-f="${esc(x.path)}">
-      ${x.app?"🚀":"📄"} ${esc(x.name)}</div>`;
-    $("picklist").innerHTML = h; $("picklist").style.display = "";
-    $("picklist").querySelectorAll("[data-p]").forEach(el => el.onclick = () => pick(el.dataset.p));
-    $("picklist").querySelectorAll("[data-f]").forEach(el => el.onclick = () => {
-      $("addtarget").value = el.dataset.f;
-      if(!$("addname").value) $("addname").value = el.dataset.f.split("/").pop();
-    });
-    $("picklist").querySelector("[data-up]").onclick = () => pick(d.parent);
-  }catch(e){ toast("读目录失败：" + e.message); }
+    const r=await post("/api/desktop/pick",{kind});
+    if(!r.ok) throw new Error(r.message);
+    if(!r.cancelled && r.paths && r.paths.length){await addTargets(r.paths);if(S.addKind==="app") await paintApps();}
+  }catch(e){$("adderror").textContent=e.message;}
+  finally{S.nativeBusy=false;buttons.forEach(b=>b.disabled=false);}
+}
+function schedulePreview(){
+  clearTimeout(previewTimer);const seq=++S.previewSeq;
+  const target=$("addtarget").value.trim();$("btnAddOk").disabled=!target;
+  $("adderror").textContent="";$("addpreview").hidden=!target;
+  if(!S.nameEdited) $("addname").value="";
+  if(!target) return;
+  $("addpreview").innerHTML='<span class="preview-icon">🔗</span><div class="preview-copy"><strong>准备添加入口</strong><small>正在识别名称，可以直接回车添加</small></div>';
+  previewTimer=setTimeout(async()=>{
+    try{
+      const r=await post("/api/desktop/preview",{target});
+      if(seq!==S.previewSeq) return;
+      if(!r.ok){$("addpreview").hidden=true;return;}
+      if(!S.nameEdited) $("addname").value=r.item.name;
+      const icon=(S.kinds[r.item.kind] || {}).icon || "🔗";
+      $("addpreview").innerHTML=`<span class="preview-icon">${esc(icon)}</span><div class="preview-copy">
+        <strong>${esc($("addname").value || r.item.name)}</strong><small>${esc(r.item.target)}</small></div>`;
+    }catch(e){if(seq===S.previewSeq) $("addpreview").hidden=true;}
+  },350);
+}
+async function submitShortcut(){
+  if(S.addBusy || S.nativeBusy) return;
+  const target=$("addtarget").value.trim();if(!target) return;
+  S.addBusy=true;$("btnAddOk").disabled=true;$("adderror").textContent="";
+  try{
+    const r=await post("/api/desktop/add",{target,name:$("addname").value.trim()});
+    if(!r.ok) throw new Error(r.message);
+    S.addBusy=false;closeAddSheet();await load();toast("已添加「"+r.item.name+"」");
+  }catch(e){$("adderror").textContent=e.message;}
+  finally{S.addBusy=false;$("btnAddOk").disabled=false;}
 }
 
 /* ── AI ── */
@@ -1457,8 +1618,8 @@ function renderPalette(q){
       items.push({kind:it.custom?"item":"feature", id:it.id, name:it.name, icon:it.icon,
                   hint:it.custom?it.kind:(it.status&&it.status.running?"在运行":"已停止")});
   }
-  if(!q || "商店 store".includes(q))
-    items.push({kind:"go", id:"store", name:"功能商店", icon:"🏪", hint:""});
+  if(!q || "工具库 商店 store".includes(q))
+    items.push({kind:"go", id:"store", name:"工具库", icon:"🏪", hint:""});
   if(!q || "设置 ai".includes(q))
     items.push({kind:"go", id:"set", name:"设置（AI / 身份）", icon:"⚙️", hint:""});
   if(!q || "ai 助手".includes(q))
@@ -1492,20 +1653,49 @@ document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => {
 $("btnPalette").onclick = openPalette;
 $("pq").addEventListener("input", () => renderPalette($("pq").value));
 $("overlay").addEventListener("click", e => { if(e.target === $("overlay")) closePalette(); });
-$("btnAddCancel").onclick = () => $("addsheet").classList.remove("on");
-$("addsheet").addEventListener("click", e => {
-  if(e.target === $("addsheet")) $("addsheet").classList.remove("on"); });
-$("btnPick").onclick = () => pick($("addtarget").value.trim() || "~");
-$("btnAddOk").onclick = async () => {
-  const target = $("addtarget").value.trim();
-  if(!target) return toast("填个路径或网址");
-  try{
-    const r = await post("/api/desktop/add", {kind: S.addKind, target,
-      name: $("addname").value.trim()});
-    toast(r.message);
-    if(r.ok){ $("addsheet").classList.remove("on"); await load(); }
-  }catch(e){ toast("失败：" + e.message); }
-};
+$("btnAddCancel").onclick=closeAddSheet;
+$("btnAddClose").onclick=closeAddSheet;
+$("addsheet").addEventListener("click",e=>{if(e.target===$("addsheet")) closeAddSheet();});
+$("menusheet").addEventListener("click",e=>{if(e.target===$("menusheet")) $("menusheet").classList.remove("on");});
+$("toolquery").oninput=paintAddTools;
+$("appquery").oninput=paintApps;
+$("toolquery").onkeydown=e=>{if(e.key==="Enter" && !e.isComposing) $("addtoollist").querySelector("button:not(:disabled)")?.click();};
+$("appquery").onkeydown=e=>{if(e.key==="Enter" && !e.isComposing) $("applist").querySelector("button:not(:disabled)")?.click();};
+$("btnPickFolder").onclick=()=>pickNative("folder");
+$("btnPickFile").onclick=()=>pickNative("file");
+$("btnPickApp").onclick=()=>pickNative("app");
+$("addtarget").oninput=schedulePreview;
+$("addname").oninput=()=>{S.nameEdited=!!$("addname").value.trim();};
+$("btnAddOk").onclick=submitShortcut;
+[$("addtarget"),$("addname")].forEach(el=>el.onkeydown=e=>{
+  if(e.key==="Enter" && !e.isComposing){e.preventDefault();submitShortcut();}
+});
+document.addEventListener("paste",e=>{
+  if(e.defaultPrevented || S.view!=="desk" || $("ai").classList.contains("on") ||
+     document.querySelector(".sheet.on,.overlay.on") ||
+     e.target.closest("input,textarea,[contenteditable='true']")) return;
+  const text=(e.clipboardData?.getData("text/plain") || "").trim();
+  if(!text || /[\r\n]/.test(text)) return;
+  const path=/^(?:\/|~\/|[a-z]:[\\/]|file:\/\/)/i.test(text);
+  const web=/^(?:https?:\/\/|(?:[\w-]+\.)+[\w-]{2,}(?::\d+)?(?:[/?#]|$)|localhost[:/])/i.test(text);
+  if(!path && !web) return;
+  e.preventDefault();openAddSheet(path?"folder":"url",text);
+});
+// 弹窗中的键盘焦点保持在当前窗口；Esc 随时返回桌面。
+document.addEventListener("keydown",e=>{
+  const modal=document.querySelector("#menusheet.on") || document.querySelector("#addsheet.on");
+  if(!modal) return;
+  if(e.key==="Escape"){
+    e.preventDefault();if(modal.id==="addsheet") closeAddSheet();else modal.classList.remove("on");
+    return;
+  }
+  if(e.key!=="Tab") return;
+  const focusable=[...modal.querySelectorAll("button:not(:disabled),input,summary,[tabindex='0']")]
+    .filter(el=>el.getClientRects().length);
+  const first=focusable[0],last=focusable.at(-1);
+  if(e.shiftKey && document.activeElement===first){e.preventDefault();last?.focus();}
+  else if(!e.shiftKey && document.activeElement===last){e.preventDefault();first?.focus();}
+});
 
 document.addEventListener("keydown", e => {
   const mod = e.metaKey || e.ctrlKey;
@@ -1526,7 +1716,10 @@ document.addEventListener("contextmenu", e => {
 });
 
 boot();
-setInterval(() => { if(S.view === "desk" && !S.aiBusy) load(); }, 12000);
+setInterval(() => {
+  if(S.view === "desk" && !S.aiBusy && !S.dragId && !S.addBusy && !S.nativeBusy &&
+     !document.querySelector(".sheet.on,.overlay.on") && !S.launching.size) load(false);
+}, 12000);
 </script>
 </body>
 </html>

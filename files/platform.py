@@ -41,6 +41,7 @@ import urllib.request
 import webbrowser
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from lib.desktop_support import resolve_target, preview_target, native_pick, local_apps
 
 VERSION = "0.1.0"
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -255,6 +256,8 @@ def sys_tmpdir():
 
 BACKUP_DIR = os.path.join(HOME, "backups")
 DESKTOP_FILE = os.path.join(HOME, "desktop.json")
+_desktop_lock = threading.RLock()
+_desktop_undo = {}
 
 # 桌面项的类型 —— 用户能自己加的东西
 ITEM_KINDS = {
@@ -270,6 +273,8 @@ def load_desktop():
     d = read_json(DESKTOP_FILE, {})
     d.setdefault("items", [])
     d.setdefault("order", [])
+    d.setdefault("hidden_features", [])
+    d.setdefault("feature_names", {})
     return d
 
 
@@ -310,24 +315,6 @@ def desktop_items():
     pinned = prefs.get("pinned") or []
 
     items = []
-    # 「今日关注」作为一个内置工具排在最前 —— 它不是装出来的功能，
-    # 而是平台把各功能的汇报汇总出来的一个视图。
-    # 做成桌面项是为了和别的工具一致：能看见、能点、有角标。
-    try:
-        dig = _digest_cached_for_desktop()
-        items.append({
-            "id": "__digest__", "kind": "digest", "name": "今日关注",
-            "target": "", "icon": "📋", "color": "#7c3aed", "custom": False,
-            "builtin": True,
-            "badge": dig.get("count") or 0,
-            "critical": dig.get("critical") or 0,
-            "note": "平台从各功能汇总 —— 点开看详情",
-            "running": True, "broken": None,
-            "description": "各功能报上来的、需要你处理的事都汇总在这。",
-        })
-    except Exception as exc:
-        log(f"[digest] 桌面项生成失败：{exc}")
-
     # 用户自己加的
     for it in d["items"]:
         items.append({
@@ -343,9 +330,12 @@ def desktop_items():
         })
     # 注册的功能
     for f in feats:
+        if f["id"] in d["hidden_features"]:
+            continue
         st = feature_status(f)
         items.append({
-            "id": f["id"], "kind": "feature", "name": f["name"],
+            "id": f["id"], "kind": "feature",
+            "name": d["feature_names"].get(f["id"]) or f["name"],
             "target": f.get("open_url") or "", "icon": f.get("icon") or "🧩",
             "color": f.get("color") or "#2f6df6", "custom": False,
             "running": st["running"], "broken": f.get("broken"),
@@ -355,71 +345,165 @@ def desktop_items():
             "pinned": f["id"] in pinned, "status": st,
         })
 
-    # 排序：用户排的 order 优先，其余按 置顶 → 最近 → 名字
+    # 一旦排过序就保持位置；首次加载保留现有顺序。
     order = d.get("order") or []
     idx = {x: i for i, x in enumerate(order)}
+    return sorted(items, key=lambda it: idx.get(it["id"], len(idx) + items.index(it)))
 
-    def key(it):
-        # 「今日关注」永远排第一 —— 它是"今天该看什么"的入口，
-        # 不该被用户排的顺序或字母序挤到后面去。
-        if it.get("kind") == "digest":
-            return (-1, 0, "")
-        if it["id"] in idx:
-            return (0, idx[it["id"]], "")
-        if it["kind"] == "feature":
-            return (1, 0 if it.get("pinned") else 1, it["name"])
-        return (0, 1000 + items.index(it), "")
-    return sorted(items, key=key)
+
+def _remember_desktop_order(d):
+    """首次操作把旧版的隐式顺序落盘，添加/移除时现有图标不跳位。"""
+    for it in desktop_items():
+        if it["id"] not in d["order"]:
+            d["order"].append(it["id"])
 
 
 def add_desktop_item(kind, target, name=None, icon=None, color=None, note=""):
+    try:
+        resolved = resolve_target(target, kind)
+    except ValueError as exc:
+        return False, str(exc), None
+    target, kind = resolved["target"], resolved["kind"]
+    with _desktop_lock:
+        d = load_desktop()
+        for it in d["items"]:
+            try:
+                same = resolve_target(it.get("target"), it.get("kind"))["target"] == target
+            except ValueError:
+                same = it.get("target") == target
+            if same:
+                return False, "这个入口已经在桌面上了", it
+        _remember_desktop_order(d)
+        fid = "d_" + hashlib.md5((kind + "|" + target).encode()).hexdigest()[:10]
+        if any(it["id"] == fid for it in d["items"]):
+            fid = "d_" + os.urandom(8).hex()
+        item = {"id": fid, "kind": kind, "target": target,
+                "name": str(name or "").strip()[:120] or resolved["name"],
+                "icon": icon or ITEM_KINDS[kind]["icon"],
+                "color": color or ITEM_KINDS[kind]["color"], "note": note,
+                "added_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+        d["items"].append(item)
+        if fid not in d["order"]:
+            d["order"].append(fid)
+        save_desktop(d)
+    return True, "已添加到桌面", item
+
+
+def show_desktop_feature(fid):
+    if not any(f["id"] == fid for f in all_features()):
+        ok, msg = install_feature(fid)
+        if not ok:
+            return False, msg
+    with _desktop_lock:
+        d = load_desktop()
+        _remember_desktop_order(d)
+        d["hidden_features"] = [x for x in d["hidden_features"] if x != fid]
+        if fid not in d["order"]:
+            d["order"].append(fid)
+        save_desktop(d)
+    return True, "已添加到桌面"
+
+
+def desktop_tools():
+    items = {it["id"]: it for it in store_index()}
     d = load_desktop()
-    kind = kind if kind in ITEM_KINDS else "folder"
-    target = (target or "").strip()
-    if not target:
-        return False, "没给路径或网址", None
-    if kind in ("folder", "file", "app"):
-        target = os.path.expanduser(target)
-        if not os.path.exists(target):
-            return False, "路径不存在：%s" % target, None
-        if kind == "app" and not target.endswith(".app"):
-            return False, "这不是 .app：%s" % target, None
-        if kind == "folder" and not os.path.isdir(target):
-            return False, "这不是文件夹：%s" % target, None
-    for it in d["items"]:
-        if it.get("target") == target:
-            return False, "这个已经在桌面上了", it
-    fid = "d_" + hashlib.md5((kind + "|" + target).encode()).hexdigest()[:10]
-    item = {"id": fid, "kind": kind, "target": target,
-            "name": (name or "").strip() or
-                    (target.rstrip("/").split("/")[-1] or target),
-            "icon": icon or ITEM_KINDS[kind]["icon"],
-            "color": color or ITEM_KINDS[kind]["color"],
-            "note": note, "added_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
-    d["items"].append(item)
-    if fid not in d["order"]:
-        d["order"].insert(0, fid)          # 新加的排最前
-    save_desktop(d)
-    log(f"[desktop] 加了 {kind} {item['name']} → {target}")
-    return True, "已加到桌面", item
+    registered = {f["id"]: f for f in all_features()}
+    for fid, f in registered.items():
+        if fid not in items:
+            items[fid] = {k: f.get(k) for k in
+                          ("id", "name", "description", "icon", "color", "version")}
+    for fid, it in items.items():
+        it["installed"] = fid in registered
+        it["on_desktop"] = fid in registered and fid not in d["hidden_features"]
+    return list(items.values())
 
 
 def remove_desktop_item(fid):
-    d = load_desktop()
-    n = len(d["items"])
-    d["items"] = [x for x in d["items"] if x["id"] != fid]
-    d["order"] = [x for x in d["order"] if x != fid]
-    save_desktop(d)
-    if len(d["items"]) == n:
-        return False, "桌面上没有这一项（功能卡片不能删，只能卸载）"
-    log(f"[desktop] 移除了 {fid}")
-    return True, "已从桌面移除"
+    with _desktop_lock:
+        d = load_desktop()
+        _remember_desktop_order(d)
+        item = next((x for x in d["items"] if x["id"] == fid), None)
+        feature = any(f["id"] == fid for f in all_features())
+        if not item and (not feature or fid in d["hidden_features"]):
+            return False, "桌面上没有这一项", None
+        record = {"id": fid, "item": item, "expires": time.time() + 60,
+                  "order_index": d["order"].index(fid) if fid in d["order"] else len(d["order"])}
+        if item:
+            record["item_index"] = d["items"].index(item)
+            d["items"].remove(item)
+        else:
+            d["hidden_features"].append(fid)
+        d["order"] = [x for x in d["order"] if x != fid]
+        token = os.urandom(16).hex()
+        for key in list(_desktop_undo):
+            if _desktop_undo[key]["expires"] < time.time():
+                del _desktop_undo[key]
+        _desktop_undo[token] = record
+        save_desktop(d)
+    return True, "已从桌面移除", token
+
+
+def restore_desktop_item(token):
+    with _desktop_lock:
+        record = _desktop_undo.get(token)
+        if not record or record["expires"] < time.time():
+            return False, "撤销已过期，可以通过添加入口重新加回"
+        d = load_desktop()
+        fid, item = record["id"], record["item"]
+        if item:
+            if any(x["id"] == fid or x["target"] == item["target"] for x in d["items"]):
+                return False, "这个入口已经在桌面上了"
+            d["items"].insert(record["item_index"], item)
+        else:
+            if not any(f["id"] == fid for f in all_features()):
+                return False, "工具已卸载，请从工具库重新添加"
+            d["hidden_features"] = [x for x in d["hidden_features"] if x != fid]
+        d["order"] = [x for x in d["order"] if x != fid]
+        d["order"].insert(record["order_index"], fid)
+        save_desktop(d)
+        del _desktop_undo[token]
+    return True, "已恢复到原来的位置"
+
+
+def edit_desktop_item(fid, name, target=None):
+    name = str(name or "").strip()[:120]
+    if not name:
+        return False, "请填写名称"
+    with _desktop_lock:
+        d = load_desktop()
+        it = next((x for x in d["items"] if x["id"] == fid), None)
+        if it:
+            if target is not None:
+                try:
+                    new = resolve_target(target)
+                except ValueError as exc:
+                    return False, str(exc)
+                if any(x["id"] != fid and x["target"] == new["target"] for x in d["items"]):
+                    return False, "这个入口已经在桌面上了"
+                if new["kind"] != it["kind"]:
+                    it.update(icon=ITEM_KINDS[new["kind"]]["icon"],
+                              color=ITEM_KINDS[new["kind"]]["color"])
+                it.update(target=new["target"], kind=new["kind"])
+            it["name"] = name
+        elif any(f["id"] == fid for f in all_features()):
+            d["feature_names"][fid] = name
+        else:
+            return False, "找不到这个入口"
+        save_desktop(d)
+    return True, "已保存"
 
 
 def reorder_desktop(order):
-    d = load_desktop()
-    d["order"] = [x for x in (order or []) if isinstance(x, str)]
-    save_desktop(d)
+    if not isinstance(order, list):
+        return False, "顺序格式不正确"
+    with _desktop_lock:
+        visible = [x["id"] for x in desktop_items()]
+        if (not all(isinstance(x, str) for x in order) or
+                len(order) != len(set(order)) or set(order) != set(visible)):
+            return False, "桌面内容已变化，请刷新后重新排序"
+        d = load_desktop()
+        d["order"] = order
+        save_desktop(d)
     return True, "顺序已保存"
 
 
@@ -1152,6 +1236,12 @@ class Handler(BaseHTTPRequestHandler):
             st["ok"] = True
             return self._send(200, json.dumps(st, ensure_ascii=False))
 
+        if u.path == "/api/desktop/tools":
+            return self._send(200, json.dumps({"items": desktop_tools()}, ensure_ascii=False))
+
+        if u.path == "/api/desktop/apps":
+            return self._send(200, json.dumps({"items": local_apps()}, ensure_ascii=False))
+
         if u.path == "/api/desktop":
             return self._send(200, json.dumps(
                 {"items": desktop_items(), "kinds": ITEM_KINDS,
@@ -1343,22 +1433,74 @@ class Handler(BaseHTTPRequestHandler):
             r = feature_sync(fid, b.get("mode") or "missing")
             return self._send(200, json.dumps(r, ensure_ascii=False))
 
+        if u.path.startswith("/api/desktop/") and u.path != "/api/desktop/open":
+            # 系统选择窗口及桌面写操作只接受同源页面请求。
+            origin = self.headers.get("Origin")
+            if origin and origin != "http://" + self.headers.get("Host", ""):
+                return self._send(403, json.dumps({"error": "请在工作平台中操作"}, ensure_ascii=False))
+
+        if u.path == "/api/desktop/pick":
+            return self._send(200, json.dumps(native_pick(b.get("kind")), ensure_ascii=False))
+
+        if u.path == "/api/desktop/preview":
+            try:
+                item = preview_target(b.get("target"))
+                result = {"ok": True, "item": item}
+            except ValueError as exc:
+                result = {"ok": False, "message": str(exc)}
+            return self._send(200, json.dumps(result, ensure_ascii=False))
+
+        if u.path == "/api/desktop/feature":
+            ok, msg = show_desktop_feature(fid)
+            return self._send(200, json.dumps({"ok": ok, "message": msg}, ensure_ascii=False))
+
         if u.path == "/api/desktop/add":
             ok, msg, item = add_desktop_item(
-                b.get("kind") or "folder", b.get("target") or "",
+                b.get("kind") or "auto", b.get("target") or "",
                 b.get("name"), b.get("icon"), b.get("color"), b.get("note") or "")
-            return self._send(200, json.dumps({"ok": ok, "message": msg, "item": item},
-                                              ensure_ascii=False))
+            return self._send(200, json.dumps({"ok": ok, "message": msg, "item": item}, ensure_ascii=False))
 
         if u.path == "/api/desktop/remove":
-            ok, msg = remove_desktop_item((b.get("id") or "").strip())
-            return self._send(200, json.dumps({"ok": ok, "message": msg},
-                                              ensure_ascii=False))
+            ok, msg, token = remove_desktop_item(fid)
+            return self._send(200, json.dumps({"ok": ok, "message": msg, "undo": token}, ensure_ascii=False))
+
+        if u.path == "/api/desktop/restore":
+            ok, msg = restore_desktop_item(b.get("token"))
+            return self._send(200, json.dumps({"ok": ok, "message": msg}, ensure_ascii=False))
+
+        if u.path == "/api/desktop/edit":
+            ok, msg = edit_desktop_item(fid, b.get("name"), b.get("target"))
+            return self._send(200, json.dumps({"ok": ok, "message": msg}, ensure_ascii=False))
 
         if u.path == "/api/desktop/reorder":
-            ok, msg = reorder_desktop(b.get("order") or [])
-            return self._send(200, json.dumps({"ok": ok, "message": msg},
-                                              ensure_ascii=False))
+            ok, msg = reorder_desktop(order=b.get("order") or [])
+            return self._send(200, json.dumps({"ok": ok, "message": msg}, ensure_ascii=False))
+
+        if u.path == "/api/desktop/launch":
+            f = find()
+            ok, msg = False, "找不到这个工具"
+            if f:
+                url = f.get("open_url") or ""
+                if f.get("broken") or not url:
+                    msg = "工具入口不可用"
+                elif url.startswith("/view/") or http_ok(f.get("health_url") or url, timeout=1):
+                    ok, msg = True, "已打开"
+                else:
+                    started, msg = start_feature(f)
+                    ok = started and http_ok(f.get("health_url") or url, timeout=3)
+                    if not ok:
+                        msg = "工具尚未启动成功，请稍后重试或查看工具详情"
+                if ok:
+                    touch_recent(fid)
+            return self._send(200, json.dumps({"ok": ok, "message": msg,
+                "url": f.get("open_url") if f and ok else ""}, ensure_ascii=False))
+
+        if u.path == "/api/reveal":
+            it = next((x for x in load_desktop()["items"] if x["id"] == fid), None)
+            ok = bool(it and it.get("kind") in ("folder", "file", "app") and os.path.exists(it["target"]))
+            if ok:
+                sys_reveal(it["target"])
+            return self._send(200, json.dumps({"ok": ok, "message": "已显示" if ok else "位置不存在"}, ensure_ascii=False))
 
         if u.path == "/api/desktop/open":
             ok, msg, target = open_desktop_item((b.get("id") or "").strip())
