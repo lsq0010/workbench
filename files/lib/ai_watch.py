@@ -276,25 +276,6 @@ def check_build():
     }]
 
 
-def check_digest():
-    """各功能汇报里的严重项 —— 汇总起来问一句"""
-    d = _get("http://127.0.0.1:8880/api/digest")
-    if not d:
-        return []
-    crit = [x for x in (d.get("items") or []) if x.get("level") == "critical"]
-    if not crit:
-        return []
-    key = "digest:" + ",".join(sorted(x.get("title", "")[:24] for x in crit))[:80]
-    return [{
-        "key": key, "kind": "功能告警",
-        "title": f"{len(crit)} 项严重告警需要处理",
-        "level": "warn",
-        "material": "\n".join("- [%s] %s：%s" % (x.get("feature_name"), x.get("title"),
-                                                 x.get("detail", "")) for x in crit),
-        "ask": "这些是各功能报上来的严重问题，请按优先级排一下该怎么处理。",
-    }]
-
-
 # 已知在国内会被墙的服务 —— 连不上是**环境正常**，不是故障。
 # 实测：用户抓包里有 607 个 CONNECT 超时，全是 Google(332) + ChatGPT(272)。
 # 如果不认识这个模式，值守会把它当"大量请求失败"报警 —— 那是误报，
@@ -447,7 +428,7 @@ def auto_revive_features(max_per_round=AUTO_MAX_PER_ROUND):
     return actions
 
 
-CHECKS = [check_logs, check_build, check_digest, check_capture_noise]
+CHECKS = [check_logs, check_build, check_capture_noise]
 
 
 # ══════════════════════════════════════════════════════════════

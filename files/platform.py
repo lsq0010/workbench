@@ -282,31 +282,6 @@ def save_desktop(d):
     write_json(DESKTOP_FILE, d)
 
 
-_digest_desktop_cache = {"t": 0, "v": None}
-
-
-def _digest_cached_for_desktop(max_age=30):
-    """给桌面项用的轻量读法 —— 直接读缓存，不触发重新汇总。
-
-    桌面每刷新一次就调一次，绝不能在这里现算（那会去问所有功能）。
-    没缓存就返回空，等后台汇总完自然就有了。
-    """
-    global _digest_desktop_cache
-    now = time.time()
-    if _digest_desktop_cache["v"] is not None and \
-            now - _digest_desktop_cache["t"] < max_age:
-        return _digest_desktop_cache["v"]
-    try:
-        # 读平台自己的 digest 缓存（不触发重新汇总）
-        c = _digest_cache.get("v")
-        if c:
-            _digest_desktop_cache = {"t": now, "v": c}
-            return c
-    except Exception:
-        pass
-    return {"count": 0, "critical": 0}
-
-
 def desktop_items():
     """桌面上该显示什么：注册的功能 + 用户自己加的，按各自顺序排"""
     d = load_desktop()
@@ -698,91 +673,6 @@ def ask_feature(f, path, timeout=6):
         return None
 
 
-_digest_cache = {"t": 0, "v": None}
-
-
-def collect_digest(max_age=90):
-    """汇总所有功能汇报的"需要注意的事"。
-
-    约定：功能实现 GET /api/digest，返回
-      {"items": [{"level": "critical|warn|info", "title": "...", "detail": "...",
-                  "action": "打开哪个页面处理"}]}
-    没实现的功能直接跳过 —— 不强求。
-    """
-    if _digest_cache["v"] is not None and time.time() - _digest_cache["t"] < max_age:
-        return _digest_cache["v"]
-
-    feats = [f for f in all_features() if f.get("enabled") and not f.get("broken")]
-    items, checked, supported = [], 0, 0
-
-    slow = []
-
-    def one(f):
-        st = feature_status(f)
-        if not st["running"]:
-            return None
-        t0 = time.time()
-        d = ask_feature(f, "/api/digest", timeout=10)
-        return f, d, round(time.time() - t0, 2)
-
-    import concurrent.futures as cf
-    with cf.ThreadPoolExecutor(max_workers=6) as ex:
-        for r in ex.map(one, feats):
-            checked += 1
-            if not r:
-                continue
-            f, d, secs = r
-            if not isinstance(d, dict) or "items" not in d:
-                if secs >= 9.5:
-                    slow.append(f["name"])
-                continue
-            supported += 1
-            if secs >= 3:
-                slow.append(f"{f['name']}（{secs}s）")
-            for it in (d.get("items") or [])[:12]:
-                items.append({
-                    "feature": f["id"], "feature_name": f["name"],
-                    "icon": f.get("icon"), "color": f.get("color"),
-                    "level": it.get("level") or "info",
-                    "title": it.get("title") or "",
-                    "detail": it.get("detail") or "",
-                    "action": it.get("action") or "",
-                })
-
-    # 把 AI 值守的发现也并进来 —— 它主动看出来的问题，用户应该第一眼看到
-    try:
-        w = _ai_watch()
-        if w:
-            seen = set()
-            for f in w.findings(6):
-                if f.get("key") in seen:
-                    continue
-                seen.add(f.get("key"))
-                items.append({
-                    "feature": "ai_watch", "feature_name": "AI 值守",
-                    "icon": "🤖", "color": "#7c3aed",
-                    "level": f.get("level") or "warn",
-                    "title": "AI 主动发现：" + str(f.get("title") or ""),
-                    "detail": (str(f.get("analysis") or f.get("note") or "")
-                               .split("\n")[0][:150]),
-                    "action": "点开看 AI 的完整分析",
-                    "ai_analysis": f.get("analysis") or "",
-                })
-    except Exception as exc:
-        log(f"[watch] 合并发现失败：{exc}")
-
-    order = {"critical": 0, "warn": 1, "info": 2}
-    items.sort(key=lambda x: order.get(x["level"], 3))
-    out = {"items": items, "count": len(items),
-           "critical": len([x for x in items if x["level"] == "critical"]),
-           "warn": len([x for x in items if x["level"] == "warn"]),
-           "checked": checked, "supported": supported, "slow": slow,
-           "ts": datetime.now().strftime("%H:%M:%S")}
-    _digest_cache["t"] = time.time()
-    _digest_cache["v"] = out
-    return out
-
-
 def all_features(auto_scan=True):
     reg = load_registry()
     if auto_scan:
@@ -1129,25 +1019,8 @@ class Handler(BaseHTTPRequestHandler):
             feats = all_features()
             for f in feats:
                 f["status"] = feature_status(f)
-            # 把各功能的告警数挂到卡片上（用 digest 的缓存，不额外轮询）
-            try:
-                d = collect_digest()
-                cnt = {}
-                for it in d.get("items", []):
-                    cnt.setdefault(it["feature"], []).append(it)
-                for f in feats:
-                    f["alerts"] = cnt.get(f["id"], [])
-            except Exception:
-                pass
             return self._send(200, json.dumps({"features": feats, "home": HOME},
                                               ensure_ascii=False))
-
-        if u.path == "/api/digest":
-            qs = urllib.parse.parse_qs(u.query)
-            fresh = qs.get("fresh", ["0"])[0] == "1"
-            if fresh:
-                _digest_cache["v"] = None
-            return self._send(200, json.dumps(collect_digest(), ensure_ascii=False))
 
         if u.path == "/api/feature/diff":
             """看已装版本和商店版本差在哪"""
@@ -1415,7 +1288,6 @@ class Handler(BaseHTTPRequestHandler):
                                                   ensure_ascii=False))
             keep = int(b.get("keep_hours") or 0)
             r = w.clear_findings(keep)
-            _digest_cache["v"] = None      # 让下次聚合重新取
             return self._send(200, json.dumps(r, ensure_ascii=False))
 
         if u.path == "/api/watch/toggle":

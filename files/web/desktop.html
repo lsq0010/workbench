@@ -74,8 +74,6 @@
               font-size:12.5px}
   h2.sec:not(:first-child){margin-top:34px}
 
-  /* ── 今日关注 ── */
-  .digest{display:flex;flex-direction:column;gap:9px;margin-bottom:8px}
   .alert{background:rgba(255,255,255,.92);border:1px solid var(--line);
     border-left:4px solid var(--t3);border-radius:12px;padding:12px 17px;display:flex;
     align-items:flex-start;gap:12px;cursor:pointer;box-shadow:var(--sh1);
@@ -157,26 +155,6 @@
   .state.ok{color:var(--ok)} .state.bad{color:var(--danger)} .state.warn{color:var(--warn)}
 
   /* ── AI 面板 ── */
-  /* ── 今日关注抽屉（左侧滑出，和右边的 AI 面板对称）── */
-#digest{position:fixed;top:0;left:0;bottom:0;width:min(470px,92vw);z-index:45;
-  background:rgba(252,252,253,.985);backdrop-filter:blur(20px);
-  box-shadow:6px 0 40px rgba(16,24,40,.16);display:flex;flex-direction:column;
-  transform:translateX(-101%);transition:transform .26s cubic-bezier(.32,.72,0,1)}
-#digest.on{transform:none}
-#digest .dhead{padding:15px 20px;border-bottom:1px solid var(--line);flex:none;
-  display:flex;align-items:center;gap:10px}
-#digest .dhead .t{font-weight:660;font-size:15.5px}
-#digest .dhead .c{font-size:12px;color:var(--t3);font-weight:400;margin-left:2px}
-#digest .dbody{flex:1;overflow:auto;padding:14px 16px 40px}
-#digest .dbody .digest{margin-bottom:0}
-#digest .dempty{text-align:center;padding:64px 20px;color:var(--t2);font-size:13.5px}
-#digest .dempty .big{font-size:40px;opacity:.35;display:block;margin-bottom:12px}
-#digest .dfoot{flex:none;padding:11px 16px;border-top:1px solid var(--line);
-  display:flex;gap:9px;align-items:center;font-size:12px;color:var(--t3)}
-#doverlay{position:fixed;inset:0;background:rgba(16,24,40,.24);z-index:44;
-  opacity:0;pointer-events:none;transition:opacity .26s}
-#doverlay.on{opacity:1;pointer-events:auto}
-
 #ai{position:fixed;top:0;right:0;bottom:0;width:min(560px,94vw);z-index:40;
     background:rgba(255,255,255,.98);backdrop-filter:blur(20px);
     box-shadow:var(--sh3);display:flex;flex-direction:column;
@@ -345,7 +323,6 @@
 <header>
   <div class="bar">
     <span class="brand"><span class="mk">🧰</span>工作平台</span>
-    <span id="alertslot"></span>
     <span class="spacer"></span>
     <div class="tabs" id="tabs">
       <button data-v="desk" class="on">桌面</button>
@@ -359,24 +336,6 @@
     <button class="aibtn" id="btnAI">✦ AI 助手</button>
   </div>
 </header>
-
-<div id="doverlay"></div>
-
-<!-- 今日关注抽屉（左侧） -->
-<aside id="digest">
-  <div class="dhead">
-    <div class="t">今日关注 <span class="c" id="dcount"></span></div>
-    <span class="spacer" style="flex:1"></span>
-    <button class="iconbtn" id="btnDigestClose" title="关掉（Esc）">✕</button>
-  </div>
-  <div class="dbody" id="dbody"></div>
-  <div class="dfoot">
-    <span>平台从各功能汇总 —— 点一条去处理</span>
-    <span class="spacer" style="flex:1"></span>
-    <button class="iconbtn" id="btnDigestRefresh" title="重新汇总">↻</button>
-  </div>
-</aside>
-
 <main><div class="wrap" id="view"></div></main>
 
 <!-- AI 面板 -->
@@ -396,7 +355,7 @@
 · 看你的日志、报文、代码，指出问题
 · <b>改这个平台自己的代码</b> —— 改界面、加功能、修 bug，改错了能回滚
 
-值守发现的问题，点「今日关注」里那条 🤖 就能直接让我接着修。
+值守在后台自动跑 —— 发现功能挂了会自己把它拉起来。
 
 <b>我也能看图</b> —— 点下面「📷 看截图」，或者直接把图片拖进来。
 手机截图、Xcode 报错截图、App 界面都能看。
@@ -491,7 +450,7 @@
 <script>
 "use strict";
 const S = { imgs: [], view: localStorage.getItem("pf.view2") || "desk", items: [], kinds: {},
-            digest: null, settings: null, aiHistory: [], addKind: "tools",
+            settings: null, aiHistory: [], addKind: "tools",
             menuItem: null, aiBusy: false, appRows: null, libraryQuery: "", dragId: null,
             previewSeq: 0, nameEdited: false, nativeBusy: false, addBusy: false, launching: new Set() };
 const $ = id => document.getElementById(id);
@@ -565,7 +524,6 @@ async function load(force=true){
     const [d, st] = await Promise.all([api("/api/desktop"), api("/api/desktop/tools")]);
     const changed = force || !S.loaded || JSON.stringify([S.items,S.store]) !== JSON.stringify([d.items||[],st.items||[]]);
     S.items = d.items || []; S.kinds = d.kinds || {}; S.store = st.items || [];
-    api("/api/digest").then(x => { S.digest = x; renderAttention(); }).catch(()=>{});
     if(changed) render();
     S.loaded = true;
   }catch(e){
@@ -587,111 +545,9 @@ function render(){
 }
 
 function renderAttention(){
-  const d = S.digest;
-  if(d && d.count){
-    const crit = d.critical > 0;
-    // 顶栏 pill 显示**总项数**，和抽屉里的数字保持一致；
-    // 有 critical 时前面标红叉，但不改变数字口径（以前显示 critical 数，
-    // 和抽屉里的总数对不上，看着像两个东西）
-    $("alertslot").innerHTML = `<button class="pill ${crit?"crit":"warn"}" id="apill"
-      title="点开看详情（⌘D）">
-      ${crit?"❌":"⚠️"} ${d.count} 项关注${crit?`（${d.critical} 严重）`:""}
-      <span style="opacity:.6;font-weight:400">›</span></button>`;
-    $("apill").onclick = openDigest;
-  } else if(d){ $("alertslot").innerHTML =
-    `<button class="pill ok" id="apill" title="点开看详情（⌘D）">
-      ✅ 一切正常 <span style="opacity:.6;font-weight:400">›</span></button>`;
-    $("apill").onclick = openDigest; }
-  else $("alertslot").innerHTML = "";
-  paintDigest();
 
 }
 
-/* ── 今日关注抽屉 ── */
-function paintDigest(){
-  const d = S.digest;
-  const body = $("dbody");
-  if(!body) return;
-  if(!d || !d.items || !d.items.length){
-    $("dcount").textContent = "";
-    body.innerHTML = `<div class="dempty"><span class="big">✅</span>
-      <b style="color:var(--text);display:block;font-size:15px;margin-bottom:7px">
-      所有功能都没报告问题</b>
-      平台每隔一会汇总一次各功能的状态</div>`;
-    return;
-  }
-  $("dcount").textContent = `${d.items.length} 项`;
-  // 顺手把桌面图标的角标也改掉（省得为这个重新拉整个桌面）
-  try{
-    const wrap = document.querySelector("[data-digest]");
-    if(wrap){
-      const n = d.items.length;
-      const gl = wrap.querySelector(".glyph");
-      let bd = wrap.querySelector(".badge");
-      if(n && !bd && gl){
-        bd = document.createElement("span");
-        bd.className = "badge";
-        gl.appendChild(bd);
-      }
-      if(bd){
-        bd.textContent = n;
-        bd.style.background = d.critical ? "var(--danger)" : "";
-        bd.style.display = n ? "" : "none";
-      }
-      const dot = wrap.querySelector(".dot");
-      if(dot) dot.className = "dot " + (n ? "on" : "off");
-    }
-  }catch(e){}
-  body.innerHTML = `<div class="digest">` + d.items.map((it,i) => `
-    <div class="alert ${esc(it.level)}" data-di="${i}">
-      <span class="ai">${it.feature === "ai_watch" ? "🤖"
-        : it.level==="critical"?"❌":it.level==="warn"?"⚠️":"💡"}</span>
-      <div style="flex:1;min-width:0">
-        <div class="at">${esc(it.title)}</div>
-        ${it.detail?`<div class="ad">${esc(it.detail)}</div>`:""}
-        <div class="af"><span class="src">${esc(it.icon||"")} ${esc(it.feature_name)}</span>
-          ${esc(it.action||"")}</div>
-      </div></div>`).join("") + `</div>`;
-  bindDigestItems();
-}
-
-function bindDigestItems(){
-  document.querySelectorAll("#dbody [data-di]").forEach(el => {
-    el.onclick = () => {
-      const it = (S.digest.items||[])[+el.dataset.di];
-      if(!it) return;
-      closeDigest();
-      // AI 值守的发现：把分析直接喂给 AI，让它接着修
-      if(it.feature === "ai_watch"){
-        toggleAI(true);
-        $("aiq").value = "关于这个问题，帮我看看能不能修：\n\n" +
-          it.title + "\n" + (it.ai_analysis || it.detail || "") +
-          "\n\n如果能修，先用 read_file 看清相关代码，再用 edit_snippet 改，" +
-          "改完告诉我改了什么、怎么回滚。";
-        $("aiq").focus();
-        $("aiq").style.height = "auto";
-        $("aiq").style.height = Math.min($("aiq").scrollHeight, 150) + "px";
-        toast("已把 AI 的分析放进输入框，确认后回车");
-        return;
-      }
-      openItem(it.feature, "feature");
-    };
-  });
-}
-
-function openDigest(){
-  $("digest").classList.add("on");
-  $("doverlay").classList.add("on");
-  S.digestOpen = true;
-}
-
-function closeDigest(){
-  const el = $("digest");
-  if(el) el.classList.remove("on");
-  const ov = $("doverlay");
-  if(ov) ov.classList.remove("on");
-  S.digestOpen = false;
-}
 
 function renderDesk(){
   $("view").innerHTML = `<div class="desk-head"><div>
@@ -1210,21 +1066,7 @@ async function initAI(){
   }catch(e){ $("aimodel").textContent = "根入口不可用：" + e.message; }
 
   $("btnAI").onclick = () => toggleAI();
-  if($("btnDigestClose")) $("btnDigestClose").onclick = closeDigest;
-  if($("doverlay")) $("doverlay").onclick = closeDigest;
-  if($("btnDigestRefresh")) $("btnDigestRefresh").onclick = async () => {
-    const b = $("btnDigestRefresh");
-    b.disabled = true; b.textContent = "…";
-    try{ S.digest = null; await load(); toast("已重新汇总"); }
-    catch(e){ toast("失败：" + e.message); }
-    b.disabled = false; b.textContent = "↻";
-  };
   document.addEventListener("keydown", e => {
-    if(e.key === "Escape" && S.digestOpen) closeDigest();
-    if((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "d"){
-      e.preventDefault();
-      S.digestOpen ? closeDigest() : openDigest();
-    }
   });
   if($("btnVision")) $("btnVision").onclick = showShots;
   if($("btnShotClose")) $("btnShotClose").onclick = () => $("shotsheet").classList.remove("on");
@@ -1263,13 +1105,13 @@ async function initAI(){
       const w = await api("/api/watch");
       const act = prompt(
         `AI 值守${w.running ? "正在运行" : "已停止"}\n\n` +
-        `它每 ${w.interval} 秒看一轮，发现异常就自己去分析，结论进「今日关注」。\n` +
+        `它每 ${w.interval} 秒看一轮，发现异常就自己去分析。\n` +
         `监控规则：\n` +
         Object.entries(w.rules || {}).map(([k,v]) => `· ${k}：${v}`).join("\n") +
         `\n\n输入数字选一个：\n` +
         `  1 = ${w.running ? "停止" : "启动"}值守\n` +
         `  2 = 立刻跑一轮\n` +
-        `  3 = 清空历史发现（今日关注里那些 🤖 会消失）\n` +
+        `  3 = 清空历史发现\n` +
         `  4 = 什么都不做`, "2");
       if(act === "1"){
         const r = await post("/api/watch/toggle", {on: !w.running});
@@ -1281,15 +1123,15 @@ async function initAI(){
           "功能自己的告警不受影响。")) return;
         const r = await post("/api/watch/clear", {});
         toast(`清掉了 ${r.removed} 条`);
-        S.digest = null; await load(); checkWatch();
+        await load(); checkWatch();
         return;
       }
       if(act !== "2") return;
       toast("正在跑一轮…");
       const r = await post("/api/watch/run", {});
       if(r.found){
-        toast(`发现 ${r.found} 个问题，去看「今日关注」`);
-        S.digest = null; await load();
+        toast(`值守发现 ${r.found} 个问题（记在 ai_findings.jsonl）`);
+        await load();
       } else toast("这一轮没发现新问题");
       checkWatch();
     }catch(e){ toast("失败：" + e.message); }
