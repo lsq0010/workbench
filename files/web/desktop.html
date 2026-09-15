@@ -316,6 +316,31 @@
     #addsheet .kinds button{font-size:11px;padding:10px 0}
   }
 
+
+  /* ── 添加到桌面：一个列表，点一下就加 ───────────── */
+  .addurl{margin-bottom:10px}
+  .addurl input{width:100%;padding:11px 13px;border:1px solid var(--brand-line);
+    border-radius:10px;font:inherit;outline:none;background:var(--brand-soft)}
+  .addurl input:focus{border-color:var(--brand);background:#fff}
+  .pick-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));
+    gap:7px;max-height:min(46vh,420px);overflow:auto;margin-top:10px;padding-right:2px}
+  .pick-sec{grid-column:1/-1;font-size:11.5px;font-weight:650;color:var(--t3);
+    letter-spacing:.04em;margin:10px 0 1px;display:flex;align-items:center;gap:7px}
+  .pick-sec:first-child{margin-top:0}
+  .pick-sec span{background:var(--soft);border-radius:5px;padding:0 6px;font-weight:400}
+  .pick{display:flex;align-items:center;gap:9px;width:100%;text-align:left;
+    border:1px solid var(--line);background:var(--panel);border-radius:10px;
+    padding:8px 11px;cursor:pointer;font:inherit;color:var(--text)}
+  .pick:hover{border-color:var(--brand-line);background:var(--brand-soft)}
+  .pick .pi{font-size:17px;flex:none;width:22px;text-align:center}
+  .pick .pn{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.35}
+  .pick .pn b{font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;
+    white-space:nowrap}
+  .pick .pn i{font-size:11px;color:var(--t3);font-style:normal;overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap}
+  .pick .pa{flex:none;font-size:12px;color:var(--brand);font-weight:600}
+  .pick.added{opacity:.5}
+  .pick.added .pa{color:var(--t3);font-weight:400}
 </style>
 </head>
 <body>
@@ -392,34 +417,23 @@
     <div class="hd"><span id="addtitle">添加到桌面</span>
       <button class="iconbtn" id="btnAddClose" aria-label="关闭添加窗口">✕</button></div>
     <div class="bd">
-      <div class="kinds" id="kinds" role="tablist" aria-label="添加内容类型"></div>
-      <section id="addtools">
-        <input class="add-search" id="toolquery" aria-label="搜索工具" placeholder="搜索工具，例如 抓包、二维码、JSON" autocomplete="off">
-        <div class="tool-list" id="addtoollist"></div>
-      </section>
-      <section id="addapps" hidden>
-        <input class="add-search" id="appquery" aria-label="搜索本机应用" placeholder="搜索本机应用，例如 Xcode、Chrome" autocomplete="off">
-        <div class="picker-actions"><button class="btn" id="btnPickApp">选择其他应用…</button></div>
-        <div class="tool-list" id="applist"></div>
-      </section>
-      <section id="addlocation" hidden>
-        <div id="fileactions" class="picker-actions">
-          <button class="btn pri" id="btnPickFolder">📁 选择文件夹…</button>
-          <button class="btn" id="btnPickFile">📄 选择文件…</button>
-        </div>
-        <p class="hint" id="locationhint">选择后直接添加，也可以在下面粘贴路径。</p>
-        <div class="frow"><label for="addtarget" id="targetlabel">位置</label>
-          <input id="addtarget" placeholder="粘贴文件路径或网址" autocomplete="off" spellcheck="false"></div>
-        <div class="frow"><label for="addname">名称（可选）</label>
-          <input id="addname" placeholder="自动填写，可稍后修改" autocomplete="off" maxlength="120"></div>
-        <div class="add-preview" id="addpreview" hidden></div>
-      </section>
+      <!-- 网址是唯一需要手输的 —— 没法预知你想加哪个 -->
+      <div class="addurl">
+        <input id="addurl" placeholder="粘贴网址，回车就加上去" autocomplete="off" spellcheck="false">
+      </div>
+      <!-- 一个搜索框筛下面所有东西 -->
+      <input class="add-search" id="addq" placeholder="搜索工具、应用、文件夹…" autocomplete="off">
+      <!-- 一个统一列表：文件夹 + 工具 + 应用 -->
+      <div class="pick-grid" id="picklist"></div>
+      <div class="picker-actions">
+        <button class="btn" id="btnPickFolder">📁 选其他文件夹…</button>
+        <button class="btn" id="btnPickFile">📄 选文件…</button>
+      </div>
       <div class="inline-error" id="adderror" role="alert"></div>
     </div>
     <div class="ft">
-      <span class="hint" style="flex:1;align-self:center">桌面空白处也可以直接粘贴网址</span>
+      <span class="hint" style="flex:1;align-self:center">点一下就加上去，不用填任何东西</span>
       <button class="btn" id="btnAddCancel">完成</button>
-      <button class="btn pri" id="btnAddOk" hidden>添加到桌面</button>
     </div>
   </div>
 </div>
@@ -450,7 +464,7 @@
 <script>
 "use strict";
 const S = { imgs: [], view: localStorage.getItem("pf.view2") || "desk", items: [], kinds: {},
-            settings: null, aiHistory: [], addKind: "tools",
+            settings: null, aiHistory: [],
             menuItem: null, aiBusy: false, appRows: null, libraryQuery: "", dragId: null,
             previewSeq: 0, nameEdited: false, nativeBusy: false, addBusy: false, launching: new Set() };
 const $ = id => document.getElementById(id);
@@ -920,130 +934,141 @@ function bindDesktopDrag(){
 }
 
 /* ── 添加到桌面 ── */
-const addKinds={tools:["🧰","工具"],folder:["📁","文件与文件夹"],url:["🔗","网页"],app:["🚀","应用"]};
-let previewTimer;
-function closeAddSheet(){
-  if(S.nativeBusy || S.addBusy) return;
-  S.previewSeq++;clearTimeout(previewTimer);$("addsheet").classList.remove("on");
-  const button=document.querySelector("[data-add]");if(button) button.focus();
-}
-function openAddSheet(kind="tools",target=""){
-  if(typeof kind!=="string") kind="tools";
-  S.addKind=kind;S.nameEdited=false;S.previewSeq++;
-  $("addtarget").value=target;$("addname").value="";$("toolquery").value="";$("appquery").value="";
-  $("adderror").textContent="";$("addpreview").hidden=true;
-  $("addsheet").classList.add("on");paintAddKind();
-  if(target) schedulePreview();
-}
-function paintAddKind(){
-  $("kinds").innerHTML=Object.entries(addKinds).map(([k,v])=>`<button role="tab"
-    aria-selected="${S.addKind===k}" data-k="${k}" class="${S.addKind===k?"on":""}">
-    <span class="e">${v[0]}</span>${v[1]}</button>`).join("");
-  $("kinds").querySelectorAll("[data-k]").forEach(b=>b.onclick=()=>{
-    if(S.nativeBusy || S.addBusy) return;
-    S.addKind=b.dataset.k;$("adderror").textContent="";paintAddKind();
-  });
-  const location=["folder","url"].includes(S.addKind);
-  $("addtools").hidden=S.addKind!=="tools";$("addapps").hidden=S.addKind!=="app";
-  $("addlocation").hidden=!location;$("btnAddOk").hidden=!location;
-  $("fileactions").hidden=S.addKind!=="folder";
-  $("targetlabel").textContent=S.addKind==="url"?"网址":"位置";
-  $("addtarget").placeholder=S.addKind==="url"?"粘贴网址，例如 https://example.com":"也可以直接粘贴完整路径";
-  $("locationhint").textContent=S.addKind==="url"?"粘贴网址后回车添加，名称会自动填写。":"在系统窗口中选择后直接添加，支持一次选择多个。";
-  $("btnAddOk").disabled=!$("addtarget").value.trim();
-  if(S.addKind==="tools"){paintAddTools();$("toolquery").focus();}
-  else if(S.addKind==="app"){paintApps();$("appquery").focus();}
-  else $("addtarget").focus();
-}
-function paintAddTools(){
-  $("addtoollist").innerHTML=toolRows($("toolquery").value);bindFeatureButtons();
-}
-function bindFeatureButtons(){
-  document.querySelectorAll("[data-add-feature]").forEach(b=>b.onclick=async()=>{
-    if(S.addBusy) return;S.addBusy=true;b.disabled=true;b.textContent="添加中…";
-    try{
-      const r=await post("/api/desktop/feature",{id:b.dataset.addFeature});
-      if(!r.ok) throw new Error(r.message);
-      await load();if($("addsheet").classList.contains("on")) paintAddTools();toast("已添加到桌面");
-    }catch(e){toast(e.message);b.disabled=false;b.textContent="＋ 添加";}
-    finally{S.addBusy=false;}
-  });
-}
-async function paintApps(){
-  if(!S.appRows){
-    $("applist").innerHTML='<p class="hint">正在读取本机应用…</p>';
-    try{S.appRows=(await api("/api/desktop/apps")).items || [];}
-    catch(e){$("applist").innerHTML='<p class="inline-error">读取应用失败，请使用“选择其他应用”。</p>';return;}
-  }
-  const q=$("appquery").value.trim().toLowerCase();
-  const rows=S.appRows.filter(x=>x.name.toLowerCase().includes(q));
-  $("applist").innerHTML=rows.length?rows.map((it,i)=>{
-    const added=S.items.some(x=>x.target===it.target);
-    return `<div class="tool-row"><span class="tool-icon">🚀</span><div class="tool-copy">
-      <strong>${esc(it.name)}</strong><small>${esc(it.target)}</small></div>
-      <button class="btn ${added?"":"pri"}" data-app-index="${i}" ${added?"disabled":""}
-        aria-label="${added?"已添加":"添加"} ${esc(it.name)}">${added?"已添加":"＋ 添加"}</button></div>`;
-  }).join(""):'<p class="hint">没有找到应用，可以点击“选择其他应用”。</p>';
-  $("applist").querySelectorAll("[data-app-index]").forEach(b=>b.onclick=async()=>{
-    if(S.addBusy) return;S.addBusy=true;b.disabled=true;
-    try{await addTargets([rows[+b.dataset.appIndex].target]);await paintApps();}
-    catch(e){$("adderror").textContent=e.message;b.disabled=false;}
-    finally{S.addBusy=false;}
-  });
-}
-async function addTargets(paths){
-  let added=0;const errors=[];
-  for(const target of paths){
-    try{const r=await post("/api/desktop/add",{target});if(r.ok) added++;else errors.push(r.message);}
-    catch(e){errors.push(e.message);}
-  }
-  if(added){await load();toast(added===1?"已添加到桌面":`已添加 ${added} 个入口`);}
-  $("adderror").textContent=[...new Set(errors)].join("；");
-  return added;
-}
-async function pickNative(kind){
-  if(S.nativeBusy || S.addBusy) return;
-  S.nativeBusy=true;$("adderror").textContent="";
-  const buttons=["btnPickFolder","btnPickFile","btnPickApp"].map($);
-  buttons.forEach(b=>b.disabled=true);
+/* ── 添加到桌面 ─────────────────────────────────
+   点「添加」直接把能加的东西全列出来：文件夹、工具、应用。
+   点一下就加上去，不用填表。只有网址要手输（没法预知）。 */
+
+// 常用文件夹 —— 这几个覆盖了绝大多数情况
+const COMMON_FOLDERS = [
+  ["桌面",   "Desktop",      "🖥"],
+  ["文稿",   "Documents",    "📄"],
+  ["下载",   "Downloads",    "⬇️"],
+  ["图片",   "Pictures",     "🖼"],
+  ["影片",   "Movies",       "🎬"],
+  ["音乐",   "Music",        "🎵"],
+  ["应用程序", "/Applications", "🚀"],
+];
+
+const PICK = { tools: [], apps: [], loaded: false, busy: false };
+
+async function loadPickData(){
+  if(PICK.loaded) return;
   try{
-    const r=await post("/api/desktop/pick",{kind});
-    if(!r.ok) throw new Error(r.message);
-    if(!r.cancelled && r.paths && r.paths.length){await addTargets(r.paths);if(S.addKind==="app") await paintApps();}
-  }catch(e){$("adderror").textContent=e.message;}
-  finally{S.nativeBusy=false;buttons.forEach(b=>b.disabled=false);}
-}
-function schedulePreview(){
-  clearTimeout(previewTimer);const seq=++S.previewSeq;
-  const target=$("addtarget").value.trim();$("btnAddOk").disabled=!target;
-  $("adderror").textContent="";$("addpreview").hidden=!target;
-  if(!S.nameEdited) $("addname").value="";
-  if(!target) return;
-  $("addpreview").innerHTML='<span class="preview-icon">🔗</span><div class="preview-copy"><strong>准备添加入口</strong><small>正在识别名称，可以直接回车添加</small></div>';
-  previewTimer=setTimeout(async()=>{
-    try{
-      const r=await post("/api/desktop/preview",{target});
-      if(seq!==S.previewSeq) return;
-      if(!r.ok){$("addpreview").hidden=true;return;}
-      if(!S.nameEdited) $("addname").value=r.item.name;
-      const icon=(S.kinds[r.item.kind] || {}).icon || "🔗";
-      $("addpreview").innerHTML=`<span class="preview-icon">${esc(icon)}</span><div class="preview-copy">
-        <strong>${esc($("addname").value || r.item.name)}</strong><small>${esc(r.item.target)}</small></div>`;
-    }catch(e){if(seq===S.previewSeq) $("addpreview").hidden=true;}
-  },350);
-}
-async function submitShortcut(){
-  if(S.addBusy || S.nativeBusy) return;
-  const target=$("addtarget").value.trim();if(!target) return;
-  S.addBusy=true;$("btnAddOk").disabled=true;$("adderror").textContent="";
-  try{
-    const r=await post("/api/desktop/add",{target,name:$("addname").value.trim()});
-    if(!r.ok) throw new Error(r.message);
-    S.addBusy=false;closeAddSheet();await load();toast("已添加「"+r.item.name+"」");
-  }catch(e){$("adderror").textContent=e.message;}
-  finally{S.addBusy=false;$("btnAddOk").disabled=false;}
+    const [t, a] = await Promise.all([
+      fetch("/api/desktop/tools").then(r => r.json()).catch(() => ({items: []})),
+      fetch("/api/desktop/apps").then(r => r.json()).catch(() => ({items: []})),
+    ]);
+    PICK.tools = t.items || [];
+    PICK.apps = a.items || [];
+  }catch(e){ /* 拿不到就只显示文件夹 */ }
+  PICK.loaded = true;
 }
 
+function openAddSheet(){
+  $("addsheet").classList.add("on");
+  $("addq").value = "";
+  $("addurl").value = "";
+  $("adderror").textContent = "";
+  paintPick();
+  loadPickData().then(paintPick);
+  setTimeout(() => $("addq").focus(), 120);
+}
+
+function paintPick(){
+  const q = $("addq").value.trim().toLowerCase();
+  const home = S.home || "";
+  // 桌面上已有的 —— **要分两种比法**：
+  //   工具：S.items 里 feature 的 target 是「打开网址」，不是功能 id，
+  //         所以必须按 id 比。（一开始我按 target 比，结果所有已装的工具
+  //         都显示成"没加过"，点它会走 remove 那条路把工具隐藏掉。）
+  //   文件夹/应用：按路径比。
+  const haveFeat = new Set(S.items.filter(x => x.kind === "feature").map(x => x.id));
+  const havePath = new Set(S.items.filter(x => x.kind !== "feature")
+    .map(x => String(x.target || "").replace(/\/$/, "")));
+  const hit = t => !q || String(t || "").toLowerCase().includes(q);
+
+  const folders = COMMON_FOLDERS.map(([nm, rel, ic]) => {
+    const t = rel.startsWith("/") ? rel : home + "/" + rel;
+    return {kind: "folder", target: t, name: nm, icon: ic,
+            sub: "文件夹", added: havePath.has(t.replace(/\/$/, ""))};
+  }).filter(x => hit(x.name));
+
+  const tools = PICK.tools.map(x => ({
+    kind: "feature", target: x.id, name: x.name, icon: x.icon || "🧩",
+    sub: "工具" + (x.version ? " · v" + x.version : ""),
+    desc: x.description || "", added: haveFeat.has(x.id),
+  })).filter(x => hit(x.name) || hit(x.desc));
+
+  const apps = PICK.apps.map(x => ({
+    kind: "app", target: x.target, name: x.name, icon: "🚀",
+    sub: "应用", added: havePath.has(String(x.target || "").replace(/\/$/, "")),
+  })).filter(x => hit(x.name));
+
+  const group = (title, arr) => arr.length
+    ? `<div class="pick-sec">${esc(title)}<span>${arr.length}</span></div>` +
+      arr.map((x, i) => {
+        const key = title + ":" + i;
+        PICK_INDEX[key] = x;
+        return `<button class="pick${x.added ? " added" : ""}" data-pick="${esc(key)}"
+          title="${esc(x.desc || x.target)}">
+          <span class="pi">${x.icon}</span>
+          <span class="pn"><b>${esc(x.name)}</b><i>${esc(x.sub)}</i></span>
+          <span class="pa">${x.added ? "已在桌面" : "＋"}</span></button>`;
+      }).join("")
+    : "";
+
+  const html = group("文件夹", folders) + group("工具", tools) + group("应用", apps);
+  $("picklist").innerHTML = html ||
+    `<div class="hint" style="padding:24px 4px;text-align:center">没找到匹配的，换个词试试</div>`;
+  $("picklist").querySelectorAll("[data-pick]").forEach(el => {
+    el.onclick = () => pickOne(PICK_INDEX[el.dataset.pick], el);
+  });
+}
+
+let PICK_INDEX = {};
+
+async function pickOne(it, el){
+  if(!it || PICK.busy) return;
+  if(it.added){ toast("已经在桌面上了"); return; }
+  PICK.busy = true;
+  try{
+    const r = await post("/api/desktop/add",
+      {kind: it.kind, target: it.target, name: it.name, icon: it.icon});
+    if(r.ok){
+      toast(`已加上「${it.name}」`);
+      await load();
+      paintPick();          // 重画，那一条变成"已在桌面"
+    }else{
+      $("adderror").textContent = r.message || "加不上";
+    }
+  }catch(e){ $("adderror").textContent = e.message; }
+  PICK.busy = false;
+}
+
+async function addTargets(paths){
+  let added = 0; const errors = [];
+  for(const target of paths){
+    try{ const r = await post("/api/desktop/add", {target});
+         if(r.ok) added++; else errors.push(r.message); }
+    catch(e){ errors.push(e.message); }
+  }
+  if(added){ await load(); toast(added === 1 ? "已添加到桌面" : `已添加 ${added} 个入口`); paintPick(); }
+  $("adderror").textContent = [...new Set(errors)].join("；");
+  return added;
+}
+
+async function pickNative(kind){
+  if(S.nativeBusy) return;
+  S.nativeBusy = true; $("adderror").textContent = "";
+  const buttons = ["btnPickFolder", "btnPickFile"].map($).filter(Boolean);
+  buttons.forEach(b => b.disabled = true);
+  try{
+    const r = await post("/api/desktop/pick", {kind});
+    if(!r.ok) throw new Error(r.message);
+    if(!r.cancelled && r.paths && r.paths.length) await addTargets(r.paths);
+  }catch(e){ $("adderror").textContent = e.message; }
+  finally{ S.nativeBusy = false; buttons.forEach(b => b.disabled = false); }
+}
 /* ── AI ── */
 async function initAI(){
   const QUICK = ["帮我看看今天要处理什么", "把桌面图标改大一点",
@@ -1499,19 +1524,27 @@ $("btnAddCancel").onclick=closeAddSheet;
 $("btnAddClose").onclick=closeAddSheet;
 $("addsheet").addEventListener("click",e=>{if(e.target===$("addsheet")) closeAddSheet();});
 $("menusheet").addEventListener("click",e=>{if(e.target===$("menusheet")) $("menusheet").classList.remove("on");});
-$("toolquery").oninput=paintAddTools;
-$("appquery").oninput=paintApps;
-$("toolquery").onkeydown=e=>{if(e.key==="Enter" && !e.isComposing) $("addtoollist").querySelector("button:not(:disabled)")?.click();};
-$("appquery").onkeydown=e=>{if(e.key==="Enter" && !e.isComposing) $("applist").querySelector("button:not(:disabled)")?.click();};
+// 一个搜索框筛全部；回车直接加第一个
+$("addq").oninput = paintPick;
+$("addq").onkeydown = e => {
+  if(e.key==="Enter" && !e.isComposing)
+    $("picklist").querySelector("button[data-pick]")?.click();
+};
 $("btnPickFolder").onclick=()=>pickNative("folder");
 $("btnPickFile").onclick=()=>pickNative("file");
-$("btnPickApp").onclick=()=>pickNative("app");
-$("addtarget").oninput=schedulePreview;
-$("addname").oninput=()=>{S.nameEdited=!!$("addname").value.trim();};
-$("btnAddOk").onclick=submitShortcut;
-[$("addtarget"),$("addname")].forEach(el=>el.onkeydown=e=>{
-  if(e.key==="Enter" && !e.isComposing){e.preventDefault();submitShortcut();}
-});
+// 网址：粘贴后回车就加，不用点按钮
+$("addurl").onkeydown = async e => {
+  if(e.key!=="Enter" || e.isComposing) return;
+  e.preventDefault();
+  const v = $("addurl").value.trim();
+  if(!v) return;
+  $("adderror").textContent = "";
+  try{
+    const r = await post("/api/desktop/add", {target: v});
+    if(r.ok){ $("addurl").value=""; toast("已加上「" + ((r.item||{}).name || v) + "」"); await load(); paintPick(); }
+    else $("adderror").textContent = r.message || "加不上";
+  }catch(err){ $("adderror").textContent = err.message; }
+};
 document.addEventListener("paste",e=>{
   if(e.defaultPrevented || S.view!=="desk" || $("ai").classList.contains("on") ||
      document.querySelector(".sheet.on,.overlay.on") ||
