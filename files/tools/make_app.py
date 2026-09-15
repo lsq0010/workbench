@@ -20,11 +20,28 @@
   ~/Desktop/工作平台.app           桌面快捷方式（软链）
 """
 import os
+import re
 import shutil
 import subprocess
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+
+def _protect_vars(script):
+    """把 bash 里 `$VAR` 后面紧跟非 ASCII 字符的地方改成 `${VAR}`。
+
+    坑的现场：
+        say "…（$WORKBENCH，端口 $PORT）"
+    bash 的变量名允许的字节范围比想象中宽，全角逗号「，」的 UTF-8 字节
+    会被当成变量名的一部分 → 报 `WORKBENCH?: unbound variable`。
+    这个坑只在中文环境才踩得到，而且报错信息里的变量名是乱码，很难认。
+
+    实测踩过两次：install.sh 的 `$PY（`、launch 脚本的 `$WORKBENCH，`。
+    """
+    return re.sub(r"\$([A-Za-z_][A-Za-z0-9_]*)(?=[^\x00-\x7f])",
+                  r"${\1}", script)
+
+
 APP_NAME = "工作平台"
 BUNDLE_ID = "local.workbench.app"
 
@@ -85,30 +102,100 @@ def build(app_dir, workbench_home, python_bin, port, icon_path):
         f.write(plist)
 
     # 启动脚本
-    launch = """#!/bin/bash
+    #
+    # 关键设计：**平台在哪不写死**，而是先读配置文件、找不到就自己搜。
+    # 这样搬家、换端口之后图标照样能用。
+    launch = r"""#!/bin/bash
 # 工作平台 —— 双击启动
-#   1. 平台没跑就拉起来（顺便拉起所有功能）
-#   2. 用 Chrome 的应用模式打开（没有地址栏，像个原生 App）
+#   1. 找到平台在哪（配置 → 搜索 → 放弃）
+#   2. 没跑就拉起来，顺便拉起所有功能
+#   3. 用 Chrome 的应用模式打开（没有地址栏，像个原生 App）
 set -u
 
-WORKBENCH="%s"
-PY="%s"
-PORT=%d
-URL="%s"
-CHROME="%s"
+APP_SUPPORT="$HOME/Library/Application Support/工作平台"
+CONF="$APP_SUPPORT/app.json"
+CHROME_DEFAULT="__CHROME__"
+
+say() { [ -n "${LOG:-}" ] && echo "$@" | tee -a "$LOG" >/dev/null || echo "$@"; }
+
+# ── 从配置文件里读一个字段（没有 python 也能读，纯 sed）─────
+conf_get() {
+  [ -f "$CONF" ] || return 1
+  sed -n 's/.*"'"$1"'"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$CONF" | head -1
+}
+
+# ── 找一个能用的平台目录 ─────────────────────────────────
+find_home() {
+  # ① 配置文件里记的
+  local h
+  h="$(conf_get home || true)"
+  [ -n "$h" ] && [ -f "$h/platform.py" ] && { echo "$h"; return 0; }
+  # ② 常见位置（按可能性排）
+  for d in "$HOME/工作平台" "$HOME/Desktop/工作平台" \
+           "$HOME/Documents/工作平台" "/Applications/工作平台"; do
+    [ -f "$d/platform.py" ] && { echo "$d"; return 0; }
+  done
+  # ③ 全盘碰运气（限深度，别把硬盘扫穿）
+  h="$(find "$HOME" -maxdepth 3 -name platform.py -path "*工作平台*" 2>/dev/null | head -1)"
+  [ -n "$h" ] && { echo "$(dirname "$h")"; return 0; }
+  return 1
+}
+
+# ── 找一个能用的 python ──────────────────────────────────
+find_py() {
+  local p
+  p="$(conf_get python || true)"
+  [ -n "$p" ] && [ -x "$p" ] && { echo "$p"; return 0; }
+  for p in /usr/bin/python3 /usr/local/bin/python3 /opt/homebrew/bin/python3; do
+    [ -x "$p" ] && { echo "$p"; return 0; }
+  done
+  command -v python3 2>/dev/null && return 0
+  return 1
+}
+
+WORKBENCH="$(find_home || true)"
+PY="$(find_py || true)"
+
+# ── 找不到就弹个能照着做的提示，而不是干瞪眼 ──────────────
+if [ -z "$WORKBENCH" ] || [ -z "$PY" ]; then
+  osascript -e 'display alert "找不到工作平台" message "在下面这些位置都没找到 platform.py：
+    ~/工作平台
+    ~/Desktop/工作平台
+    ~/Documents/工作平台
+
+如果平台被挪到别处了，改一下这个文件就行：
+    '"$CONF"'
+
+（把 home 改成平台所在的目录）" as critical'
+  exit 1
+fi
+
+PORT="$(conf_get port || true)"
+[ -n "$PORT" ] || PORT=__PORT__
+URL="http://127.0.0.1:$PORT/"
+CHROME="$(conf_get chrome || true)"
+[ -n "$CHROME" ] || CHROME="$CHROME_DEFAULT"
 LOG="$WORKBENCH/launcher.log"
 
-say() { echo "$@" | tee -a "$LOG" >/dev/null; }
+# ── 把这次找到的写回配置（下次更快，也修复搬过家的）────────
+mkdir -p "$APP_SUPPORT"
+cat > "$CONF" <<JSON
+{
+  "home": "$WORKBENCH",
+  "python": "$PY",
+  "port": $PORT,
+  "chrome": "$CHROME"
+}
+JSON
 
-mkdir -p "$(dirname "$LOG")"
 say ""
-say "  [$(date '+%%H:%%M:%%S')] 启动工作平台…"
+say "  [$(date '+%H:%M:%S')] 启动工作平台…（$WORKBENCH，端口 $PORT）"
 
 # ── 已经在跑就只开窗口 ──
 if curl -s -m 2 "$URL/api/desktop" 2>/dev/null | grep -q '"items"'; then
   say "  已经在跑，直接打开"
 else
-  cd "$WORKBENCH" || { osascript -e 'display alert "工作平台" message "找不到目录：'"$WORKBENCH"'"'; exit 1; }
+  cd "$WORKBENCH" || exit 1
   "$PY" platform.py start --port "$PORT" >>"$LOG" 2>&1
   for i in $(seq 1 40); do
     sleep 0.5
@@ -126,15 +213,19 @@ fi
 if [ -n "$CHROME" ] && [ -x "$CHROME" ]; then
   # 应用模式：没有地址栏、没有标签页
   # 单独一个 user-data-dir，免得和你日常的 Chrome 窗口混在一起
-  exec "$CHROME" \\
-    --app="$URL" \\
-    --user-data-dir="$HOME/Library/Application Support/工作平台/chrome" \\
-    --no-first-run --no-default-browser-check \\
+  exec "$CHROME" \
+    --app="$URL" \
+    --user-data-dir="$APP_SUPPORT/chrome" \
+    --no-first-run --no-default-browser-check \
     --window-size=1440,960
 else
   open "$URL"
 fi
-""" % (workbench_home, python_bin, port, url, chrome or "")
+"""
+    launch = (launch.replace("__PORT__", str(port))
+                    .replace("__CHROME__", chrome or ""))
+    # 统一保护一遍：$VAR 后面跟中文标点会被 bash 当成变量名的一部分
+    launch = _protect_vars(launch)
 
     exe = os.path.join(macos, "launch")
     with open(exe, "w", encoding="utf-8") as f:
