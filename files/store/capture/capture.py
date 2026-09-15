@@ -1378,11 +1378,12 @@ class WebHandler(BaseHTTPRequestHandler):
             """汇报抓包侧要注意的事：本机代理没收、设备掉了、没人监听"""
             items = []
             try:
-                mon = monitored_set()
-                if not mon:
-                    items.append({"level": "warn",
-                                  "title": "抓包工具没有监听任何设备",
-                                  "detail": "报文照旧在落盘，但界面上看不到 —— 点设备左边的圆点变绿才会显示",
+                # 设备现在是连上就自动抓，不再有"没点绿所以看不到"这种事。
+                # 只有"一台设备都没有"才值得提醒一句。
+                if not assemble_devices():
+                    items.append({"level": "info",
+                                  "title": "还没有设备连上抓包工具",
+                                  "detail": "把手机的 Wi-Fi 代理填成工作台上显示的地址即可",
                                   "action": "打开抓包工作台"})
                 if local_proxy_state().get("pointing_here") and not guard_running():
                     items.append({"level": "critical",
