@@ -876,6 +876,8 @@ async function openItem(id, kind){
 function openMenu(id){
   const it = S.items.find(x => x.id === id);
   if(!it) return;
+  const _ft = document.querySelector("#menusheet .ft");
+  if(_ft) _ft.style.display = "";      // 恢复自带底部（askRemove 会临时隐藏它）
   S.menuItem = it;
   $("menutitle").textContent = it.name;
   const rows = [];
@@ -903,7 +905,8 @@ function openMenu(id){
     rows.push(`<button class="btn" data-act="open">打开</button>`);
     if(it.kind !== "url" && it.exists !== false)
       rows.push(`<button class="btn" data-act="reveal">在访达中显示</button>`);
-    rows.push(`<button class="btn danger" data-act="remove">从桌面移除</button>`);
+    // 不是危险操作 —— 只摘掉入口，文件原样不动。用红色会让人以为要删数据。
+    rows.push(`<button class="btn" data-act="remove">从桌面移除（不动文件）</button>`);
   }
   rows.push(`<div class="mono" style="margin-top:4px">${esc(it.target||"")}</div>`);
   $("menubody").innerHTML = rows.join("");
@@ -922,12 +925,70 @@ function openMenu(id){
           toast(r.message||"完成"); return load(); }
         if(act === "reveal"){
           return post("/api/reveal", {path: it.target}); }
-        if(act === "remove"){
-          const r = await post("/api/desktop/remove", {id: it.id});
-          toast(r.message); return load(); }
+        if(act === "remove") return askRemove(it);
       }catch(e){ toast("失败：" + e.message); }
     };
   });
+}
+
+/* ── 从桌面移除（带确认和撤销）──
+   故意做成两步：这操作虽然不动文件，但用户从界面上看不出来，
+   所以要把"文件还在哪"明明白白写出来，并给一次后悔的机会。 */
+function askRemove(it){
+  const target = it.target || "";
+  const showPath = !!target && it.kind !== "url";
+  $("menutitle").textContent = "从桌面移除";
+  $("menubody").innerHTML = `
+    <div style="font-size:14px;font-weight:600;margin-bottom:10px">
+      把「${esc(it.name)}」从桌面拿走？</div>
+    <div style="background:var(--ok-soft);border:1px solid #bfe6cf;border-radius:10px;
+      padding:12px 14px;font-size:13px;line-height:1.8;color:var(--ok)">
+      <b>只移除入口，不会删任何文件</b>
+      ${showPath ? `<div style="margin-top:8px;color:var(--t2);font-size:12px">
+        文件还在：<br><span class="mono" style="word-break:break-all">${esc(target)}</span>
+      </div>` : ""}
+    </div>
+    <div style="font-size:12px;color:var(--t3);margin-top:10px;line-height:1.8">
+      想加回来的话：「添加」→ 再选一次就行。</div>
+    <div style="display:flex;gap:9px;margin-top:14px">
+      <button class="btn" id="rmCancel" style="flex:1">取消</button>
+      <button class="btn" id="rmOk" style="flex:1;background:var(--brand);
+        border-color:var(--brand);color:#fff;font-weight:620">从桌面移除</button>
+    </div>`;
+  // 弹层自带的底部「取消」在这儿是多余的 —— 我上面画了并排的取消+确认。
+  // 不隐藏会出现两个取消按钮（截图里看出来的）。
+  const ft = document.querySelector("#menusheet .ft");
+  if(ft) ft.style.display = "none";
+  $("menusheet").classList.add("on");
+  $("rmCancel").onclick = () => $("menusheet").classList.remove("on");
+  $("rmOk").onclick = async () => {
+    $("menusheet").classList.remove("on");
+    try{
+      const r = await post("/api/desktop/remove", {id: it.id});
+      if(!r.ok){ toast(r.message || "移除失败"); return; }
+      await load();
+      toastUndo("已从桌面移除（文件没动）", async () => {
+        const rr = await post("/api/desktop/add", {kind: it.kind, name: it.name,
+          target: it.target, icon: it.icon, color: it.color, note: it.note});
+        toast(rr.ok ? "已加回桌面" : (rr.message || "加不回去"));
+        await load();
+      });
+    }catch(e){ toast("失败：" + e.message); }
+  };
+}
+
+/* 带「撤销」的提示条 */
+let _undoTimer = null;
+function toastUndo(msg, onUndo){
+  const t = $("toast");
+  t.innerHTML = esc(msg) + '　<button id="undoBtn" style="background:rgba(255,255,255,.18);'
+    + 'border:1px solid rgba(255,255,255,.35);color:#fff;border-radius:6px;'
+    + 'padding:3px 11px;cursor:pointer;font:inherit;font-size:12.5px">撤销</button>';
+  t.classList.add("on");
+  clearTimeout(_undoTimer);
+  const close = () => { t.classList.remove("on"); clearTimeout(_undoTimer); };
+  $("undoBtn").onclick = () => { close(); onUndo(); };
+  _undoTimer = setTimeout(close, 8000);
 }
 
 /* ── 添加桌面项 ── */
