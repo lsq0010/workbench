@@ -48,3 +48,26 @@ macOS 自动化的坑（实测踩出来的）
 
 if __name__ == "__main__":
     print(LESSONS)
+
+6. **App 的"可执行文件"是脚本时，绝不能用 `exec` 起子进程**
+   我们的 .app 里那个 launch 是个 bash 脚本，末尾用
+   `exec "$CHROME" --app=...` 起浏览器。
+
+   exec 会把 bash 进程**替换**成 Chrome —— 于是 LaunchServices 跟踪的
+   "App 进程"变成了 Chrome，一直活着。它就认为「工作平台.app 正在运行」。
+   之后再点图标，`open` 只做"激活"、**不再执行脚本** ——
+   用户看到的就是"点了没反应"。
+
+   实测对照：
+       open -n  → 日志有新记录（脚本跑了）
+       open     → 日志没动静（脚本没跑）
+
+   正确写法：后台起，脚本自己退出
+       nohup "$CHROME" --app=... >/dev/null 2>&1 &
+       disown 2>/dev/null || true
+       exit 0
+
+7. **Chrome 的 --app 模式，同一个 user-data-dir 已有窗口时不会新开**
+   再执行同样的命令什么都不发生（不新开、不报错、也不保证切到前台）。
+   实测连点两次，进程数一直是 1。
+   所以启动脚本里要先关旧窗口再开新的 —— 保证"点了就一定看到"。

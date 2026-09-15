@@ -231,11 +231,20 @@ fi
 if [ -n "$CHROME" ] && [ -x "$CHROME" ]; then
   # 应用模式：没有地址栏、没有标签页
   # 单独一个 user-data-dir，免得和你日常的 Chrome 窗口混在一起
-  exec "$CHROME" \
+  #
+  # ⚠️ 这里不能用 exec。
+  #    exec 会把 bash 进程替换成 Chrome，于是 LaunchServices 一直认为
+  #    「工作平台.app 还在运行」（它跟踪的就是那个 Chrome 进程）。
+  #    之后再点图标，open 只做激活、不再执行脚本 —— 表现就是"点了没反应"。
+  #    实测：open 不跑脚本，open -n 才跑。
+  #    改成后台起 + 脚本正常退出，下次点就会重新执行。
+  nohup "$CHROME" \
     --app="$URL" \
     --user-data-dir="$APP_SUPPORT/chrome" \
     --no-first-run --no-default-browser-check \
-    --window-size=1440,960
+    --window-size=1440,960 >/dev/null 2>&1 &
+  disown 2>/dev/null || true
+  exit 0
 else
   open "$URL"
 fi
