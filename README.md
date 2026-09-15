@@ -11,7 +11,24 @@
 
 ## 装
 
-**一行命令**：
+### 方式一：npm（开发者推荐）
+
+```bash
+npm install -g @shouqingli/workbench
+workbench install
+```
+
+装完有个 `workbench` 命令：
+
+```bash
+workbench              # 启动并打开
+workbench status       # 看状态
+workbench stop         # 停掉
+workbench update       # 更新（数据不动）
+workbench doctor       # 体检：哪坏了、怎么修
+```
+
+### 方式二：一行 curl（不用装 Node）
 
 ```bash
 curl -fsSL https://cdn.jsdelivr.net/gh/lsq0010/workbench@main/install.sh | bash
