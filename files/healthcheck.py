@@ -40,10 +40,52 @@ def strip_strings(s):
     return s
 
 
+def registered_ids():
+    """registry.json 里注册了哪些功能 —— 这才是"已装"的口径。
+
+    不能数 features/ 下的目录：卸载是"取消注册、保留文件"，
+    目录还在但已经不在桌面上了。
+    """
+    try:
+        d = json.load(open(os.path.join(HOME, "registry.json"), encoding="utf-8"))
+        return {f.get("id") or f.get("name") for f in d.get("features", [])}
+    except Exception:
+        return set()
+
+
+def entry_files(root):
+    """找出 root 下每个功能的入口文件。
+
+    不能写死 main.py —— 有的功能入口叫别的名字
+    （capture 就是 capture.py），写死会把它们整个漏掉。
+    以 manifest 的 runtime.entry 为准，没有才退回 main.py。
+    """
+    out = []
+    for d in sorted(glob.glob(os.path.join(root, "*"))):
+        if not os.path.isdir(d):
+            continue
+        entry = None
+        mp = os.path.join(d, "manifest.json")
+        if os.path.exists(mp):
+            try:
+                entry = ((json.load(open(mp, encoding="utf-8")).get("runtime") or {})
+                         .get("entry"))
+            except Exception:
+                entry = None
+        if not entry or not os.path.exists(os.path.join(d, entry)):
+            entry = "main.py"
+        p = os.path.join(d, entry)
+        if os.path.exists(p):
+            out.append(p)
+    return out
+
+
 def check_one(fid=None):
-    paths = (sorted(glob.glob(os.path.join(HOME, "features/*/main.py"))) +
-             sorted(glob.glob(os.path.join(HOME, "store/*/main.py"))))
+    paths = entry_files(os.path.join(HOME, "features")) + \
+            entry_files(os.path.join(HOME, "store"))
+    reg = registered_ids()
     rows = []
+    seen = set()          # 同一个功能只查一次（features/ 先出现，优先留它）
     for p in paths:
         name = p.split("/")[-2]
         if fid and name != fid:
@@ -55,9 +97,15 @@ def check_one(fid=None):
                 man = json.load(open(man_path, encoding="utf-8"))
             except Exception:
                 pass
+        key = man.get("id") or name
+        if key in seen:
+            continue
+        seen.add(key)
         raw = open(p, encoding="utf-8").read()
         src = "features" if "/features/" in p else "store"
-        r = {"name": name, "id": man.get("id", "?"), "problems": [], "src": src}
+        fid_ = man.get("id", name)
+        r = {"name": name, "id": fid_, "problems": [], "src": src,
+             "installed": fid_ in reg or name in reg}
 
         # 1) 语法
         try:
@@ -109,9 +157,30 @@ def main():
         return 1
     bad = [r for r in rows if r["problems"]]
     print("═" * 64)
-    n_feat = len([r for r in rows if r["src"] == "features"])
-    n_store = len([r for r in rows if r["src"] == "store"])
-    print("  功能健康检查（已装 %d 个 + 商店可装 %d 个）" % (n_feat, n_store))
+    # 三个数各自独立算 —— 不能靠 rows（去重后 store 的行可能一条不剩）
+    def ids_in(root):
+        out = set()
+        for d in sorted(glob.glob(os.path.join(root, "*"))):
+            if not os.path.isdir(d):
+                continue
+            fid_ = os.path.basename(d)
+            mp = os.path.join(d, "manifest.json")
+            if os.path.exists(mp):
+                try:
+                    fid_ = json.load(open(mp, encoding="utf-8")).get("id") or fid_
+                except Exception:
+                    pass
+            out.add(fid_)
+        return out
+
+    reg_ids = registered_ids()
+    n_feat = len(reg_ids)
+    n_store = len(ids_in(os.path.join(HOME, "store")) - reg_ids)
+    n_orphan = len(ids_in(os.path.join(HOME, "features")) - reg_ids)
+    msg = "  功能健康检查（已装 %d 个 + 商店可装 %d 个" % (n_feat, n_store)
+    if n_orphan:
+        msg += "，另有 %d 个已卸载但文件保留" % n_orphan
+    print(msg + "）")
     print("═" * 64)
     for r in rows:
         if r["problems"]:
