@@ -621,17 +621,88 @@ def start_feature(f):
     return True, "已发出启动命令（还没探测到端口，可能还在初始化）"
 
 
+def _pids_on_ports(ports):
+    """找出监听这些端口的进程 PID。
+
+    为什么要按端口找：功能自己声明的 stop 命令靠**功能目录里的 pid 文件**
+    找进程。目录被删了 / pid 文件丢了，进程就永远停不掉 ——
+    变成占着端口的孤儿，平台还以为"在跑"，不去启动新的那份。
+    实测踩过：卸载重装后两个功能界面一直 500，报的错还是老路径。
+    """
+    pids = set()
+    for port in ports or []:
+        try:
+            r = subprocess.run(["lsof", "-nP", "-iTCP:%d" % int(port), "-sTCP:LISTEN",
+                                "-t"], capture_output=True, text=True, timeout=10)
+            for line in (r.stdout or "").split():
+                if line.strip().isdigit():
+                    pids.add(int(line.strip()))
+        except Exception:
+            continue
+    return pids
+
+
+def _own_process(pid, path):
+    """确认这个进程确实是这个功能起的（别误杀别人的进程）。
+
+    看它的命令行里有没有这个功能的路径。
+    """
+    try:
+        r = subprocess.run(["ps", "-p", str(pid), "-o", "command="],
+                           capture_output=True, text=True, timeout=10)
+        cmd = (r.stdout or "").strip()
+        if not cmd:
+            return False
+        # 路径可能是软链/相对路径，比对功能目录名和主文件名
+        base = os.path.basename(os.path.abspath(path))
+        return (base and base in cmd) or (os.path.abspath(path) in cmd)
+    except Exception:
+        return False
+
+
 def stop_feature(f):
     pf = read_json(os.path.join(f["path"], "manifest.json")).get("platform") or {}
     cmd = pf.get("stop")
-    if not cmd:
-        return False, "这个功能没有声明停止命令"
-    _run(cmd, f["path"], wait=1.5)
-    for _ in range(20):
-        if not feature_status(f)["running"]:
-            return True, "已停止"
-        time.sleep(0.2)
-    return True, "已发出停止命令"
+    if cmd:
+        _run(cmd, f["path"], wait=1.5)
+        for _ in range(20):
+            if not feature_status(f)["running"]:
+                return True, "已停止"
+            time.sleep(0.2)
+
+    # ── 兜底：还占着端口就按端口找进程杀掉 ──
+    ports = list((f.get("ports") or {}).values())
+    if not ports:
+        return (True, "已发出停止命令") if cmd else (False, "这个功能没有声明停止命令")
+    pids = _pids_on_ports(ports)
+    if not pids:
+        return True, "已停止"
+    killed, refused = [], []
+    for pid in pids:
+        if _own_process(pid, f["path"]):
+            try:
+                os.kill(pid, signal.SIGTERM)
+                time.sleep(0.3)
+                try:
+                    os.kill(pid, 0)
+                    os.kill(pid, signal.SIGKILL)     # 还不走就强杀
+                except OSError:
+                    pass
+                killed.append(pid)
+            except OSError:
+                pass
+        else:
+            refused.append(pid)                      # 不是自家的，不碰
+    if killed:
+        log(f"[stop] {f['id']}：stop 命令没停干净，按端口补杀了 {killed}")
+        for _ in range(10):
+            if not feature_status(f)["running"]:
+                break
+            time.sleep(0.2)
+        return True, "已停止（清理了残留进程）"
+    if refused:
+        return True, "已发出停止命令（端口被别的进程占着：%s）" % refused
+    return True, "已停止"
 
 
 # ══════════════════════════════════════════════════════════════

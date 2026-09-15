@@ -26,7 +26,13 @@ curl -fsSL https://cdn.jsdelivr.net/gh/lsq0010/workbench@main/install.sh | bash
 curl -fsSL https://gh-proxy.com/https://raw.githubusercontent.com/lsq0010/workbench/main/install.sh | bash
 ```
 
-装完会**自动启动**并打开浏览器，桌面也会多一个「工作平台」图标。
+装完会**自动启动**，并在**桌面和启动台**留下一个带图标的「工作平台」——
+双击就打开（用一个没有地址栏的窗口，看起来像个原生 App，
+和 DeepSeek Harness 的桌面图标一个做法）。
+
+<p align="center">
+  <img src="files/tools/图标预览.png" width="120" alt="工作台图标">
+</p>
 
 ### 它做了什么
 
@@ -49,9 +55,26 @@ WORKBENCH_PORT=8899 curl -fsSL .../install.sh | bash
 
 再跑一遍同一条命令就行 —— **代码会更新，你的抓包记录、日志、便签都不动**。
 
+## 也可以 npm 装
+
+```bash
+npm install -g @lsq0010/workbench
+workbench install
+```
+
+装完有个 `workbench` 命令：
+
+```bash
+workbench              # 启动并打开
+workbench status       # 看状态
+workbench stop         # 停掉
+workbench update       # 更新（数据不动）
+workbench doctor       # 体检：哪坏了、怎么修
+```
+
 ## 用
 
-双击桌面「工作平台」，或者浏览器打开 <http://127.0.0.1:8880/>。
+双击桌面「工作平台」图标，或者浏览器打开 <http://127.0.0.1:8880/>。
 
 **几个入口**：
 
@@ -129,6 +152,17 @@ cd ~/工作平台 && python3 healthcheck.py
 
 **AI 说没配 key？**
 打开「设置」→「AI 配置」。或者不用 AI —— 平台大部分功能不依赖它。
+
+**卸载重装后，功能界面报错说找不到文件？**
+那是旧安装的**残留进程**还占着端口（平台以为它在跑，就没启动新的）。
+新版已经修了：停止时会按端口兜底清理。手动清一次：
+
+```bash
+# 看哪些功能进程指向了不存在的目录
+for pid in $(pgrep -f "features/.*main.py"); do
+  lsof -p $pid -a -d cwd -Fn 2>/dev/null | grep "^n" | cut -c2-
+done
+```
 
 ---
 

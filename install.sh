@@ -122,7 +122,7 @@ mkdir -p "$APP"
 # 代码覆盖，数据保留：
 # platform.py / lib / web / store 是代码 —— 覆盖
 # registry.json / desktop.json / identity.json / flows.jsonl 是数据 —— 绝不动
-for item in platform.py healthcheck.py README.md lib web store; do
+for item in platform.py healthcheck.py README.md lib web store tools; do
   [ -e "$SRC/files/$item" ] || continue
   rm -rf "$APP/$item.new"
   cp -R "$SRC/files/$item" "$APP/$item.new"
@@ -183,11 +183,31 @@ else
   [ "$n" -gt 0 ] && ok "商店里有 $n 个新功能，已补上" || ok "功能都是最新的"
 fi
 
-# ── 6. 桌面图标 ─────────────────────────────────────────────
-head_ "⑥ 建桌面图标"
+# ── 6. 桌面 App（带图标）────────────────────────────────────
+head_ "⑥ 建桌面 App"
 
-LAUNCH="$APP/工作平台.app"
-mkdir -p "$LAUNCH/Contents/MacOS"
+# 做成一个带图标的 .app，双击打开 ——
+# 用 Chrome 的应用模式，没有地址栏，看起来像个原生 App
+# （和 DeepSeek Harness 的桌面图标一个做法）
+if [ -f "$APP/tools/make_app.py" ]; then
+  if "$PY" "$APP/tools/make_app.py" --home "$APP" --python "$PY" --port "$PORT" \
+        --icon "$APP/tools/工作平台.icns" >/tmp/_wb_app.log 2>&1; then
+    ok "已建：~/Applications/工作平台.app"
+    grep -E "桌面:|默认浏览器" /tmp/_wb_app.log | sed 's/^/  /'
+  else
+    warn "App 没建成，看 /tmp/_wb_app.log。不影响用浏览器打开。"
+  fi
+else
+  warn "缺 tools/make_app.py，跳过（不影响用浏览器打开）"
+fi
+
+# 旧的简易启动器（如果之前装过）清掉，免得两个图标打架
+[ -d "$APP/工作平台.app" ] && rm -rf "$APP/工作平台.app"
+
+head_ "⑥b 兼容：旧式启动器"
+
+LAUNCH="$APP/.legacy-launcher"
+mkdir -p "$LAUNCH/Contents/MacOS" 2>/dev/null || true
 cat > "$LAUNCH/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -230,8 +250,9 @@ done
 echo "启动失败。看日志：$APP/platform.log"
 read -r -p "按回车关掉…" _
 SH
-chmod +x "$LAUNCH/Contents/MacOS/launch"
-ok "桌面图标：$LAUNCH"
+chmod +x "$LAUNCH/Contents/MacOS/launch" 2>/dev/null || true
+# 这个旧式启动器不往外暴露（新的 .app 更好），只用它的绝对路径
+ok "备用启动脚本：$LAUNCH/Contents/MacOS/launch"
 
 # ── 7. 启动 ─────────────────────────────────────────────────
 head_ "⑦ 启动"
@@ -249,7 +270,7 @@ if curl -s -m 3 "http://127.0.0.1:$PORT/api/status" >/dev/null 2>&1; then
   say "  ${B}打开：${N}http://127.0.0.1:$PORT/"
   say "  ${DIM}正在拉起所有功能，大概十几秒。稍等再打开也行。${N}"
   say ""
-  say "  ${DIM}以后启动：双击桌面上的「工作平台」${N}"
+  say "  ${DIM}以后启动：双击桌面上或启动台里的「工作平台」图标${N}"
   say "  ${DIM}停止：$PY $APP/platform.py stop-all${N}"
   open "http://127.0.0.1:$PORT/" 2>/dev/null || true
 else
